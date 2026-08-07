@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "eslint .",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "next": "16.3.0",
@@ -17,6 +19,9 @@
     "@types/node": "^24",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "typescript": "^7"
+    "eslint": "^9",
+    "eslint-config-next": "16.3.0",
+    "typescript": "^5.7",
+    "vitest": "^3"
   }
 }

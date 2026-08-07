@@ -1,91 +1,13 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
-
-// ---- Unit converter data ----
-interface UnitDef {
-  label: string;
-  factor: number;
-  offset?: number;
-}
-
-const unitData: Record<string, UnitDef[]> = {
-  length: [
-    { label: "米 (m)", factor: 1 },
-    { label: "千米 (km)", factor: 1000 },
-    { label: "厘米 (cm)", factor: 0.01 },
-    { label: "毫米 (mm)", factor: 0.001 },
-    { label: "英寸 (in)", factor: 0.0254 },
-    { label: "英尺 (ft)", factor: 0.3048 },
-    { label: "英里 (mi)", factor: 1609.344 },
-  ],
-  temperature: [
-    { label: "摄氏度 (°C)", factor: 1, offset: 0 },
-    { label: "华氏度 (°F)", factor: 5 / 9, offset: -32 * (5 / 9) },
-    { label: "开尔文 (K)", factor: 1, offset: -273.15 },
-  ],
-  data: [
-    { label: "字节 (B)", factor: 1 },
-    { label: "千字节 (KB)", factor: 1024 },
-    { label: "兆字节 (MB)", factor: 1024 ** 2 },
-    { label: "吉字节 (GB)", factor: 1024 ** 3 },
-    { label: "太字节 (TB)", factor: 1024 ** 4 },
-  ],
-};
-
-// ---- Color helpers ----
-function hexToRgb(hex: string): [number, number, number] {
-  const n = parseInt(hex.slice(1), 16);
-  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
-}
-
-function rgbToHsl(r: number, g: number, b: number): [number, number, number] {
-  r /= 255;
-  g /= 255;
-  b /= 255;
-  const max = Math.max(r, g, b),
-    min = Math.min(r, g, b);
-  let h = 0,
-    s = 0;
-  const l = (max + min) / 2;
-  if (max !== min) {
-    const d = max - min;
-    s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
-    if (max === r) h = (g - b) / d + (g < b ? 6 : 0);
-    else if (max === g) h = (b - r) / d + 2;
-    else h = (r - g) / d + 4;
-    h /= 6;
-  }
-  return [Math.round(h * 360), Math.round(s * 100), Math.round(l * 100)];
-}
-
-// ---- Case converter ----
-function convertCase(mode: string, input: string): string {
-  if (!input) return "";
-  switch (mode) {
-    case "upper":
-      return input.toUpperCase();
-    case "lower":
-      return input.toLowerCase();
-    case "title":
-      return input.replace(
-        /\w\S*/g,
-        (w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()
-      );
-    case "camel": {
-      const parts = input.toLowerCase().split(/[\s_-]+/).filter(Boolean);
-      return parts
-        .map((p, i) =>
-          i === 0 ? p : p.charAt(0).toUpperCase() + p.slice(1)
-        )
-        .join("");
-    }
-    case "snake":
-      return input.trim().toLowerCase().replace(/[\s-]+/g, "_");
-    default:
-      return input;
-  }
-}
+import { useState, useRef, useCallback } from "react";
+import {
+  unitData,
+  hexToRgb,
+  rgbToHsl,
+  convertCase,
+  computeUnitResult as computeUnitResultUtil,
+} from "./utils";
 
 const tools = [
   {
@@ -171,7 +93,9 @@ export default function ToolsPage() {
 
   const b64Encode = () => {
     try {
-      setB64Output(btoa(unescape(encodeURIComponent(b64Input))));
+      setB64Output(
+        btoa(String.fromCharCode(...new TextEncoder().encode(b64Input)))
+      );
       setB64Err(false);
     } catch {
       setB64Output("✗ 编码失败");
@@ -182,7 +106,11 @@ export default function ToolsPage() {
   const b64Decode = () => {
     const input = b64Input.trim();
     try {
-      setB64Output(decodeURIComponent(escape(atob(input))));
+      setB64Output(
+        new TextDecoder().decode(
+          Uint8Array.from(atob(input), (c) => c.charCodeAt(0))
+        )
+      );
       setB64Err(false);
     } catch {
       setB64Output("✗ 无效的 Base64 字符串");
@@ -191,7 +119,9 @@ export default function ToolsPage() {
   };
 
   // Timestamp state
-  const [tsNow, setTsNow] = useState("");
+  const [tsNow, setTsNow] = useState(() =>
+    String(Math.floor(Date.now() / 1000))
+  );
   const [tsInput, setTsInput] = useState("");
   const [tsToDate, setTsToDate] = useState("");
   const [tsToDateErr, setTsToDateErr] = useState(false);
@@ -202,10 +132,6 @@ export default function ToolsPage() {
   const refreshTs = useCallback(() => {
     setTsNow(String(Math.floor(Date.now() / 1000)));
   }, []);
-
-  useEffect(() => {
-    refreshTs();
-  }, [refreshTs]);
 
   const handleTsToDate = (raw: string) => {
     setTsInput(raw);
@@ -221,11 +147,14 @@ export default function ToolsPage() {
       setTsToDateErr(true);
       return;
     }
-    const tz =
-      d.getTimezoneOffset() <= 0 ? "+" : "-";
-    const tzH = String(Math.abs(d.getTimezoneOffset() / 60)).padStart(2, "0");
+    const offset = d.getTimezoneOffset();
+    const sign = offset <= 0 ? "+" : "-";
+    const absOff = Math.abs(offset);
+    const tzH = String(Math.floor(absOff / 60)).padStart(2, "0");
+    const tzM = String(absOff % 60).padStart(2, "0");
     setTsToDate(
-      d.toLocaleString("zh-CN", { hour12: false }) + "  (UTC" + tz + tzH + ")"
+      d.toLocaleString("zh-CN", { hour12: false }) +
+        `  (UTC${sign}${tzH}:${tzM})`
     );
     setTsToDateErr(false);
   };
@@ -253,28 +182,27 @@ export default function ToolsPage() {
   const [unitFromVal, setUnitFromVal] = useState("1");
 
   const computeUnitResult = useCallback((): string => {
-    const val = parseFloat(unitFromVal);
-    if (isNaN(val)) return "";
-    const units = unitData[unitCategory];
-    const fromU = units[unitFromIdx];
-    const toU = units[unitToIdx];
-    if (!fromU || !toU) return "";
-    if (unitCategory === "temperature") {
-      const celsius = (val + (fromU.offset || 0)) * fromU.factor;
-      const result = celsius / toU.factor - (toU.offset || 0);
-      return result.toFixed(4).replace(/\.?0+$/, "");
-    }
-    const baseVal = val * fromU.factor;
-    const result = baseVal / toU.factor;
-    return result.toPrecision(10).replace(/\.?0+$/, "");
+    return computeUnitResultUtil(
+      unitCategory,
+      unitFromIdx,
+      unitToIdx,
+      unitFromVal
+    );
   }, [unitCategory, unitFromIdx, unitToIdx, unitFromVal]);
 
   // Color picker state
   const [colorHex, setColorHex] = useState("#4f46e5");
   const colorInputRef = useRef<HTMLInputElement>(null);
 
-  const [colorRgb, setColorRgb] = useState("");
-  const [colorHsl, setColorHsl] = useState("");
+  const [colorRgb, setColorRgb] = useState(() => {
+    const [r, g, b] = hexToRgb("#4f46e5");
+    return `rgb(${r}, ${g}, ${b})`;
+  });
+  const [colorHsl, setColorHsl] = useState(() => {
+    const [r, g, b] = hexToRgb("#4f46e5");
+    const [h, s, l] = rgbToHsl(r, g, b);
+    return `hsl(${h}, ${s}%, ${l}%)`;
+  });
 
   const updateColorValues = (hex: string) => {
     const [r, g, b] = hexToRgb(hex);
@@ -282,10 +210,6 @@ export default function ToolsPage() {
     const [hh, ss, ll] = rgbToHsl(r, g, b);
     setColorHsl(`hsl(${hh}, ${ss}%, ${ll}%)`);
   };
-
-  useEffect(() => {
-    updateColorValues(colorHex);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleHexInput = (val: string) => {
     setColorHex(val);
@@ -336,21 +260,25 @@ export default function ToolsPage() {
                 placeholder='{"hello":"world","numbers":[1,2,3]}'
                 value={jsonInput}
                 onChange={(e) => setJsonInput(e.target.value)}
+                aria-label="JSON 输入"
               />
               <div className="tool-actions">
                 <button
+                  type="button"
                   className="btn btn--primary btn--sm"
                   onClick={jsonFormat}
                 >
                   格式化
                 </button>
                 <button
+                  type="button"
                   className="btn btn--secondary btn--sm"
                   onClick={jsonMinify}
                 >
                   压缩
                 </button>
                 <button
+                  type="button"
                   className="btn btn--secondary btn--sm"
                   onClick={jsonClear}
                 >
@@ -379,21 +307,25 @@ export default function ToolsPage() {
                 placeholder="输入要编码或解码的文本"
                 value={b64Input}
                 onChange={(e) => setB64Input(e.target.value)}
+                aria-label="Base64 输入"
               />
               <div className="tool-actions">
                 <button
+                  type="button"
                   className="btn btn--primary btn--sm"
                   onClick={b64Encode}
                 >
                   编码 →
                 </button>
                 <button
+                  type="button"
                   className="btn btn--secondary btn--sm"
                   onClick={b64Decode}
                 >
                   ← 解码
                 </button>
                 <button
+                  type="button"
                   className="btn btn--secondary btn--sm"
                   onClick={() => {
                     setB64Input("");
@@ -431,6 +363,7 @@ export default function ToolsPage() {
                   value={tsNow}
                 />
                 <button
+                  type="button"
                   className="btn btn--secondary btn--sm"
                   onClick={refreshTs}
                 >
@@ -508,11 +441,13 @@ export default function ToolsPage() {
                   type="number"
                   value={unitFromVal}
                   onChange={(e) => setUnitFromVal(e.target.value)}
+                  aria-label="输入数值"
                 />
                 <select
                   className="tool-select"
                   value={unitFromIdx}
                   onChange={(e) => setUnitFromIdx(parseInt(e.target.value))}
+                  aria-label="源单位"
                 >
                   {currentUnits.map((u, i) => (
                     <option key={i} value={i}>
@@ -535,6 +470,7 @@ export default function ToolsPage() {
                   className="tool-select"
                   value={unitToIdx}
                   onChange={(e) => setUnitToIdx(parseInt(e.target.value))}
+                  aria-label="目标单位"
                 >
                   {currentUnits.map((u, i) => (
                     <option key={i} value={i}>
@@ -545,6 +481,7 @@ export default function ToolsPage() {
               </div>
               <div className="tool-actions">
                 <button
+                  type="button"
                   className="btn btn--secondary btn--sm"
                   onClick={() => {
                     const tmp = unitFromIdx;
@@ -578,6 +515,7 @@ export default function ToolsPage() {
                       type="text"
                       value={colorHex}
                       onChange={(e) => handleHexInput(e.target.value)}
+                      aria-label="HEX 颜色值"
                     />
                   </div>
                   <div className="color-line">
@@ -612,33 +550,39 @@ export default function ToolsPage() {
                 placeholder="输入要转换的文本"
                 value={caseInput}
                 onChange={(e) => setCaseInput(e.target.value)}
+                aria-label="文本大小写转换输入"
               />
               <div className="tool-actions">
                 <button
+                  type="button"
                   className="btn btn--primary btn--sm"
                   onClick={() => handleConvertCase("upper")}
                 >
                   UPPER
                 </button>
                 <button
+                  type="button"
                   className="btn btn--secondary btn--sm"
                   onClick={() => handleConvertCase("lower")}
                 >
                   lower
                 </button>
                 <button
+                  type="button"
                   className="btn btn--secondary btn--sm"
                   onClick={() => handleConvertCase("title")}
                 >
                   Title
                 </button>
                 <button
+                  type="button"
                   className="btn btn--secondary btn--sm"
                   onClick={() => handleConvertCase("camel")}
                 >
                   camelCase
                 </button>
                 <button
+                  type="button"
                   className="btn btn--secondary btn--sm"
                   onClick={() => handleConvertCase("snake")}
                 >

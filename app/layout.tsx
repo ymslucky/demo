@@ -1,10 +1,18 @@
 import type { Metadata } from "next";
+import { Inter } from "next/font/google";
 import "./globals.css";
 import Nav from "./components/Nav";
 import Footer from "./components/Footer";
 
+const inter = Inter({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-inter",
+  display: "swap",
+});
+
 export const metadata: Metadata = {
-  metadataBase: new URL("https://luckylab.dev"),
+  metadataBase: new URL("https://luckylab-demo-qpqxce5k.edgeone.cool"),
   title: {
     default: "LuckyLab",
     template: "%s · LuckyLab",
@@ -32,20 +40,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="zh-CN">
-      <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link
-          rel="preconnect"
-          href="https://fonts.gstatic.com"
-          crossOrigin="anonymous"
-        />
-        <link
-          href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
-          rel="stylesheet"
-        />
-        <meta name="theme-color" content="#4f46e5" />
-      </head>
+    <html lang="zh-CN" className={inter.variable}>
       <body>
         <div className="page">
           <Nav />

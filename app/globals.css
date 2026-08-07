@@ -16,7 +16,7 @@
   --color-border: #e2e8f0;
 
   /* 字体 */
-  --font-body: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
+  --font-body: var(--font-inter), "Inter", system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", monospace;
 
   /* 字号 */
@@ -804,5 +804,99 @@ a:focus-visible,
   .footer-container {
     flex-direction: column;
     gap: var(--space-xs);
+  }
+}
+
+/* ---- 暗色模式 ---- */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-primary: #818cf8;
+    --color-primary-dark: #6366f1;
+    --color-primary-light: #a5b4fc;
+    --color-text: #e2e8f0;
+    --color-text-muted: #94a3b8;
+    --color-bg: #0f172a;
+    --color-surface: #1e293b;
+    --color-border: #334155;
+  }
+
+  body {
+    background-color: var(--color-bg);
+    color: var(--color-text);
+  }
+
+  .nav {
+    background: rgba(15, 23, 42, 0.85);
+  }
+
+  .nav-link:hover {
+    background: rgba(99, 102, 241, 0.15);
+  }
+
+  code {
+    background: rgba(99, 102, 241, 0.15);
+    color: var(--color-primary-light);
+  }
+
+  .tag {
+    background: #1e293b;
+    color: var(--color-text-muted);
+  }
+
+  .focus-tag {
+    background: rgba(99, 102, 241, 0.15);
+    color: var(--color-primary-light);
+  }
+
+  .about-honor {
+    background: rgba(16, 185, 129, 0.1);
+    border-color: rgba(16, 185, 129, 0.3);
+    color: #6ee7b7;
+  }
+
+  .tool-textarea,
+  .tool-input,
+  .tool-select {
+    background: var(--color-bg);
+    color: var(--color-text);
+  }
+
+  .tool-result {
+    background: var(--color-bg);
+  }
+
+  .tool-result--ok {
+    background: rgba(99, 102, 241, 0.15);
+    border-color: rgba(99, 102, 241, 0.3);
+    color: var(--color-primary-light);
+  }
+
+  .tool-result--err {
+    background: rgba(239, 68, 68, 0.15);
+    border-color: rgba(239, 68, 68, 0.3);
+    color: #fca5a5;
+  }
+
+  .tool-icon {
+    background: rgba(99, 102, 241, 0.15);
+    color: var(--color-primary-light);
+  }
+
+  .tool-textarea:focus,
+  .tool-input:focus,
+  .tool-select:focus {
+    box-shadow: 0 0 0 3px rgba(129, 140, 248, 0.2);
+  }
+}
+
+/* ---- 减少动画 (无障碍) ---- */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }
