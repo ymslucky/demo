@@ -1,4 +1,4 @@
-# ymslucky 个人网站
+# LuckyLab 个人网站
 
 基于 Astro 构建的静态个人网站，部署于 GitHub Pages。
 

@@ -9,7 +9,7 @@ interface Props {
 }
 
 const { title, description } = Astro.props;
-const fullTitle = title === 'ymslucky' ? title : `${title} · ymslucky`;
+const fullTitle = title === 'LuckyLab' ? title : `${title} · LuckyLab`;
 const currentPath = Astro.url.pathname;
 
 // Canonical URL — strip trailing slash for consistency
@@ -25,7 +25,7 @@ const ogURL = new URL(Astro.url.pathname, Astro.site).href;
   <meta name="description" content={description} />
   <link rel="icon" type="image/svg+xml" href="/demo/favicon.svg" />
   <meta name="theme-color" content="#4f46e5" />
-  <meta name="author" content="ymslucky" />
+  <meta name="author" content="LuckyLab" />
   <link rel="canonical" href={canonicalURL} />
 
   <!-- Open Graph -->
@@ -33,7 +33,7 @@ const ogURL = new URL(Astro.url.pathname, Astro.site).href;
   <meta property="og:title" content={fullTitle} />
   <meta property="og:description" content={description} />
   <meta property="og:url" content={ogURL} />
-  <meta property="og:site_name" content="ymslucky" />
+  <meta property="og:site_name" content="LuckyLab" />
   <meta property="og:locale" content="zh_CN" />
   <meta property="og:image" content={new URL('/demo/og-image.png', Astro.site).href} />
 

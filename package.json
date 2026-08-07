@@ -1,9 +1,9 @@
 {
-  "name": "ymslucky-personal-site",
+  "name": "luckylab-personal-site",
   "type": "module",
   "version": "1.0.0",
   "private": true,
-  "description": "ymslucky 的个人网站",
+  "description": "LuckyLab 的个人网站",
   "scripts": {
     "dev": "astro dev",
     "start": "astro dev",
