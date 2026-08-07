@@ -341,7 +341,7 @@ main {
   border-radius: var(--radius-lg);
 }
 
-.about-focus h3 {
+.about-focus h2 {
   margin-bottom: var(--space-sm);
   font-size: var(--fs-base);
   color: var(--color-text-muted);
@@ -439,6 +439,14 @@ main {
 
 .footer a:hover {
   color: var(--color-primary);
+}
+
+/* ---- 键盘焦点可见性 ---- */
+a:focus-visible,
+.btn:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
 }
 
 /* ---- 移动端优化 (375px) ---- */
