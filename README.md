@@ -35,6 +35,50 @@ npm run preview  # 本地预览构建结果
 - `site`: `https://ymslucky.github.io`
 - `base`: `/demo/`（GitHub Pages 子路径）
 
+## 部署
+
+本站通过 GitHub Actions 自动部署到 GitHub Pages，线上地址：
+**https://ymslucky.github.io/demo/**
+
+### 首次部署（仓库初始化）
+
+```bash
+# 1. 启用 GitHub Pages 并指定部署源为 GitHub Actions
+gh api -X POST repos/ymslucky/demo/pages \
+  -f build_type=workflow
+# 或通过 REST：
+# POST /repos/{owner}/{repo}/pages  body: { "build_type": "workflow" }
+
+# 2. 推送代码到 main 分支
+git push origin main
+```
+
+推送后 `.github/workflows/deploy.yml` 会自动触发：安装依赖 → 构建静态文件 → 上传产物 → 部署到 Pages。HTTPS 证书由 GitHub 自动签发，部署完成后即可通过 `https://` 访问。
+
+### 从全新克隆重新部署
+
+```bash
+git clone https://github.com/ymslucky/demo.git
+cd demo
+npm install
+npm run build          # 本地构建验证
+git push origin main   # 推送即触发线上部署
+```
+
+### 自定义域名（可选）
+
+如需绑定自定义域名，在 GitHub 仓库 Settings → Pages → Custom domain 中填入域名，并在 DNS 服务商添加以下记录：
+
+| 类型  | 名称 | 值                       |
+|-------|------|--------------------------|
+| CNAME | www  | ymslucky.github.io       |
+| A     | @    | 185.199.108.153          |
+| A     | @    | 185.199.109.153          |
+| A     | @    | 185.199.110.153          |
+| A     | @    | 185.199.111.153          |
+
+GitHub 会为自定义域名自动签发并续期 HTTPS 证书。
+
 ## 目录结构
 
 ```

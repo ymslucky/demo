@@ -2,9 +2,9 @@
 import BaseLayout from '../layouts/BaseLayout.astro';
 
 const contacts = [
-  { label: '邮箱', value: 'ymslucky@163.com', href: 'mailto:ymslucky@163.com' },
-  { label: 'GitHub', value: '@ymslucky', href: 'https://github.com/ymslucky' },
-  { label: '个人域名', value: 'meta-p.com', href: 'https://holiday.meta-p.com' },
+  { label: '邮箱', value: 'ymslucky@163.com', href: 'mailto:ymslucky@163.com', external: false },
+  { label: 'GitHub', value: '@ymslucky', href: 'https://github.com/ymslucky', external: true },
+  { label: '个人域名', value: 'meta-p.com', href: 'https://holiday.meta-p.com', external: true },
 ];
 ---
 
@@ -17,7 +17,7 @@ const contacts = [
       <li class="contact-item">
         <span class="contact-label">{contact.label}</span>
         <span class="contact-value">
-          <a href={contact.href} target="_blank" rel="noopener noreferrer">{contact.value}</a>
+          <a href={contact.href} {...(contact.external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}>{contact.value}</a>
         </span>
       </li>
     ))}
