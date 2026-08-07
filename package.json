@@ -1,17 +1,22 @@
 {
-  "name": "luckylab-personal-site",
-  "type": "module",
-  "version": "1.0.0",
+  "name": "demo",
+  "version": "0.1.0",
   "private": true,
-  "description": "LuckyLab 的个人网站",
   "scripts": {
-    "dev": "astro dev",
-    "start": "astro dev",
-    "build": "astro build",
-    "preview": "astro preview",
-    "astro": "astro"
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
   },
   "dependencies": {
-    "astro": "^4.16.0"
+    "next": "16.3.0",
+    "react": "19.2.8",
+    "react-dom": "19.2.8"
+  },
+  "devDependencies": {
+    "@types/node": "^24",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "typescript": "^7"
   }
 }
