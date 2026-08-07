@@ -1,0 +1,66 @@
+---
+import '../styles/global.css';
+import Nav from '../components/Nav.astro';
+import Footer from '../components/Footer.astro';
+
+interface Props {
+  title: string;
+  description: string;
+}
+
+const { title, description } = Astro.props;
+const fullTitle = title === 'LuckyLab' ? title : `${title} · LuckyLab`;
+const currentPath = Astro.url.pathname;
+
+// Canonical URL — strip trailing slash for consistency
+const canonicalURL = new URL(Astro.url.pathname.replace(/\/$/, ''), Astro.site).href;
+const ogURL = new URL(Astro.url.pathname, Astro.site).href;
+---
+
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content={description} />
+  <link rel="icon" type="image/svg+xml" href="/demo/favicon.svg" />
+  <meta name="theme-color" content="#4f46e5" />
+  <meta name="author" content="LuckyLab" />
+  <meta name="author" content="ymslucky" />
+  <link rel="canonical" href={canonicalURL} />
+
+  <!-- Open Graph -->
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content={fullTitle} />
+  <meta property="og:description" content={description} />
+  <meta property="og:url" content={ogURL} />
+  <meta property="og:site_name" content="LuckyLab" />
+  <meta property="og:site_name" content="ymslucky" />
+  <meta property="og:locale" content="zh_CN" />
+  <meta property="og:image" content={new URL('/demo/og-image.png', Astro.site).href} />
+
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content={fullTitle} />
+  <meta name="twitter:description" content={description} />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+    rel="stylesheet"
+  />
+  <title>{fullTitle}</title>
+</head>
+<body>
+  <div class="page">
+    <Nav currentPath={currentPath} />
+    <main>
+      <div class="container">
+        <slot />
+      </div>
+    </main>
+    <Footer />
+  </div>
+</body>
+</html>

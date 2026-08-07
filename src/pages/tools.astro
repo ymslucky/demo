@@ -1,0 +1,397 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+
+const base = import.meta.env.BASE_URL;
+
+const tools = [
+  {
+    id: 'json-formatter',
+    icon: 'json',
+    name: 'JSON 格式化',
+    description: '美化、压缩与校验 JSON 数据，自动高亮语法错误位置。',
+  },
+  {
+    id: 'base64',
+    icon: 'b64',
+    name: 'Base64 编解码',
+    description: '在文本与 Base64 之间双向转换，支持 Unicode。',
+  },
+  {
+    id: 'timestamp',
+    icon: 'ts',
+    name: '时间戳转换',
+    description: 'Unix 时间戳与日期字符串互转，毫秒 / 秒自动识别。',
+  },
+  {
+    id: 'unit-converter',
+    icon: 'unit',
+    name: '单位换算',
+    description: '长度、温度、数据容量常用单位快速换算。',
+  },
+  {
+    id: 'color-picker',
+    icon: 'color',
+    name: '颜色选择器',
+    description: '可视化拾取颜色，实时输出 HEX / RGB / HSL。',
+  },
+  {
+    id: 'case-converter',
+    icon: 'case',
+    name: '文本大小写转换',
+    description: 'UPPER、lower、Title、camelCase 等多种模式一键转换。',
+  },
+];
+---
+
+<BaseLayout title="在线工具" description="常用在线工具箱 — JSON 格式化、Base64 编解码、时间戳转换、单位换算、颜色选择器等，全部本地运行。">
+  <h1 class="page-title">在线工具</h1>
+  <p class="page-subtitle">常用开发者与日常工具合集 — 所有运算均在浏览器本地完成，数据不上传</p>
+
+  <div class="card-grid tool-card-grid">
+    {tools.map((tool) => (
+      <article class="card tool-card" id={tool.id}>
+        <div class="tool-header">
+          <span class="tool-icon" aria-hidden="true">{tool.icon}</span>
+          <h3>{tool.name}</h3>
+        </div>
+        <p class="tool-desc">{tool.description}</p>
+
+        {tool.id === 'json-formatter' && (
+          <div class="tool-body">
+            <textarea class="tool-textarea" id="json-input" rows="6" placeholder='{"hello":"world","numbers":[1,2,3]}'></textarea>
+            <div class="tool-actions">
+              <button class="btn btn--primary btn--sm" data-action="json-format">格式化</button>
+              <button class="btn btn--secondary btn--sm" data-action="json-minify">压缩</button>
+              <button class="btn btn--secondary btn--sm" data-action="json-clear">清空</button>
+            </div>
+            <div class="tool-result" id="json-output" aria-live="polite"></div>
+          </div>
+        )}
+
+        {tool.id === 'base64' && (
+          <div class="tool-body">
+            <textarea class="tool-textarea" id="b64-input" rows="4" placeholder="输入要编码或解码的文本"></textarea>
+            <div class="tool-actions">
+              <button class="btn btn--primary btn--sm" data-action="b64-encode">编码 →</button>
+              <button class="btn btn--secondary btn--sm" data-action="b64-decode">← 解码</button>
+              <button class="btn btn--secondary btn--sm" data-action="b64-clear">清空</button>
+            </div>
+            <div class="tool-result" id="b64-output" aria-live="polite"></div>
+          </div>
+        )}
+
+        {tool.id === 'timestamp' && (
+          <div class="tool-body">
+            <label class="tool-label" for="ts-now">当前时间戳</label>
+            <div class="ts-now-row">
+              <input class="tool-input" id="ts-now" type="text" readonly />
+              <button class="btn btn--secondary btn--sm" data-action="ts-refresh">刷新</button>
+            </div>
+
+            <label class="tool-label" for="ts-ts-input">时间戳 → 日期</label>
+            <input class="tool-input" id="ts-ts-input" type="text" placeholder="例如 1786139195 或 1786139195000" />
+            <div class="tool-result" id="ts-to-date" aria-live="polite"></div>
+
+            <label class="tool-label" for="ts-date-input">日期 → 时间戳</label>
+            <input class="tool-input" id="ts-date-input" type="text" placeholder="例如 2026-08-08 12:00:00" />
+            <div class="tool-result" id="ts-to-ts" aria-live="polite"></div>
+          </div>
+        )}
+
+        {tool.id === 'unit-converter' && (
+          <div class="tool-body">
+            <div class="tool-row">
+              <select class="tool-select" id="unit-category">
+                <option value="length">长度</option>
+                <option value="temperature">温度</option>
+                <option value="data">数据容量</option>
+              </select>
+            </div>
+            <div class="tool-row">
+              <input class="tool-input" id="unit-from-val" type="number" value="1" />
+              <select class="tool-select" id="unit-from-unit"></select>
+            </div>
+            <div class="tool-row"><span class="tool-arrow">=</span></div>
+            <div class="tool-row">
+              <input class="tool-input" id="unit-to-val" type="text" readonly />
+              <select class="tool-select" id="unit-to-unit"></select>
+            </div>
+            <div class="tool-actions">
+              <button class="btn btn--secondary btn--sm" data-action="unit-swap">交换 ⇄</button>
+            </div>
+          </div>
+        )}
+
+        {tool.id === 'color-picker' && (
+          <div class="tool-body">
+            <div class="color-row">
+              <input class="color-pick" id="color-input" type="color" value="#4f46e5" aria-label="选择颜色" />
+              <div class="color-values">
+                <div class="color-line"><span class="color-label">HEX</span><input class="tool-input color-code" id="color-hex" type="text" value="#4f46e5" /></div>
+                <div class="color-line"><span class="color-label">RGB</span><input class="tool-input color-code" id="color-rgb" type="text" readonly /></div>
+                <div class="color-line"><span class="color-label">HSL</span><input class="tool-input color-code" id="color-hsl" type="text" readonly /></div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {tool.id === 'case-converter' && (
+          <div class="tool-body">
+            <textarea class="tool-textarea" id="case-input" rows="3" placeholder="输入要转换的文本"></textarea>
+            <div class="tool-actions">
+              <button class="btn btn--primary btn--sm" data-action="case-upper">UPPER</button>
+              <button class="btn btn--secondary btn--sm" data-action="case-lower">lower</button>
+              <button class="btn btn--secondary btn--sm" data-action="case-title">Title</button>
+              <button class="btn btn--secondary btn--sm" data-action="case-camel">camelCase</button>
+              <button class="btn btn--secondary btn--sm" data-action="case-snake">snake_case</button>
+            </div>
+            <div class="tool-result" id="case-output" aria-live="polite"></div>
+          </div>
+        )}
+      </article>
+    ))}
+  </div>
+</BaseLayout>
+
+<script>
+  // ====== JSON Formatter ======
+  function jsonFormat() {
+    const input = (document.getElementById('json-input') as HTMLTextAreaElement).value;
+    const out = document.getElementById('json-output')!;
+    if (!input.trim()) { out.textContent = ''; return; }
+    try {
+      const parsed = JSON.parse(input);
+      (out as HTMLElement).textContent = JSON.stringify(parsed, null, 2);
+      out.className = 'tool-result tool-result--ok';
+    } catch (e) {
+      out.textContent = '✗ ' + (e as Error).message;
+      out.className = 'tool-result tool-result--err';
+    }
+  }
+  function jsonMinify() {
+    const input = (document.getElementById('json-input') as HTMLTextAreaElement).value;
+    const out = document.getElementById('json-output')!;
+    if (!input.trim()) return;
+    try {
+      const parsed = JSON.parse(input);
+      out.textContent = JSON.stringify(parsed);
+      out.className = 'tool-result tool-result--ok';
+    } catch (e) {
+      out.textContent = '✗ ' + (e as Error).message;
+      out.className = 'tool-result tool-result--err';
+    }
+  }
+
+  // ====== Base64 ======
+  function b64Encode() {
+    const input = (document.getElementById('b64-input') as HTMLTextAreaElement).value;
+    const out = document.getElementById('b64-output')!;
+    try {
+      out.textContent = btoa(unescape(encodeURIComponent(input)));
+      out.className = 'tool-result tool-result--ok';
+    } catch {
+      out.textContent = '✗ 编码失败';
+      out.className = 'tool-result tool-result--err';
+    }
+  }
+  function b64Decode() {
+    const input = (document.getElementById('b64-input') as HTMLTextAreaElement).value.trim();
+    const out = document.getElementById('b64-output')!;
+    try {
+      out.textContent = decodeURIComponent(escape(atob(input)));
+      out.className = 'tool-result tool-result--ok';
+    } catch {
+      out.textContent = '✗ 无效的 Base64 字符串';
+      out.className = 'tool-result tool-result--err';
+    }
+  }
+
+  // ====== Timestamp ======
+  function tsRefresh() {
+    const now = Math.floor(Date.now() / 1000);
+    (document.getElementById('ts-now') as HTMLInputElement).value = String(now);
+  }
+  function tsToDate() {
+    const raw = (document.getElementById('ts-ts-input') as HTMLInputElement).value.trim();
+    const out = document.getElementById('ts-to-date')!;
+    if (!raw) { out.textContent = ''; return; }
+    let ts = Number(raw);
+    if (raw.length > 10) ts = ts / 1000; // auto-detect ms
+    const d = new Date(ts * 1000);
+    if (isNaN(d.getTime())) { out.textContent = '✗ 无效时间戳'; out.className = 'tool-result tool-result--err'; return; }
+    out.textContent = d.toLocaleString('zh-CN', { hour12: false }) + '  (UTC' + (d.getTimezoneOffset() <= 0 ? '+' : '-') + String(Math.abs(d.getTimezoneOffset() / 60)).padStart(2, '0') + ')';
+    out.className = 'tool-result tool-result--ok';
+  }
+  function tsToTs() {
+    const raw = (document.getElementById('ts-date-input') as HTMLInputElement).value.trim();
+    const out = document.getElementById('ts-to-ts')!;
+    if (!raw) { out.textContent = ''; return; }
+    const d = new Date(raw.replace(/-/g, '/'));
+    if (isNaN(d.getTime())) { out.textContent = '✗ 无效日期'; out.className = 'tool-result tool-result--err'; return; }
+    out.textContent = '秒: ' + Math.floor(d.getTime() / 1000) + '   毫秒: ' + d.getTime();
+    out.className = 'tool-result tool-result--ok';
+  }
+
+  // ====== Unit Converter ======
+  const unitData: Record<string, { label: string; factor: number }[]> = {
+    length: [
+      { label: '米 (m)', factor: 1 },
+      { label: '千米 (km)', factor: 1000 },
+      { label: '厘米 (cm)', factor: 0.01 },
+      { label: '毫米 (mm)', factor: 0.001 },
+      { label: '英寸 (in)', factor: 0.0254 },
+      { label: '英尺 (ft)', factor: 0.3048 },
+      { label: '英里 (mi)', factor: 1609.344 },
+    ],
+    temperature: [
+      { label: '摄氏度 (°C)', factor: 1, offset: 0 },
+      { label: '华氏度 (°F)', factor: 5 / 9, offset: -32 * (5 / 9) },
+      { label: '开尔文 (K)', factor: 1, offset: -273.15 },
+    ],
+    data: [
+      { label: '字节 (B)', factor: 1 },
+      { label: '千字节 (KB)', factor: 1024 },
+      { label: '兆字节 (MB)', factor: 1024 ** 2 },
+      { label: '吉字节 (GB)', factor: 1024 ** 3 },
+      { label: '太字节 (TB)', factor: 1024 ** 4 },
+    ],
+  };
+  function fillUnitSelects() {
+    const cat = (document.getElementById('unit-category') as HTMLSelectElement).value;
+    const fromSel = document.getElementById('unit-from-unit') as HTMLSelectElement;
+    const toSel = document.getElementById('unit-to-unit') as HTMLSelectElement;
+    const units = unitData[cat];
+    fromSel.innerHTML = '';
+    toSel.innerHTML = '';
+    units.forEach((u, i) => {
+      fromSel.add(new Option(u.label, String(i)));
+      toSel.add(new Option(u.label, String(i)));
+    });
+    fromSel.selectedIndex = 0;
+    toSel.selectedIndex = Math.min(1, units.length - 1);
+    unitConvert();
+  }
+  function unitConvert() {
+    const cat = (document.getElementById('unit-category') as HTMLSelectElement).value;
+    const val = parseFloat((document.getElementById('unit-from-val') as HTMLInputElement).value);
+    const fromIdx = parseInt((document.getElementById('unit-from-unit') as HTMLSelectElement).value);
+    const toIdx = parseInt((document.getElementById('unit-to-unit') as HTMLSelectElement).value);
+    const out = document.getElementById('unit-to-val') as HTMLInputElement;
+    if (isNaN(val)) { out.value = ''; return; }
+    const units = unitData[cat];
+    const fromU = units[fromIdx];
+    const toU = units[toIdx];
+    if (cat === 'temperature') {
+      const celsius = (val + (fromU.offset || 0)) * fromU.factor;
+      const result = celsius / toU.factor - (toU.offset || 0);
+      out.value = result.toFixed(4).replace(/\.?0+$/, '');
+    } else {
+      const baseVal = val * fromU.factor;
+      const result = baseVal / toU.factor;
+      out.value = result.toPrecision(10).replace(/\.?0+$/, '');
+    }
+  }
+
+  // ====== Color Picker ======
+  function hexToRgb(hex: string): [number, number, number] {
+    const n = parseInt(hex.slice(1), 16);
+    return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+  }
+  function rgbToHsl(r: number, g: number, b: number): [number, number, number] {
+    r /= 255; g /= 255; b /= 255;
+    const max = Math.max(r, g, b), min = Math.min(r, g, b);
+    let h = 0, s = 0;
+    const l = (max + min) / 2;
+    if (max !== min) {
+      const d = max - min;
+      s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+      if (max === r) h = ((g - b) / d + (g < b ? 6 : 0));
+      else if (max === g) h = (b - r) / d + 2;
+      else h = (r - g) / d + 4;
+      h /= 6;
+    }
+    return [Math.round(h * 360), Math.round(s * 100), Math.round(l * 100)];
+  }
+  function colorUpdate() {
+    const hex = (document.getElementById('color-hex') as HTMLInputElement).value.trim();
+    const pick = document.getElementById('color-input') as HTMLInputElement;
+    if (/^#[0-9a-fA-F]{6}$/.test(hex)) {
+      pick.value = hex;
+    } else if (/^#?[0-9a-fA-F]{6}$/.test(hex)) {
+      const fixed = hex.startsWith('#') ? hex : '#' + hex;
+      pick.value = fixed;
+      (document.getElementById('color-hex') as HTMLInputElement).value = fixed;
+    }
+    const h = pick.value;
+    const [r, g, b] = hexToRgb(h);
+    (document.getElementById('color-rgb') as HTMLInputElement).value = `rgb(${r}, ${g}, ${b})`;
+    const [hh, ss, ll] = rgbToHsl(r, g, b);
+    (document.getElementById('color-hsl') as HTMLInputElement).value = `hsl(${hh}, ${ss}%, ${ll}%)`;
+  }
+
+  // ====== Case Converter ======
+  function convertCase(mode: string) {
+    const input = (document.getElementById('case-input') as HTMLTextAreaElement).value;
+    const out = document.getElementById('case-output')!;
+    if (!input) { out.textContent = ''; return; }
+    let result = '';
+    switch (mode) {
+      case 'upper': result = input.toUpperCase(); break;
+      case 'lower': result = input.toLowerCase(); break;
+      case 'title': result = input.replace(/\w\S*/g, w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()); break;
+      case 'camel': {
+        const parts = input.toLowerCase().split(/[\s_-]+/).filter(Boolean);
+        result = parts.map((p, i) => i === 0 ? p : p.charAt(0).toUpperCase() + p.slice(1)).join('');
+        break;
+      }
+      case 'snake': result = input.trim().toLowerCase().replace(/[\s-]+/g, '_'); break;
+    }
+    out.textContent = result;
+    out.className = 'tool-result tool-result--ok';
+  }
+
+  // ====== Event delegation ======
+  document.querySelectorAll('[data-action]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const action = (btn as HTMLElement).dataset.action!;
+      switch (action) {
+        case 'json-format': jsonFormat(); break;
+        case 'json-minify': jsonMinify(); break;
+        case 'json-clear': (document.getElementById('json-input') as HTMLTextAreaElement).value = ''; document.getElementById('json-output')!.textContent = ''; break;
+        case 'b64-encode': b64Encode(); break;
+        case 'b64-decode': b64Decode(); break;
+        case 'b64-clear': (document.getElementById('b64-input') as HTMLTextAreaElement).value = ''; document.getElementById('b64-output')!.textContent = ''; break;
+        case 'ts-refresh': tsRefresh(); break;
+        case 'unit-swap': {
+          const f = document.getElementById('unit-from-unit') as HTMLSelectElement;
+          const t = document.getElementById('unit-to-unit') as HTMLSelectElement;
+          const tmp = f.value; f.value = t.value; t.value = tmp;
+          unitConvert(); break;
+        }
+        case 'case-upper': convertCase('upper'); break;
+        case 'case-lower': convertCase('lower'); break;
+        case 'case-title': convertCase('title'); break;
+        case 'case-camel': convertCase('camel'); break;
+        case 'case-snake': convertCase('snake'); break;
+      }
+    });
+  });
+
+  // Live listeners
+  document.getElementById('ts-ts-input')?.addEventListener('input', tsToDate);
+  document.getElementById('ts-date-input')?.addEventListener('input', tsToTs);
+  document.getElementById('unit-category')?.addEventListener('change', fillUnitSelects);
+  document.getElementById('unit-from-val')?.addEventListener('input', unitConvert);
+  document.getElementById('unit-from-unit')?.addEventListener('change', unitConvert);
+  document.getElementById('unit-to-unit')?.addEventListener('change', unitConvert);
+  document.getElementById('color-input')?.addEventListener('input', () => {
+    (document.getElementById('color-hex') as HTMLInputElement).value = (document.getElementById('color-input') as HTMLInputElement).value;
+    colorUpdate();
+  });
+  document.getElementById('color-hex')?.addEventListener('input', colorUpdate);
+
+  // Init
+  tsRefresh();
+  fillUnitSelects();
+  colorUpdate();
+</script>
