@@ -44,3 +44,11 @@ venv/
 coverage/
 *.lcov
 .nyc_output
+
+# Next.js
+.next/
+out/
+
+# TypeScript
+*.tsbuildinfo
+next-env.d.ts
