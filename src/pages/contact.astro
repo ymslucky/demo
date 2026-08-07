@@ -1,0 +1,25 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+
+const contacts = [
+  { label: '邮箱', value: 'ymslucky@163.com', href: 'mailto:ymslucky@163.com' },
+  { label: 'GitHub', value: '@ymslucky', href: 'https://github.com/ymslucky' },
+  { label: '个人域名', value: 'meta-p.com', href: 'https://holiday.meta-p.com' },
+];
+---
+
+<BaseLayout title="联系" description="联系 ymslucky — 邮箱、GitHub 与个人域名。">
+  <h1 class="page-title">联系我</h1>
+  <p class="page-subtitle">有任何合作或交流的想法，欢迎与我联系</p>
+
+  <ul class="contact-list">
+    {contacts.map((contact) => (
+      <li class="contact-item">
+        <span class="contact-label">{contact.label}</span>
+        <span class="contact-value">
+          <a href={contact.href} target="_blank" rel="noopener noreferrer">{contact.value}</a>
+        </span>
+      </li>
+    ))}
+  </ul>
+</BaseLayout>

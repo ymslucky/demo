@@ -1,0 +1,18 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+
+const base = import.meta.env.BASE_URL;
+---
+
+<BaseLayout title="ymslucky" description="ymslucky — 独立开发者，专注于 Web 应用与自动化工具的全栈开发。">
+  <section class="hero">
+    <p class="hero-tagline">用代码把想法变成产品。</p>
+    <p class="hero-bio">
+      独立开发者，专注于 Web 应用与自动化工具的全栈开发。喜欢用 Next.js 和 Python 快速搭建解决实际问题的小工具，从节假日日历到 Serverless 函数平台都有涉猎。
+    </p>
+    <div class="hero-cta">
+      <a href={`${base}projects`} class="btn btn--primary">查看项目</a>
+      <a href={`${base}about`} class="btn btn--secondary">了解更多</a>
+    </div>
+  </section>
+</BaseLayout>
