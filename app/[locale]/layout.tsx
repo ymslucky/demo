@@ -6,7 +6,8 @@ import { routing } from "@/i18n/routing";
 import "../globals.css";
 import Nav from "./components/Nav";
 import Footer from "./components/Footer";
-import { themeInitScript } from "../../lib/theme";
+import ThemeSync from "./components/ThemeSync";
+import { themeInitScript } from "../lib/theme";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -67,6 +68,7 @@ export default async function LocaleLayout({
         {/* Pre-paint theme sync: applies data-theme before first paint to avoid FOUC */}
         <script dangerouslySetInnerHTML={{ __html: themeInitScript() }} />
         <NextIntlClientProvider>
+          <ThemeSync />
           <div className="page">
             <Nav />
             <main>
