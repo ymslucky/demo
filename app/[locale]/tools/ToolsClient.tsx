@@ -43,8 +43,8 @@ export default function ToolsPage() {
     try {
       setJsonOutput(transform(JSON.parse(jsonInput)));
       setJsonErr(false);
-    } catch (e) {
-      setJsonOutput("✗ " + (e as Error).message);
+    } catch {
+      setJsonOutput(t("errors.invalidJson"));
       setJsonErr(true);
     }
   };
@@ -484,7 +484,7 @@ export default function ToolsPage() {
                 <div className="color-values">
                   <div className="color-line">
                     <label className="color-label" htmlFor="color-hex">
-                      HEX
+                      {t("labels.hex")}
                     </label>
                     <input
                       id="color-hex"
@@ -495,7 +495,7 @@ export default function ToolsPage() {
                     />
                   </div>
                   <div className="color-line">
-                    <span className="color-label">RGB</span>
+                    <span className="color-label">{t("labels.rgb")}</span>
                     <input
                       className="tool-input color-code"
                       type="text"
@@ -505,7 +505,7 @@ export default function ToolsPage() {
                     />
                   </div>
                   <div className="color-line">
-                    <span className="color-label">HSL</span>
+                    <span className="color-label">{t("labels.hsl")}</span>
                     <input
                       className="tool-input color-code"
                       type="text"
@@ -536,35 +536,35 @@ export default function ToolsPage() {
                   className="btn btn--primary btn--sm"
                   onClick={() => handleConvertCase("upper")}
                 >
-                  UPPER
+                  {t("caseModes.upper")}
                 </button>
                 <button
                   type="button"
                   className="btn btn--secondary btn--sm"
                   onClick={() => handleConvertCase("lower")}
                 >
-                  lower
+                  {t("caseModes.lower")}
                 </button>
                 <button
                   type="button"
                   className="btn btn--secondary btn--sm"
                   onClick={() => handleConvertCase("title")}
                 >
-                  Title
+                  {t("caseModes.title")}
                 </button>
                 <button
                   type="button"
                   className="btn btn--secondary btn--sm"
                   onClick={() => handleConvertCase("camel")}
                 >
-                  camelCase
+                  {t("caseModes.camel")}
                 </button>
                 <button
                   type="button"
                   className="btn btn--secondary btn--sm"
                   onClick={() => handleConvertCase("snake")}
                 >
-                  snake_case
+                  {t("caseModes.snake")}
                 </button>
               </div>
               {caseOutput && (

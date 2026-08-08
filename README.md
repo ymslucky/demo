@@ -73,6 +73,7 @@ proxy.ts                # 语言协商 (next-intl middleware)
 - 默认语言为中文，现有 URL（`/`、`/about` 等）保持不变；英文站点位于 `/en` 前缀下。
 - 页面右上角提供语言切换控件，切换为客户端导航，不触发整页刷新。
 - 所有面向用户的文案均通过 `useTranslations` / `getTranslations` 读取，无硬编码字符串。
+- 缺少翻译键时：开发环境直接抛错（`i18n/request.ts` 的 `onError`），生产环境仅记录日志并渲染键路径（`getMessageFallback`），不会导致页面崩溃。
 
 ## 部署
 

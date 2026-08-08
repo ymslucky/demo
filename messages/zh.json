@@ -217,6 +217,9 @@
       "pickColor": "选择颜色",
       "rgbValue": "RGB 值",
       "hslValue": "HSL 值",
+      "hex": "HEX",
+      "rgb": "RGB",
+      "hsl": "HSL",
       "textInput": "文本输入",
       "categoryLength": "长度",
       "categoryTemperature": "温度",
@@ -233,10 +236,18 @@
       "encodeFailed": "✗ 编码失败",
       "invalidBase64": "✗ 无效的 Base64 字符串",
       "invalidTimestamp": "✗ 无效时间戳",
-      "invalidDate": "✗ 无效日期"
+      "invalidDate": "✗ 无效日期",
+      "invalidJson": "✗ 无效的 JSON"
     },
     "timestamp": {
       "secondsMs": "秒: {seconds}   毫秒: {milliseconds}"
+    },
+    "caseModes": {
+      "upper": "大写",
+      "lower": "小写",
+      "title": "标题格式",
+      "camel": "驼峰式",
+      "snake": "蛇形式"
     }
   },
   "unit": {

@@ -217,6 +217,9 @@
       "pickColor": "Pick a color",
       "rgbValue": "RGB value",
       "hslValue": "HSL value",
+      "hex": "HEX",
+      "rgb": "RGB",
+      "hsl": "HSL",
       "textInput": "Text input",
       "categoryLength": "Length",
       "categoryTemperature": "Temperature",
@@ -233,10 +236,18 @@
       "encodeFailed": "✗ Encoding failed",
       "invalidBase64": "✗ Invalid Base64 string",
       "invalidTimestamp": "✗ Invalid timestamp",
-      "invalidDate": "✗ Invalid date"
+      "invalidDate": "✗ Invalid date",
+      "invalidJson": "✗ Invalid JSON"
     },
     "timestamp": {
       "secondsMs": "Seconds: {seconds}    Milliseconds: {milliseconds}"
+    },
+    "caseModes": {
+      "upper": "UPPER",
+      "lower": "lower",
+      "title": "Title",
+      "camel": "camelCase",
+      "snake": "snake_case"
     }
   },
   "unit": {
