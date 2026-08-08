@@ -3,7 +3,7 @@ import {
   hexToRgb,
   rgbToHsl,
   convertCase,
-  computeUnitResult,
+  convertUnit,
   unitData,
 } from "../app/tools/utils";
 
@@ -95,53 +95,53 @@ describe("convertCase", () => {
   });
 });
 
-describe("computeUnitResult", () => {
+describe("convertUnit", () => {
   it("converts meters to kilometers", () => {
-    const result = computeUnitResult("length", 0, 1, "1000");
+    const result = convertUnit("length", 0, 1, "1000");
     expect(result).toBe("1");
   });
 
   it("converts kilometers to meters", () => {
-    const result = computeUnitResult("length", 1, 0, "1");
+    const result = convertUnit("length", 1, 0, "1");
     expect(result).toBe("1000");
   });
 
   it("converts inches to centimeters", () => {
-    const result = computeUnitResult("length", 4, 2, "1");
+    const result = convertUnit("length", 4, 2, "1");
     // 1 inch = 0.0254 m = 2.54 cm
     expect(parseFloat(result)).toBeCloseTo(2.54, 2);
   });
 
   it("converts celsius to fahrenheit", () => {
-    const result = computeUnitResult("temperature", 0, 1, "100");
+    const result = convertUnit("temperature", 0, 1, "100");
     // 100°C = 212°F
     expect(parseFloat(result)).toBeCloseTo(212, 0);
   });
 
   it("converts fahrenheit to celsius", () => {
-    const result = computeUnitResult("temperature", 1, 0, "32");
+    const result = convertUnit("temperature", 1, 0, "32");
     // 32°F = 0°C
     expect(parseFloat(result)).toBeCloseTo(0, 0);
   });
 
   it("converts celsius to kelvin", () => {
-    const result = computeUnitResult("temperature", 0, 2, "0");
+    const result = convertUnit("temperature", 0, 2, "0");
     // 0°C = 273.15 K
     expect(parseFloat(result)).toBeCloseTo(273.15, 1);
   });
 
   it("converts bytes to kilobytes", () => {
-    const result = computeUnitResult("data", 0, 1, "2048");
+    const result = convertUnit("data", 0, 1, "2048");
     expect(result).toBe("2");
   });
 
   it("converts megabytes to bytes", () => {
-    const result = computeUnitResult("data", 2, 0, "1");
+    const result = convertUnit("data", 2, 0, "1");
     expect(parseFloat(result)).toBe(1048576);
   });
 
   it("returns empty string for invalid number", () => {
-    expect(computeUnitResult("length", 0, 1, "abc")).toBe("");
+    expect(convertUnit("length", 0, 1, "abc")).toBe("");
   });
 });
 

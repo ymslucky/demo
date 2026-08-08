@@ -1,14 +1,17 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import {
   unitData,
-  hexToRgb,
-  rgbToHsl,
+  convertUnit,
+  getColorStrings,
+  encodeBase64,
+  decodeBase64,
+  formatTimezone,
   convertCase,
-  computeUnitResult as computeUnitResultUtil,
 } from "./utils";
 
+// ---- Tool catalogue ----
 const tools = [
   {
     id: "json-formatter",
@@ -46,7 +49,7 @@ const tools = [
     name: "文本大小写转换",
     description: "UPPER、lower、Title、camelCase 等多种模式一键转换。",
   },
-];
+] as const;
 
 export default function ToolsPage() {
   // JSON Formatter state
@@ -54,14 +57,14 @@ export default function ToolsPage() {
   const [jsonOutput, setJsonOutput] = useState("");
   const [jsonErr, setJsonErr] = useState(false);
 
-  const jsonFormat = () => {
+  /** Parse JSON input and apply a transform, catching errors uniformly. */
+  const processJson = (transform: (parsed: unknown) => string) => {
     if (!jsonInput.trim()) {
       setJsonOutput("");
       return;
     }
     try {
-      const parsed = JSON.parse(jsonInput);
-      setJsonOutput(JSON.stringify(parsed, null, 2));
+      setJsonOutput(transform(JSON.parse(jsonInput)));
       setJsonErr(false);
     } catch (e) {
       setJsonOutput("✗ " + (e as Error).message);
@@ -69,17 +72,8 @@ export default function ToolsPage() {
     }
   };
 
-  const jsonMinify = () => {
-    if (!jsonInput.trim()) return;
-    try {
-      const parsed = JSON.parse(jsonInput);
-      setJsonOutput(JSON.stringify(parsed));
-      setJsonErr(false);
-    } catch (e) {
-      setJsonOutput("✗ " + (e as Error).message);
-      setJsonErr(true);
-    }
-  };
+  const jsonFormat = () => processJson((p) => JSON.stringify(p, null, 2));
+  const jsonMinify = () => processJson((p) => JSON.stringify(p));
 
   const jsonClear = () => {
     setJsonInput("");
@@ -93,9 +87,7 @@ export default function ToolsPage() {
 
   const b64Encode = () => {
     try {
-      setB64Output(
-        btoa(String.fromCharCode(...new TextEncoder().encode(b64Input)))
-      );
+      setB64Output(encodeBase64(b64Input));
       setB64Err(false);
     } catch {
       setB64Output("✗ 编码失败");
@@ -104,13 +96,8 @@ export default function ToolsPage() {
   };
 
   const b64Decode = () => {
-    const input = b64Input.trim();
     try {
-      setB64Output(
-        new TextDecoder().decode(
-          Uint8Array.from(atob(input), (c) => c.charCodeAt(0))
-        )
-      );
+      setB64Output(decodeBase64(b64Input.trim()));
       setB64Err(false);
     } catch {
       setB64Output("✗ 无效的 Base64 字符串");
@@ -118,10 +105,13 @@ export default function ToolsPage() {
     }
   };
 
+  const b64Clear = () => {
+    setB64Input("");
+    setB64Output("");
+  };
+
   // Timestamp state
-  const [tsNow, setTsNow] = useState(() =>
-    String(Math.floor(Date.now() / 1000))
-  );
+  const [tsNow, setTsNow] = useState("");
   const [tsInput, setTsInput] = useState("");
   const [tsToDate, setTsToDate] = useState("");
   const [tsToDateErr, setTsToDateErr] = useState(false);
@@ -132,6 +122,10 @@ export default function ToolsPage() {
   const refreshTs = useCallback(() => {
     setTsNow(String(Math.floor(Date.now() / 1000)));
   }, []);
+
+  useEffect(() => {
+    refreshTs();
+  }, [refreshTs]);
 
   const handleTsToDate = (raw: string) => {
     setTsInput(raw);
@@ -147,14 +141,8 @@ export default function ToolsPage() {
       setTsToDateErr(true);
       return;
     }
-    const offset = d.getTimezoneOffset();
-    const sign = offset <= 0 ? "+" : "-";
-    const absOff = Math.abs(offset);
-    const tzH = String(Math.floor(absOff / 60)).padStart(2, "0");
-    const tzM = String(absOff % 60).padStart(2, "0");
     setTsToDate(
-      d.toLocaleString("zh-CN", { hour12: false }) +
-        `  (UTC${sign}${tzH}:${tzM})`
+      d.toLocaleString("zh-CN", { hour12: false }) + "  (" + formatTimezone(d) + ")",
     );
     setTsToDateErr(false);
   };
@@ -181,52 +169,52 @@ export default function ToolsPage() {
   const [unitToIdx, setUnitToIdx] = useState(1);
   const [unitFromVal, setUnitFromVal] = useState("1");
 
-  const computeUnitResult = useCallback((): string => {
-    return computeUnitResultUtil(
-      unitCategory,
-      unitFromIdx,
-      unitToIdx,
-      unitFromVal
-    );
-  }, [unitCategory, unitFromIdx, unitToIdx, unitFromVal]);
+  const unitResult = useMemo(
+    () => convertUnit(unitCategory, unitFromIdx, unitToIdx, unitFromVal),
+    [unitCategory, unitFromIdx, unitToIdx, unitFromVal],
+  );
+
+  const swapUnits = () => {
+    setUnitFromIdx(unitToIdx);
+    setUnitToIdx(unitFromIdx);
+  };
+
+  const changeUnitCategory = (category: string) => {
+    setUnitCategory(category);
+    setUnitFromIdx(0);
+    setUnitToIdx(Math.min(1, unitData[category].length - 1));
+  };
 
   // Color picker state
   const [colorHex, setColorHex] = useState("#4f46e5");
   const colorInputRef = useRef<HTMLInputElement>(null);
 
-  const [colorRgb, setColorRgb] = useState(() => {
-    const [r, g, b] = hexToRgb("#4f46e5");
-    return `rgb(${r}, ${g}, ${b})`;
-  });
-  const [colorHsl, setColorHsl] = useState(() => {
-    const [r, g, b] = hexToRgb("#4f46e5");
-    const [h, s, l] = rgbToHsl(r, g, b);
-    return `hsl(${h}, ${s}%, ${l}%)`;
-  });
+  const [colorRgb, setColorRgb] = useState("");
+  const [colorHsl, setColorHsl] = useState("");
 
-  const updateColorValues = (hex: string) => {
-    const [r, g, b] = hexToRgb(hex);
-    setColorRgb(`rgb(${r}, ${g}, ${b})`);
-    const [hh, ss, ll] = rgbToHsl(r, g, b);
-    setColorHsl(`hsl(${hh}, ${ss}%, ${ll}%)`);
-  };
+  const updateColorValues = useCallback((hex: string) => {
+    const { rgb, hsl } = getColorStrings(hex);
+    setColorRgb(rgb);
+    setColorHsl(hsl);
+  }, []);
+
+  useEffect(() => {
+    updateColorValues(colorHex);
+  }, [colorHex, updateColorValues]);
 
   const handleHexInput = (val: string) => {
     setColorHex(val);
     if (/^#[0-9a-fA-F]{6}$/.test(val)) {
       if (colorInputRef.current) colorInputRef.current.value = val;
-      updateColorValues(val);
     } else if (/^#?[0-9a-fA-F]{6}$/.test(val)) {
       const fixed = val.startsWith("#") ? val : "#" + val;
       setColorHex(fixed);
       if (colorInputRef.current) colorInputRef.current.value = fixed;
-      updateColorValues(fixed);
     }
   };
 
   const handleColorPick = (val: string) => {
     setColorHex(val);
-    updateColorValues(val);
   };
 
   // Case converter state
@@ -257,10 +245,10 @@ export default function ToolsPage() {
               <textarea
                 className="tool-textarea"
                 rows={6}
-                placeholder='{"hello":"world","numbers":[1,2,3]}'
+                placeholder='{\"hello\":\"world\",\"numbers\":[1,2,3]}'
+                aria-label="JSON 输入"
                 value={jsonInput}
                 onChange={(e) => setJsonInput(e.target.value)}
-                aria-label="JSON 输入"
               />
               <div className="tool-actions">
                 <button
@@ -287,9 +275,7 @@ export default function ToolsPage() {
               </div>
               {jsonOutput && (
                 <div
-                  className={`tool-result ${
-                    jsonErr ? "tool-result--err" : "tool-result--ok"
-                  }`}
+                  className={`tool-result ${jsonErr ? "tool-result--err" : "tool-result--ok"}`}
                   aria-live="polite"
                 >
                   {jsonOutput}
@@ -305,9 +291,9 @@ export default function ToolsPage() {
                 className="tool-textarea"
                 rows={4}
                 placeholder="输入要编码或解码的文本"
+                aria-label="Base64 输入"
                 value={b64Input}
                 onChange={(e) => setB64Input(e.target.value)}
-                aria-label="Base64 输入"
               />
               <div className="tool-actions">
                 <button
@@ -327,19 +313,14 @@ export default function ToolsPage() {
                 <button
                   type="button"
                   className="btn btn--secondary btn--sm"
-                  onClick={() => {
-                    setB64Input("");
-                    setB64Output("");
-                  }}
+                  onClick={b64Clear}
                 >
                   清空
                 </button>
               </div>
               {b64Output && (
                 <div
-                  className={`tool-result ${
-                    b64Err ? "tool-result--err" : "tool-result--ok"
-                  }`}
+                  className={`tool-result ${b64Err ? "tool-result--err" : "tool-result--ok"}`}
                   aria-live="polite"
                 >
                   {b64Output}
@@ -384,9 +365,7 @@ export default function ToolsPage() {
               />
               {tsToDate && (
                 <div
-                  className={`tool-result ${
-                    tsToDateErr ? "tool-result--err" : "tool-result--ok"
-                  }`}
+                  className={`tool-result ${tsToDateErr ? "tool-result--err" : "tool-result--ok"}`}
                   aria-live="polite"
                 >
                   {tsToDate}
@@ -406,9 +385,7 @@ export default function ToolsPage() {
               />
               {tsToTs && (
                 <div
-                  className={`tool-result ${
-                    tsToTsErr ? "tool-result--err" : "tool-result--ok"
-                  }`}
+                  className={`tool-result ${tsToTsErr ? "tool-result--err" : "tool-result--ok"}`}
                   aria-live="polite"
                 >
                   {tsToTs}
@@ -421,14 +398,14 @@ export default function ToolsPage() {
           {tool.id === "unit-converter" && (
             <div className="tool-body">
               <div className="tool-row">
+                <label className="sr-only" htmlFor="unit-category">
+                  单位类型
+                </label>
                 <select
+                  id="unit-category"
                   className="tool-select"
                   value={unitCategory}
-                  onChange={(e) => {
-                    setUnitCategory(e.target.value);
-                    setUnitFromIdx(0);
-                    setUnitToIdx(Math.min(1, unitData[e.target.value].length - 1));
-                  }}
+                  onChange={(e) => changeUnitCategory(e.target.value)}
                 >
                   <option value="length">长度</option>
                   <option value="temperature">温度</option>
@@ -436,18 +413,24 @@ export default function ToolsPage() {
                 </select>
               </div>
               <div className="tool-row">
+                <label className="sr-only" htmlFor="unit-from-val">
+                  输入值
+                </label>
                 <input
+                  id="unit-from-val"
                   className="tool-input"
                   type="number"
                   value={unitFromVal}
                   onChange={(e) => setUnitFromVal(e.target.value)}
-                  aria-label="输入数值"
                 />
+                <label className="sr-only" htmlFor="unit-from-unit">
+                  源单位
+                </label>
                 <select
+                  id="unit-from-unit"
                   className="tool-select"
                   value={unitFromIdx}
                   onChange={(e) => setUnitFromIdx(parseInt(e.target.value))}
-                  aria-label="源单位"
                 >
                   {currentUnits.map((u, i) => (
                     <option key={i} value={i}>
@@ -460,17 +443,24 @@ export default function ToolsPage() {
                 <span className="tool-arrow">=</span>
               </div>
               <div className="tool-row">
+                <label className="sr-only" htmlFor="unit-to-val">
+                  换算结果
+                </label>
                 <input
+                  id="unit-to-val"
                   className="tool-input"
                   type="text"
                   readOnly
-                  value={computeUnitResult()}
+                  value={unitResult}
                 />
+                <label className="sr-only" htmlFor="unit-to-unit">
+                  目标单位
+                </label>
                 <select
+                  id="unit-to-unit"
                   className="tool-select"
                   value={unitToIdx}
                   onChange={(e) => setUnitToIdx(parseInt(e.target.value))}
-                  aria-label="目标单位"
                 >
                   {currentUnits.map((u, i) => (
                     <option key={i} value={i}>
@@ -483,11 +473,7 @@ export default function ToolsPage() {
                 <button
                   type="button"
                   className="btn btn--secondary btn--sm"
-                  onClick={() => {
-                    const tmp = unitFromIdx;
-                    setUnitFromIdx(unitToIdx);
-                    setUnitToIdx(tmp);
-                  }}
+                  onClick={swapUnits}
                 >
                   交换 ⇄
                 </button>
@@ -509,31 +495,39 @@ export default function ToolsPage() {
                 />
                 <div className="color-values">
                   <div className="color-line">
-                    <span className="color-label">HEX</span>
+                    <label className="color-label" htmlFor="color-hex">
+                      HEX
+                    </label>
                     <input
+                      id="color-hex"
                       className="tool-input color-code"
                       type="text"
                       value={colorHex}
                       onChange={(e) => handleHexInput(e.target.value)}
-                      aria-label="HEX 颜色值"
                     />
                   </div>
                   <div className="color-line">
-                    <span className="color-label">RGB</span>
+                    <span className="color-label">
+                      RGB
+                    </span>
                     <input
                       className="tool-input color-code"
                       type="text"
                       readOnly
                       value={colorRgb}
+                      aria-label="RGB 值"
                     />
                   </div>
                   <div className="color-line">
-                    <span className="color-label">HSL</span>
+                    <span className="color-label">
+                      HSL
+                    </span>
                     <input
                       className="tool-input color-code"
                       type="text"
                       readOnly
                       value={colorHsl}
+                      aria-label="HSL 值"
                     />
                   </div>
                 </div>
@@ -548,9 +542,9 @@ export default function ToolsPage() {
                 className="tool-textarea"
                 rows={3}
                 placeholder="输入要转换的文本"
+                aria-label="文本输入"
                 value={caseInput}
                 onChange={(e) => setCaseInput(e.target.value)}
-                aria-label="文本大小写转换输入"
               />
               <div className="tool-actions">
                 <button
