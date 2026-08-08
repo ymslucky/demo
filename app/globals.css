@@ -1,19 +1,47 @@
 /* ============================================
    Global Styles — LuckyLab 个人网站
    清爽主题：靛蓝强调色 + 暖灰中性色
+   主题系统：CSS 自定义属性 (data-theme 驱动)
+
+   主题契约 (Theme Contract):
+   - <html> 无 data-theme 属性 → 跟随系统 prefers-color-scheme
+   - <html data-theme="light"> → 强制亮色
+   - <html data-theme="dark">  → 强制暗色
+   - 组件样式只允许引用 var(--color-*) / var(--shadow-*) / var(--focus-ring)，
+     禁止硬编码主题相关颜色（见评审标准 4）
    ============================================ */
 
-:root {
+/* ---- 亮色主题 (默认值，保持原有视觉不变) ---- */
+:root,
+[data-theme='light'] {
+  color-scheme: light;
+
   /* 色彩系统 (2-3色主调) */
   --color-primary: #4f46e5;       /* 靛蓝 */
   --color-primary-dark: #3730a3;
-  --color-primary-light: #818cf8;
+  --color-primary-light: #6366f1;
   --color-accent: #10b981;        /* 翠绿点缀 */
   --color-text: #1e293b;          /* 深石板灰 */
   --color-text-muted: #64748b;    /* 中性灰 */
   --color-bg: #f8fafc;            /* 极浅灰背景 */
   --color-surface: #ffffff;       /* 卡片白 */
   --color-border: #e2e8f0;
+
+  /* 语义色 (组件专用，随主题切换) */
+  --color-on-primary: #ffffff;       /* 主按钮文字 */
+  --color-btn-primary: #4f46e5;      /* 主按钮填充 */
+  --color-btn-primary-hover: #3730a3;
+  --color-tint: #eef2ff;             /* 靛蓝浅染底 (code/标签悬停/工具图标) */
+  --color-tint-strong: #c7d2fe;      /* 成功结果边框 */
+  --color-tag-bg: #f1f5f9;
+  --color-tag-text: #475569;         /* 标签文字 (AA: 6.9:1 on tag-bg) */
+  --color-info-bg: #ecfdf5;          /* 信息条 */
+  --color-info-border: #a7f3d0;
+  --color-info-text: #065f46;
+  --color-err-bg: #fef2f2;           /* 错误结果 */
+  --color-err-border: #fecaca;
+  --color-err-text: #b91c1c;
+  --color-nav-bg: rgba(255, 255, 255, 0.85);
 
   /* 字体 */
   --font-body: var(--font-inter), "Inter", system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
@@ -48,9 +76,81 @@
   /* 阴影 */
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
   --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
+  --shadow-primary: 0 4px 16px rgba(79, 70, 229, 0.3);
+
+  /* 焦点环 (表单控件 focus 阴影) */
+  --focus-ring: 0 0 0 3px rgba(79, 70, 229, 0.12);
 
   /* 过渡 */
   --transition: all 0.2s ease;
+}
+
+/* ---- 暗色主题 (跟随系统，仅在用户未手动指定主题时生效) ---- */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    color-scheme: dark;
+
+    --color-primary: #818cf8;
+    --color-primary-dark: #c7d2fe;
+    --color-primary-light: #a5b4fc;
+    --color-accent: #34d399;
+    --color-text: #e2e8f0;
+    --color-text-muted: #94a3b8;
+    --color-bg: #0f172a;
+    --color-surface: #1e293b;
+    --color-border: #64748b;
+
+    --color-on-primary: #ffffff;
+    --color-btn-primary: #4f46e5;
+    --color-btn-primary-hover: #3730a3;
+    --color-tint: rgba(99, 102, 241, 0.15);
+    --color-tint-strong: rgba(99, 102, 241, 0.3);
+    --color-tag-bg: #1e293b;
+    --color-tag-text: #94a3b8;
+    --color-info-bg: rgba(16, 185, 129, 0.1);
+    --color-info-border: rgba(16, 185, 129, 0.3);
+    --color-info-text: #6ee7b7;
+    --color-err-bg: rgba(239, 68, 68, 0.15);
+    --color-err-border: rgba(239, 68, 68, 0.3);
+    --color-err-text: #fca5a5;
+    --color-nav-bg: rgba(15, 23, 42, 0.85);
+
+    --shadow-primary: 0 4px 16px rgba(129, 140, 248, 0.28);
+    --focus-ring: 0 0 0 3px rgba(129, 140, 248, 0.2);
+  }
+}
+
+/* ---- 暗色主题 (显式指定，优先级最高) ---- */
+[data-theme='dark'] {
+  color-scheme: dark;
+
+  --color-primary: #818cf8;
+  --color-primary-dark: #c7d2fe;
+  --color-primary-light: #a5b4fc;
+  --color-accent: #34d399;
+  --color-text: #e2e8f0;
+  --color-text-muted: #94a3b8;
+  --color-bg: #0f172a;
+  --color-surface: #1e293b;
+  --color-border: #64748b;
+
+  --color-on-primary: #ffffff;
+  --color-btn-primary: #4f46e5;
+  --color-btn-primary-hover: #3730a3;
+  --color-tint: rgba(99, 102, 241, 0.15);
+  --color-tint-strong: rgba(99, 102, 241, 0.3);
+  --color-tag-bg: #1e293b;
+  --color-tag-text: #94a3b8;
+  --color-info-bg: rgba(16, 185, 129, 0.1);
+  --color-info-border: rgba(16, 185, 129, 0.3);
+  --color-info-text: #6ee7b7;
+  --color-err-bg: rgba(239, 68, 68, 0.15);
+  --color-err-border: rgba(239, 68, 68, 0.3);
+  --color-err-text: #fca5a5;
+  --color-nav-bg: rgba(15, 23, 42, 0.85);
+
+  --shadow-primary: 0 4px 16px rgba(129, 140, 248, 0.28);
+  --focus-ring: 0 0 0 3px rgba(129, 140, 248, 0.2);
 }
 
 /* ---- Reset ---- */
@@ -108,7 +208,7 @@ ul { padding-left: 1.2em; }
 code {
   font-family: var(--font-mono);
   font-size: 0.875em;
-  background: #eef2ff;
+  background: var(--color-tint);
   color: var(--color-primary-dark);
   padding: 0.15em 0.4em;
   border-radius: var(--radius-sm);
@@ -137,7 +237,7 @@ main {
   position: sticky;
   top: 0;
   z-index: 50;
-  background: rgba(255, 255, 255, 0.85);
+  background: var(--color-nav-bg);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--color-border);
@@ -175,7 +275,7 @@ main {
 
 .nav-link:hover {
   color: var(--color-primary);
-  background: #eef2ff;
+  background: var(--color-tint);
 }
 
 .nav-link--active {
@@ -224,15 +324,15 @@ main {
 }
 
 .btn--primary {
-  background: var(--color-primary);
-  color: #fff;
+  background: var(--color-btn-primary);
+  color: var(--color-on-primary);
 }
 
 .btn--primary:hover {
-  background: var(--color-primary-dark);
-  color: #fff;
+  background: var(--color-btn-primary-hover);
+  color: var(--color-on-primary);
   transform: translateY(-1px);
-  box-shadow: 0 4px 16px rgba(79, 70, 229, 0.3);
+  box-shadow: var(--shadow-primary);
 }
 
 .btn--secondary {
@@ -314,8 +414,8 @@ main {
 .tag {
   font-size: var(--fs-xs);
   font-family: var(--font-mono);
-  background: #f1f5f9;
-  color: var(--color-text-muted);
+  background: var(--color-tag-bg);
+  color: var(--color-tag-text);
   padding: 0.2em 0.6em;
   border-radius: var(--radius-sm);
 }
@@ -357,7 +457,7 @@ main {
 }
 
 .focus-tag {
-  background: #eef2ff;
+  background: var(--color-tint);
   color: var(--color-primary-dark);
   padding: var(--space-xs) var(--space-md);
   border-radius: var(--radius-md);
@@ -368,11 +468,11 @@ main {
 .about-honor {
   margin-top: var(--space-lg);
   padding: var(--space-md) var(--space-lg);
-  background: #ecfdf5;
-  border: 1px solid #a7f3d0;
+  background: var(--color-info-bg);
+  border: 1px solid var(--color-info-border);
   border-radius: var(--radius-md);
   font-size: var(--fs-sm);
-  color: #065f46;
+  color: var(--color-info-text);
 }
 
 /* ---- Contact ---- */
@@ -547,7 +647,7 @@ a:focus-visible,
   justify-content: center;
   width: 32px;
   height: 32px;
-  background: #eef2ff;
+  background: var(--color-tint);
   color: var(--color-primary-dark);
   border-radius: var(--radius-sm);
   font-family: var(--font-mono);
@@ -590,7 +690,7 @@ a:focus-visible,
 .tool-textarea:focus {
   outline: none;
   border-color: var(--color-primary);
-  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.12);
+  box-shadow: var(--focus-ring);
 }
 
 .tool-input,
@@ -610,7 +710,7 @@ a:focus-visible,
 .tool-select:focus {
   outline: none;
   border-color: var(--color-primary);
-  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.12);
+  box-shadow: var(--focus-ring);
 }
 
 .tool-label {
@@ -654,15 +754,15 @@ a:focus-visible,
 }
 
 .tool-result--ok {
-  background: #eef2ff;
-  border-color: #c7d2fe;
+  background: var(--color-tint);
+  border-color: var(--color-tint-strong);
   color: var(--color-primary-dark);
 }
 
 .tool-result--err {
-  background: #fef2f2;
-  border-color: #fecaca;
-  color: #dc2626;
+  background: var(--color-err-bg);
+  border-color: var(--color-err-border);
+  color: var(--color-err-text);
 }
 
 /* Timestamp tool layout */
@@ -804,88 +904,6 @@ a:focus-visible,
   .footer-container {
     flex-direction: column;
     gap: var(--space-xs);
-  }
-}
-
-/* ---- 暗色模式 ---- */
-@media (prefers-color-scheme: dark) {
-  :root {
-    --color-primary: #818cf8;
-    --color-primary-dark: #6366f1;
-    --color-primary-light: #a5b4fc;
-    --color-text: #e2e8f0;
-    --color-text-muted: #94a3b8;
-    --color-bg: #0f172a;
-    --color-surface: #1e293b;
-    --color-border: #334155;
-  }
-
-  body {
-    background-color: var(--color-bg);
-    color: var(--color-text);
-  }
-
-  .nav {
-    background: rgba(15, 23, 42, 0.85);
-  }
-
-  .nav-link:hover {
-    background: rgba(99, 102, 241, 0.15);
-  }
-
-  code {
-    background: rgba(99, 102, 241, 0.15);
-    color: var(--color-primary-light);
-  }
-
-  .tag {
-    background: #1e293b;
-    color: var(--color-text-muted);
-  }
-
-  .focus-tag {
-    background: rgba(99, 102, 241, 0.15);
-    color: var(--color-primary-light);
-  }
-
-  .about-honor {
-    background: rgba(16, 185, 129, 0.1);
-    border-color: rgba(16, 185, 129, 0.3);
-    color: #6ee7b7;
-  }
-
-  .tool-textarea,
-  .tool-input,
-  .tool-select {
-    background: var(--color-bg);
-    color: var(--color-text);
-  }
-
-  .tool-result {
-    background: var(--color-bg);
-  }
-
-  .tool-result--ok {
-    background: rgba(99, 102, 241, 0.15);
-    border-color: rgba(99, 102, 241, 0.3);
-    color: var(--color-primary-light);
-  }
-
-  .tool-result--err {
-    background: rgba(239, 68, 68, 0.15);
-    border-color: rgba(239, 68, 68, 0.3);
-    color: #fca5a5;
-  }
-
-  .tool-icon {
-    background: rgba(99, 102, 241, 0.15);
-    color: var(--color-primary-light);
-  }
-
-  .tool-textarea:focus,
-  .tool-input:focus,
-  .tool-select:focus {
-    box-shadow: 0 0 0 3px rgba(129, 140, 248, 0.2);
   }
 }
 
