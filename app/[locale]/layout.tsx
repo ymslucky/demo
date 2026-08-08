@@ -6,6 +6,7 @@ import { routing } from "@/i18n/routing";
 import "../globals.css";
 import Nav from "./components/Nav";
 import Footer from "./components/Footer";
+import { themeInitScript } from "../../lib/theme";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -61,8 +62,10 @@ export default async function LocaleLayout({
   setRequestLocale(locale);
 
   return (
-    <html lang={locale} className={inter.variable}>
+    <html lang={locale} className={inter.variable} suppressHydrationWarning>
       <body>
+        {/* Pre-paint theme sync: applies data-theme before first paint to avoid FOUC */}
+        <script dangerouslySetInnerHTML={{ __html: themeInitScript() }} />
         <NextIntlClientProvider>
           <div className="page">
             <Nav />

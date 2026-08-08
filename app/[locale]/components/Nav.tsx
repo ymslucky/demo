@@ -3,6 +3,7 @@
 import { useTranslations } from "next-intl";
 import { Link, usePathname } from "@/i18n/navigation";
 import LanguageSwitcher from "./LanguageSwitcher";
+import ThemeToggle from "./ThemeToggle";
 
 const navItems = [
   { href: "/", key: "home" },
@@ -43,6 +44,7 @@ export default function Nav() {
             })}
           </nav>
           <LanguageSwitcher />
+          <ThemeToggle />
         </div>
       </div>
     </header>

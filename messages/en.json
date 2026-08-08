@@ -23,6 +23,10 @@
     "switchToZh": "Switch to Chinese",
     "switchToEn": "Switch to English"
   },
+  "theme": {
+    "toggleToDark": "Switch to dark theme",
+    "toggleToLight": "Switch to light theme"
+  },
   "home": {
     "title": "LuckyLab — Indie Developer · Full-Stack Development & Automation Tools",
     "description": "LuckyLab, an indie developer focused on full-stack development of web apps and automation tools. Builds small practical tools quickly with Next.js, Python and Serverless.",
@@ -59,32 +63,53 @@
       "holiday": {
         "name": "Holiday — Holiday Calendar",
         "description": "A clean interactive holiday calendar app built with Next.js. Supports wheel-based month switching, highlights today, and is optimized for both mobile and desktop.",
-        "tags": ["Next.js", "TypeScript", "Tailwind CSS"]
+        "tags": [
+          "Next.js",
+          "TypeScript",
+          "Tailwind CSS"
+        ]
       },
       "functionstore": {
         "name": "FunctionStore — Serverless Function Repository",
         "description": "A self-hosted serverless function management platform built on Appwrite. A collection of cloud functions written in Python that package common backend logic into reusable FaaS workflows.",
-        "tags": ["Python", "Appwrite", "Serverless"]
+        "tags": [
+          "Python",
+          "Appwrite",
+          "Serverless"
+        ]
       },
       "dateview": {
         "name": "DateView — Data Visualization Dashboard",
         "description": "A Next.js data display and radar-chart visualization app. Explores combining Edge Functions with the frontend, optimizing data fetching and chart rendering performance.",
-        "tags": ["Next.js", "TypeScript", "Edge Functions"]
+        "tags": [
+          "Next.js",
+          "TypeScript",
+          "Edge Functions"
+        ]
       },
       "fnav": {
         "name": "FNav — Link Directory",
         "description": "A personally curated, minimal link directory collecting common online tools, development resources and community entry points.",
-        "tags": ["HTML", "CSS"]
+        "tags": [
+          "HTML",
+          "CSS"
+        ]
       },
       "autotask": {
         "name": "AutoTask-UI — No-Code Desktop Automation",
         "description": "A desktop automation prototype built with PySide6 that abstracts repetitive steps into configurable tasks, precisely replayed in the background by PyAutoGUI.",
-        "tags": ["Python", "PySide6", "PyAutoGUI"]
+        "tags": [
+          "Python",
+          "PySide6",
+          "PyAutoGUI"
+        ]
       },
       "bitresonance": {
         "name": "BitResonance",
         "description": "An experimental exploration of byte-level data processing and signal resonance concepts; documentation to follow.",
-        "tags": ["Exploring"]
+        "tags": [
+          "Exploring"
+        ]
       }
     }
   },
@@ -97,75 +122,207 @@
       "cloud": {
         "title": "Cloud Providers",
         "links": {
-          "aws": { "name": "AWS", "desc": "Amazon Web Services" },
-          "azure": { "name": "Azure", "desc": "Microsoft Azure" },
-          "gcp": { "name": "Google Cloud", "desc": "GCP" },
-          "aliyun": { "name": "Alibaba Cloud", "desc": "阿里云" },
-          "tencent": { "name": "Tencent Cloud", "desc": "腾讯云" },
-          "huawei": { "name": "Huawei Cloud", "desc": "华为云" },
-          "cloudflare": { "name": "Cloudflare", "desc": "Edge & Serverless" },
-          "vercel": { "name": "Vercel", "desc": "Frontend deployment & hosting" }
+          "aws": {
+            "name": "AWS",
+            "desc": "Amazon Web Services"
+          },
+          "azure": {
+            "name": "Azure",
+            "desc": "Microsoft Azure"
+          },
+          "gcp": {
+            "name": "Google Cloud",
+            "desc": "GCP"
+          },
+          "aliyun": {
+            "name": "Alibaba Cloud",
+            "desc": "阿里云"
+          },
+          "tencent": {
+            "name": "Tencent Cloud",
+            "desc": "腾讯云"
+          },
+          "huawei": {
+            "name": "Huawei Cloud",
+            "desc": "华为云"
+          },
+          "cloudflare": {
+            "name": "Cloudflare",
+            "desc": "Edge & Serverless"
+          },
+          "vercel": {
+            "name": "Vercel",
+            "desc": "Frontend deployment & hosting"
+          }
         }
       },
       "dev": {
         "title": "Dev Resources",
         "links": {
-          "github": { "name": "GitHub", "desc": "The world's largest code hosting platform" },
-          "gitlab": { "name": "GitLab", "desc": "All-in-one DevOps platform" },
-          "stackoverflow": { "name": "Stack Overflow", "desc": "Q&A community for programmers" },
-          "mdn": { "name": "MDN Web Docs", "desc": "Authoritative web development docs" },
-          "npm": { "name": "npm", "desc": "Node package registry" },
-          "devdocs": { "name": "DevDocs", "desc": "Aggregated offline API docs" },
-          "caniuse": { "name": "Can I Use", "desc": "Browser compatibility lookup" },
-          "regex101": { "name": "Regex101", "desc": "Regex testing & debugging" }
+          "github": {
+            "name": "GitHub",
+            "desc": "The world's largest code hosting platform"
+          },
+          "gitlab": {
+            "name": "GitLab",
+            "desc": "All-in-one DevOps platform"
+          },
+          "stackoverflow": {
+            "name": "Stack Overflow",
+            "desc": "Q&A community for programmers"
+          },
+          "mdn": {
+            "name": "MDN Web Docs",
+            "desc": "Authoritative web development docs"
+          },
+          "npm": {
+            "name": "npm",
+            "desc": "Node package registry"
+          },
+          "devdocs": {
+            "name": "DevDocs",
+            "desc": "Aggregated offline API docs"
+          },
+          "caniuse": {
+            "name": "Can I Use",
+            "desc": "Browser compatibility lookup"
+          },
+          "regex101": {
+            "name": "Regex101",
+            "desc": "Regex testing & debugging"
+          }
         }
       },
       "frontend": {
         "title": "Frontend Frameworks & Tools",
         "links": {
-          "react": { "name": "React", "desc": "UI library" },
-          "vue": { "name": "Vue.js", "desc": "Progressive JS framework" },
-          "astro": { "name": "Astro", "desc": "Static site generator" },
-          "nextjs": { "name": "Next.js", "desc": "React full-stack framework" },
-          "svelte": { "name": "Svelte", "desc": "Compile-time frontend framework" },
-          "tailwind": { "name": "Tailwind CSS", "desc": "Utility-first CSS framework" },
-          "vite": { "name": "Vite", "desc": "Next-generation frontend build tool" },
-          "typescript": { "name": "TypeScript", "desc": "Typed superset of JavaScript" }
+          "react": {
+            "name": "React",
+            "desc": "UI library"
+          },
+          "vue": {
+            "name": "Vue.js",
+            "desc": "Progressive JS framework"
+          },
+          "astro": {
+            "name": "Astro",
+            "desc": "Static site generator"
+          },
+          "nextjs": {
+            "name": "Next.js",
+            "desc": "React full-stack framework"
+          },
+          "svelte": {
+            "name": "Svelte",
+            "desc": "Compile-time frontend framework"
+          },
+          "tailwind": {
+            "name": "Tailwind CSS",
+            "desc": "Utility-first CSS framework"
+          },
+          "vite": {
+            "name": "Vite",
+            "desc": "Next-generation frontend build tool"
+          },
+          "typescript": {
+            "name": "TypeScript",
+            "desc": "Typed superset of JavaScript"
+          }
         }
       },
       "design": {
         "title": "Design Resources",
         "links": {
-          "figma": { "name": "Figma", "desc": "Collaborative online design tool" },
-          "dribbble": { "name": "Dribbble", "desc": "Designer portfolio community" },
-          "behance": { "name": "Behance", "desc": "Creative portfolio platform" },
-          "coolors": { "name": "Coolors", "desc": "Color palette generator" },
-          "unsplash": { "name": "Unsplash", "desc": "Free high-resolution images" },
-          "iconfont": { "name": "Iconfont", "desc": "Alibaba vector icon library" },
-          "lucide": { "name": "Lucide", "desc": "Beautiful open-source icon set" },
-          "googlefonts": { "name": "Google Fonts", "desc": "Free web fonts" }
+          "figma": {
+            "name": "Figma",
+            "desc": "Collaborative online design tool"
+          },
+          "dribbble": {
+            "name": "Dribbble",
+            "desc": "Designer portfolio community"
+          },
+          "behance": {
+            "name": "Behance",
+            "desc": "Creative portfolio platform"
+          },
+          "coolors": {
+            "name": "Coolors",
+            "desc": "Color palette generator"
+          },
+          "unsplash": {
+            "name": "Unsplash",
+            "desc": "Free high-resolution images"
+          },
+          "iconfont": {
+            "name": "Iconfont",
+            "desc": "Alibaba vector icon library"
+          },
+          "lucide": {
+            "name": "Lucide",
+            "desc": "Beautiful open-source icon set"
+          },
+          "googlefonts": {
+            "name": "Google Fonts",
+            "desc": "Free web fonts"
+          }
         }
       },
       "ai": {
         "title": "AI Tools",
         "links": {
-          "chatgpt": { "name": "ChatGPT", "desc": "OpenAI conversational assistant" },
-          "claude": { "name": "Claude", "desc": "Anthropic AI assistant" },
-          "huggingface": { "name": "Hugging Face", "desc": "Community for models & datasets" },
-          "copilot": { "name": "GitHub Copilot", "desc": "AI coding partner" },
-          "midjourney": { "name": "Midjourney", "desc": "AI image generation" },
-          "stablediffusion": { "name": "Stable Diffusion", "desc": "Open-source image generation model" }
+          "chatgpt": {
+            "name": "ChatGPT",
+            "desc": "OpenAI conversational assistant"
+          },
+          "claude": {
+            "name": "Claude",
+            "desc": "Anthropic AI assistant"
+          },
+          "huggingface": {
+            "name": "Hugging Face",
+            "desc": "Community for models & datasets"
+          },
+          "copilot": {
+            "name": "GitHub Copilot",
+            "desc": "AI coding partner"
+          },
+          "midjourney": {
+            "name": "Midjourney",
+            "desc": "AI image generation"
+          },
+          "stablediffusion": {
+            "name": "Stable Diffusion",
+            "desc": "Open-source image generation model"
+          }
         }
       },
       "community": {
         "title": "Developer Communities",
         "links": {
-          "devto": { "name": "Dev.to", "desc": "Developer blogging community" },
-          "hn": { "name": "Hacker News", "desc": "Tech news & discussion" },
-          "v2ex": { "name": "V2EX", "desc": "Community for creative professionals" },
-          "juejin": { "name": "Juejin", "desc": "Chinese tech community" },
-          "reddit": { "name": "Reddit /r/programming", "desc": "Programming subreddit" },
-          "producthunt": { "name": "Product Hunt", "desc": "New product discovery platform" }
+          "devto": {
+            "name": "Dev.to",
+            "desc": "Developer blogging community"
+          },
+          "hn": {
+            "name": "Hacker News",
+            "desc": "Tech news & discussion"
+          },
+          "v2ex": {
+            "name": "V2EX",
+            "desc": "Community for creative professionals"
+          },
+          "juejin": {
+            "name": "Juejin",
+            "desc": "Chinese tech community"
+          },
+          "reddit": {
+            "name": "Reddit /r/programming",
+            "desc": "Programming subreddit"
+          },
+          "producthunt": {
+            "name": "Product Hunt",
+            "desc": "New product discovery platform"
+          }
         }
       }
     }
@@ -187,12 +344,30 @@
     "heading": "Online Tools",
     "subtitle": "A collection of handy developer & everyday tools — everything runs in your browser, no data is uploaded",
     "items": {
-      "json": { "name": "JSON Formatter", "description": "Beautify, minify and validate JSON data with automatic syntax error highlighting." },
-      "base64": { "name": "Base64 Encode/Decode", "description": "Two-way conversion between text and Base64, with Unicode support." },
-      "timestamp": { "name": "Timestamp Converter", "description": "Convert between Unix timestamps and date strings; auto-detects seconds / milliseconds." },
-      "unit": { "name": "Unit Converter", "description": "Quick conversions for common length, temperature and data-size units." },
-      "color": { "name": "Color Picker", "description": "Visually pick colors with live HEX / RGB / HSL output." },
-      "case": { "name": "Text Case Converter", "description": "One-click conversion between UPPER, lower, Title, camelCase and more." }
+      "json": {
+        "name": "JSON Formatter",
+        "description": "Beautify, minify and validate JSON data with automatic syntax error highlighting."
+      },
+      "base64": {
+        "name": "Base64 Encode/Decode",
+        "description": "Two-way conversion between text and Base64, with Unicode support."
+      },
+      "timestamp": {
+        "name": "Timestamp Converter",
+        "description": "Convert between Unix timestamps and date strings; auto-detects seconds / milliseconds."
+      },
+      "unit": {
+        "name": "Unit Converter",
+        "description": "Quick conversions for common length, temperature and data-size units."
+      },
+      "color": {
+        "name": "Color Picker",
+        "description": "Visually pick colors with live HEX / RGB / HSL output."
+      },
+      "case": {
+        "name": "Text Case Converter",
+        "description": "One-click conversion between UPPER, lower, Title, camelCase and more."
+      }
     },
     "actions": {
       "format": "Format",
