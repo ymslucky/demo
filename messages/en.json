@@ -1,0 +1,265 @@
+{
+  "metadata": {
+    "title": "LuckyLab",
+    "template": "%s · LuckyLab",
+    "description": "LuckyLab — an indie developer focused on full-stack development of web apps and automation tools."
+  },
+  "nav": {
+    "ariaLabel": "Main navigation",
+    "home": "Home",
+    "about": "About",
+    "projects": "Projects",
+    "links": "Links",
+    "tools": "Tools",
+    "contact": "Contact"
+  },
+  "footer": {
+    "tagline": "Turning ideas into products with code"
+  },
+  "languageSwitcher": {
+    "label": "Switch language",
+    "zhLabel": "中文",
+    "enLabel": "EN",
+    "switchToZh": "Switch to Chinese",
+    "switchToEn": "Switch to English"
+  },
+  "home": {
+    "title": "LuckyLab — Indie Developer · Full-Stack Development & Automation Tools",
+    "description": "LuckyLab, an indie developer focused on full-stack development of web apps and automation tools. Builds small practical tools quickly with Next.js, Python and Serverless.",
+    "tagline": "Turning ideas into products with code.",
+    "bio": "An indie developer focused on full-stack development of web applications and automation tools. I enjoy building small practical utilities with Next.js and Python — from holiday calendars to serverless function platforms.",
+    "viewProjects": "View Projects",
+    "learnMore": "Learn More"
+  },
+  "about": {
+    "title": "About",
+    "description": "About LuckyLab — the tech stack, focus areas and open source contributions of an indie developer.",
+    "heading": "About Me",
+    "subtitle": "Indie developer · Full-stack web apps · Automation tools",
+    "p1": "I'm an indie developer who enjoys using technology to solve practical problems in daily life and work. My stack centers on TypeScript and Python — I build modern web applications with Next.js and am familiar with backend development on serverless platforms like Appwrite and Cloudflare.",
+    "p2": "Besides web development, I'm also passionate about desktop automation tools and data visualization — I once prototyped a no-code desktop automation tool with PySide6 and presented complex business data with visualizations like radar charts. I prefer simple, efficient technical solutions and aim to ship usable products with minimal complexity.",
+    "p3": "In open source, I maintain several public repositories covering practical tools, a link directory and data visualization projects, and I contributed as an Arctic Code Vault Contributor to code permanently archived by GitHub.",
+    "focusTitle": "Current Focus Areas",
+    "focusAreas": [
+      "Full-stack web application development",
+      "AI-assisted development & image generation",
+      "Automation & desktop productivity tools",
+      "Data visualization"
+    ],
+    "honor": "★ Honor: GitHub Arctic Code Vault Contributor"
+  },
+  "projects": {
+    "title": "Projects",
+    "description": "Selected projects by LuckyLab — holiday calendar, serverless platform, data visualization, desktop automation tools and more.",
+    "heading": "Selected Projects",
+    "subtitle": "Products and experiments that solve real problems with code",
+    "demo": "Live Demo →",
+    "source": "Source →",
+    "items": {
+      "holiday": {
+        "name": "Holiday — Holiday Calendar",
+        "description": "A clean interactive holiday calendar app built with Next.js. Supports wheel-based month switching, highlights today, and is optimized for both mobile and desktop.",
+        "tags": ["Next.js", "TypeScript", "Tailwind CSS"]
+      },
+      "functionstore": {
+        "name": "FunctionStore — Serverless Function Repository",
+        "description": "A self-hosted serverless function management platform built on Appwrite. A collection of cloud functions written in Python that package common backend logic into reusable FaaS workflows.",
+        "tags": ["Python", "Appwrite", "Serverless"]
+      },
+      "dateview": {
+        "name": "DateView — Data Visualization Dashboard",
+        "description": "A Next.js data display and radar-chart visualization app. Explores combining Edge Functions with the frontend, optimizing data fetching and chart rendering performance.",
+        "tags": ["Next.js", "TypeScript", "Edge Functions"]
+      },
+      "fnav": {
+        "name": "FNav — Link Directory",
+        "description": "A personally curated, minimal link directory collecting common online tools, development resources and community entry points.",
+        "tags": ["HTML", "CSS"]
+      },
+      "autotask": {
+        "name": "AutoTask-UI — No-Code Desktop Automation",
+        "description": "A desktop automation prototype built with PySide6 that abstracts repetitive steps into configurable tasks, precisely replayed in the background by PyAutoGUI.",
+        "tags": ["Python", "PySide6", "PyAutoGUI"]
+      },
+      "bitresonance": {
+        "name": "BitResonance",
+        "description": "An experimental exploration of byte-level data processing and signal resonance concepts; documentation to follow.",
+        "tags": ["Exploring"]
+      }
+    }
+  },
+  "links": {
+    "title": "Links",
+    "description": "Handy links for development & design — cloud services, dev resources, frontend frameworks, design tools, AI and developer communities.",
+    "heading": "Links",
+    "subtitle": "A curated collection of useful online resources for development and design, updated continuously",
+    "categories": {
+      "cloud": {
+        "title": "Cloud Providers",
+        "links": {
+          "aws": { "name": "AWS", "desc": "Amazon Web Services" },
+          "azure": { "name": "Azure", "desc": "Microsoft Azure" },
+          "gcp": { "name": "Google Cloud", "desc": "GCP" },
+          "aliyun": { "name": "Alibaba Cloud", "desc": "阿里云" },
+          "tencent": { "name": "Tencent Cloud", "desc": "腾讯云" },
+          "huawei": { "name": "Huawei Cloud", "desc": "华为云" },
+          "cloudflare": { "name": "Cloudflare", "desc": "Edge & Serverless" },
+          "vercel": { "name": "Vercel", "desc": "Frontend deployment & hosting" }
+        }
+      },
+      "dev": {
+        "title": "Dev Resources",
+        "links": {
+          "github": { "name": "GitHub", "desc": "The world's largest code hosting platform" },
+          "gitlab": { "name": "GitLab", "desc": "All-in-one DevOps platform" },
+          "stackoverflow": { "name": "Stack Overflow", "desc": "Q&A community for programmers" },
+          "mdn": { "name": "MDN Web Docs", "desc": "Authoritative web development docs" },
+          "npm": { "name": "npm", "desc": "Node package registry" },
+          "devdocs": { "name": "DevDocs", "desc": "Aggregated offline API docs" },
+          "caniuse": { "name": "Can I Use", "desc": "Browser compatibility lookup" },
+          "regex101": { "name": "Regex101", "desc": "Regex testing & debugging" }
+        }
+      },
+      "frontend": {
+        "title": "Frontend Frameworks & Tools",
+        "links": {
+          "react": { "name": "React", "desc": "UI library" },
+          "vue": { "name": "Vue.js", "desc": "Progressive JS framework" },
+          "astro": { "name": "Astro", "desc": "Static site generator" },
+          "nextjs": { "name": "Next.js", "desc": "React full-stack framework" },
+          "svelte": { "name": "Svelte", "desc": "Compile-time frontend framework" },
+          "tailwind": { "name": "Tailwind CSS", "desc": "Utility-first CSS framework" },
+          "vite": { "name": "Vite", "desc": "Next-generation frontend build tool" },
+          "typescript": { "name": "TypeScript", "desc": "Typed superset of JavaScript" }
+        }
+      },
+      "design": {
+        "title": "Design Resources",
+        "links": {
+          "figma": { "name": "Figma", "desc": "Collaborative online design tool" },
+          "dribbble": { "name": "Dribbble", "desc": "Designer portfolio community" },
+          "behance": { "name": "Behance", "desc": "Creative portfolio platform" },
+          "coolors": { "name": "Coolors", "desc": "Color palette generator" },
+          "unsplash": { "name": "Unsplash", "desc": "Free high-resolution images" },
+          "iconfont": { "name": "Iconfont", "desc": "Alibaba vector icon library" },
+          "lucide": { "name": "Lucide", "desc": "Beautiful open-source icon set" },
+          "googlefonts": { "name": "Google Fonts", "desc": "Free web fonts" }
+        }
+      },
+      "ai": {
+        "title": "AI Tools",
+        "links": {
+          "chatgpt": { "name": "ChatGPT", "desc": "OpenAI conversational assistant" },
+          "claude": { "name": "Claude", "desc": "Anthropic AI assistant" },
+          "huggingface": { "name": "Hugging Face", "desc": "Community for models & datasets" },
+          "copilot": { "name": "GitHub Copilot", "desc": "AI coding partner" },
+          "midjourney": { "name": "Midjourney", "desc": "AI image generation" },
+          "stablediffusion": { "name": "Stable Diffusion", "desc": "Open-source image generation model" }
+        }
+      },
+      "community": {
+        "title": "Developer Communities",
+        "links": {
+          "devto": { "name": "Dev.to", "desc": "Developer blogging community" },
+          "hn": { "name": "Hacker News", "desc": "Tech news & discussion" },
+          "v2ex": { "name": "V2EX", "desc": "Community for creative professionals" },
+          "juejin": { "name": "Juejin", "desc": "Chinese tech community" },
+          "reddit": { "name": "Reddit /r/programming", "desc": "Programming subreddit" },
+          "producthunt": { "name": "Product Hunt", "desc": "New product discovery platform" }
+        }
+      }
+    }
+  },
+  "contact": {
+    "title": "Contact",
+    "description": "Contact LuckyLab — email, GitHub and personal domain.",
+    "heading": "Contact Me",
+    "subtitle": "Feel free to reach out for collaboration or just to chat",
+    "labels": {
+      "email": "Email",
+      "github": "GitHub",
+      "website": "Website"
+    }
+  },
+  "tools": {
+    "title": "Online Tools",
+    "description": "Everyday online toolbox — JSON formatter, Base64 encoder/decoder, timestamp converter, unit converter, color picker and more, all running locally.",
+    "heading": "Online Tools",
+    "subtitle": "A collection of handy developer & everyday tools — everything runs in your browser, no data is uploaded",
+    "items": {
+      "json": { "name": "JSON Formatter", "description": "Beautify, minify and validate JSON data with automatic syntax error highlighting." },
+      "base64": { "name": "Base64 Encode/Decode", "description": "Two-way conversion between text and Base64, with Unicode support." },
+      "timestamp": { "name": "Timestamp Converter", "description": "Convert between Unix timestamps and date strings; auto-detects seconds / milliseconds." },
+      "unit": { "name": "Unit Converter", "description": "Quick conversions for common length, temperature and data-size units." },
+      "color": { "name": "Color Picker", "description": "Visually pick colors with live HEX / RGB / HSL output." },
+      "case": { "name": "Text Case Converter", "description": "One-click conversion between UPPER, lower, Title, camelCase and more." }
+    },
+    "actions": {
+      "format": "Format",
+      "minify": "Minify",
+      "clear": "Clear",
+      "encode": "Encode →",
+      "decode": "← Decode",
+      "refresh": "Refresh",
+      "swap": "Swap ⇄"
+    },
+    "labels": {
+      "jsonInput": "JSON input",
+      "b64Input": "Base64 input",
+      "currentTs": "Current timestamp",
+      "tsToDate": "Timestamp → Date",
+      "dateToTs": "Date → Timestamp",
+      "unitType": "Unit type",
+      "inputValue": "Input value",
+      "sourceUnit": "From unit",
+      "result": "Result",
+      "targetUnit": "To unit",
+      "pickColor": "Pick a color",
+      "rgbValue": "RGB value",
+      "hslValue": "HSL value",
+      "textInput": "Text input",
+      "categoryLength": "Length",
+      "categoryTemperature": "Temperature",
+      "categoryData": "Data size"
+    },
+    "placeholders": {
+      "b64": "Enter text to encode or decode",
+      "tsInput": "e.g. 1786139195 or 1786139195000",
+      "dateInput": "e.g. 2026-08-08 12:00:00",
+      "caseInput": "Enter text to convert",
+      "jsonSample": "{\"hello\":\"world\",\"numbers\":[1,2,3]}"
+    },
+    "errors": {
+      "encodeFailed": "✗ Encoding failed",
+      "invalidBase64": "✗ Invalid Base64 string",
+      "invalidTimestamp": "✗ Invalid timestamp",
+      "invalidDate": "✗ Invalid date"
+    },
+    "timestamp": {
+      "secondsMs": "Seconds: {seconds}    Milliseconds: {milliseconds}"
+    }
+  },
+  "unit": {
+    "length": {
+      "m": "Meters (m)",
+      "km": "Kilometers (km)",
+      "cm": "Centimeters (cm)",
+      "mm": "Millimeters (mm)",
+      "in": "Inches (in)",
+      "ft": "Feet (ft)",
+      "mi": "Miles (mi)"
+    },
+    "temperature": {
+      "c": "Celsius (°C)",
+      "f": "Fahrenheit (°F)",
+      "k": "Kelvin (K)"
+    },
+    "data": {
+      "b": "Bytes (B)",
+      "kb": "Kilobytes (KB)",
+      "mb": "Megabytes (MB)",
+      "gb": "Gigabytes (GB)",
+      "tb": "Terabytes (TB)"
+    }
+  }
+}

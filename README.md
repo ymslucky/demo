@@ -7,6 +7,7 @@
 - **框架**: Next.js 16 (App Router, Turbopack)
 - **语言**: TypeScript 5.7
 - **样式**: 纯 CSS (CSS 变量 + Flex/Grid)
+- **国际化**: next-intl (中文默认 / English)
 - **部署**: EdgeOne Makers (SSR/SSG 原生支持)
 - **字体**: Inter (Google Fonts)
 
@@ -43,17 +44,35 @@ npm test
 
 ```
 app/
-├── layout.tsx          # 根布局 (全局 metadata、字体、Nav/Footer)
-├── page.tsx            # 首页 (Hero)
+├── [locale]/           # 本地化路由段 (zh 为默认，不带前缀；/en 为英文)
+│   ├── layout.tsx      # 根布局 (html lang、全局 metadata、字体、Nav/Footer)
+│   ├── page.tsx        # 首页 (Hero)
+│   ├── about/          # 关于页
+│   ├── projects/       # 项目展示
+│   ├── tools/          # 在线工具 (JSON/Base64/时间戳/单位/颜色/文本)
+│   ├── links/          # 导航链接
+│   ├── contact/        # 联系方式
+│   └── components/     # Nav / Footer / LanguageSwitcher
 ├── globals.css         # 全局样式 + 设计变量
-├── about/              # 关于页
-├── projects/           # 项目展示
-├── tools/              # 在线工具 (JSON/Base64/时间戳/单位/颜色/文本)
-├── links/              # 导航链接
-├── contact/            # 联系方式
 ├── robots.ts           # SEO robots.txt
-└── sitemap.ts          # SEO sitemap.xml
+└── sitemap.ts          # SEO sitemap.xml (含两种语言变体)
+i18n/
+├── routing.ts          # 语言路由配置 (locales / defaultLocale / 前缀策略)
+├── navigation.ts       # 语言感知的 Link / useRouter / usePathname
+└── request.ts          # 按语言加载消息目录
+messages/
+├── zh.json             # 中文消息目录
+└── en.json             # 英文消息目录
+proxy.ts                # 语言协商 (next-intl middleware)
 ```
+
+新增语言：在 `i18n/routing.ts` 的 `locales` 中加入代码，新建 `messages/<code>.json`（与现有目录键结构一致，`tests/i18n.test.ts` 会校验键一致性），重新构建即可。
+
+## 国际化
+
+- 默认语言为中文，现有 URL（`/`、`/about` 等）保持不变；英文站点位于 `/en` 前缀下。
+- 页面右上角提供语言切换控件，切换为客户端导航，不触发整页刷新。
+- 所有面向用户的文案均通过 `useTranslations` / `getTranslations` 读取，无硬编码字符串。
 
 ## 部署
 
