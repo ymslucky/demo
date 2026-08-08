@@ -1,10 +1,15 @@
-export default function Footer() {
+import { getTranslations } from "next-intl/server";
+
+export default async function Footer() {
+  const t = await getTranslations("footer");
   const year = new Date().getFullYear();
 
   return (
     <footer className="footer">
       <div className="footer-container">
-        <p>&copy; {year} LuckyLab · 用代码把想法变成产品</p>
+        <p>
+          &copy; {year} LuckyLab · {t("tagline")}
+        </p>
         <p>
           <a
             href="https://github.com/ymslucky"

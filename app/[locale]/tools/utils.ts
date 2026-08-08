@@ -3,6 +3,10 @@
  *
  * Extracted from ToolsClient.tsx so they can be unit-tested in isolation
  * and reused without pulling in React.
+ *
+ * `UnitDef.label` holds a translation key (e.g. "m", "km") that is resolved
+ * against the `unit.<category>.<label>` message namespace at render time, so
+ * the unit catalogue itself stays locale-independent.
  */
 
 // ---------------------------------------------------------------------------
@@ -17,25 +21,25 @@ export interface UnitDef {
 
 export const unitData: Record<string, UnitDef[]> = {
   length: [
-    { label: "米 (m)", factor: 1 },
-    { label: "千米 (km)", factor: 1000 },
-    { label: "厘米 (cm)", factor: 0.01 },
-    { label: "毫米 (mm)", factor: 0.001 },
-    { label: "英寸 (in)", factor: 0.0254 },
-    { label: "英尺 (ft)", factor: 0.3048 },
-    { label: "英里 (mi)", factor: 1609.344 },
+    { label: "m", factor: 1 },
+    { label: "km", factor: 1000 },
+    { label: "cm", factor: 0.01 },
+    { label: "mm", factor: 0.001 },
+    { label: "in", factor: 0.0254 },
+    { label: "ft", factor: 0.3048 },
+    { label: "mi", factor: 1609.344 },
   ],
   temperature: [
-    { label: "摄氏度 (°C)", factor: 1, offset: 0 },
-    { label: "华氏度 (°F)", factor: 5 / 9, offset: -32 * (5 / 9) },
-    { label: "开尔文 (K)", factor: 1, offset: -273.15 },
+    { label: "c", factor: 1, offset: 0 },
+    { label: "f", factor: 5 / 9, offset: -32 * (5 / 9) },
+    { label: "k", factor: 1, offset: -273.15 },
   ],
   data: [
-    { label: "字节 (B)", factor: 1 },
-    { label: "千字节 (KB)", factor: 1024 },
-    { label: "兆字节 (MB)", factor: 1024 ** 2 },
-    { label: "吉字节 (GB)", factor: 1024 ** 3 },
-    { label: "太字节 (TB)", factor: 1024 ** 4 },
+    { label: "b", factor: 1 },
+    { label: "kb", factor: 1024 },
+    { label: "mb", factor: 1024 ** 2 },
+    { label: "gb", factor: 1024 ** 3 },
+    { label: "tb", factor: 1024 ** 4 },
   ],
 };
 

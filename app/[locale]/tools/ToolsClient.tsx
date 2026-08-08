@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useCallback, useMemo } from "react";
+import { useLocale, useTranslations } from "next-intl";
 import {
   unitData,
   convertUnit,
@@ -15,45 +16,19 @@ import {
 
 // ---- Tool catalogue ----
 const tools = [
-  {
-    id: "json-formatter",
-    icon: "json",
-    name: "JSON 格式化",
-    description: "美化、压缩与校验 JSON 数据，自动高亮语法错误位置。",
-  },
-  {
-    id: "base64",
-    icon: "b64",
-    name: "Base64 编解码",
-    description: "在文本与 Base64 之间双向转换，支持 Unicode。",
-  },
-  {
-    id: "timestamp",
-    icon: "ts",
-    name: "时间戳转换",
-    description: "Unix 时间戳与日期字符串互转，毫秒 / 秒自动识别。",
-  },
-  {
-    id: "unit-converter",
-    icon: "unit",
-    name: "单位换算",
-    description: "长度、温度、数据容量常用单位快速换算。",
-  },
-  {
-    id: "color-picker",
-    icon: "color",
-    name: "颜色选择器",
-    description: "可视化拾取颜色，实时输出 HEX / RGB / HSL。",
-  },
-  {
-    id: "case-converter",
-    icon: "case",
-    name: "文本大小写转换",
-    description: "UPPER、lower、Title、camelCase 等多种模式一键转换。",
-  },
+  { id: "json-formatter", icon: "json", key: "json" },
+  { id: "base64", icon: "b64", key: "base64" },
+  { id: "timestamp", icon: "ts", key: "timestamp" },
+  { id: "unit-converter", icon: "unit", key: "unit" },
+  { id: "color-picker", icon: "color", key: "color" },
+  { id: "case-converter", icon: "case", key: "case" },
 ] as const;
 
 export default function ToolsPage() {
+  const t = useTranslations("tools");
+  const tu = useTranslations("unit");
+  const locale = useLocale();
+
   // JSON Formatter state
   const [jsonInput, setJsonInput] = useState("");
   const [jsonOutput, setJsonOutput] = useState("");
@@ -92,7 +67,7 @@ export default function ToolsPage() {
       setB64Output(encodeBase64(b64Input));
       setB64Err(false);
     } catch {
-      setB64Output("✗ 编码失败");
+      setB64Output(t("errors.encodeFailed"));
       setB64Err(true);
     }
   };
@@ -102,7 +77,7 @@ export default function ToolsPage() {
       setB64Output(decodeBase64(b64Input.trim()));
       setB64Err(false);
     } catch {
-      setB64Output("✗ 无效的 Base64 字符串");
+      setB64Output(t("errors.invalidBase64"));
       setB64Err(true);
     }
   };
@@ -137,12 +112,12 @@ export default function ToolsPage() {
     if (raw.length > 10) ts = ts / 1000;
     const d = new Date(ts * 1000);
     if (isNaN(d.getTime())) {
-      setTsToDate("✗ 无效时间戳");
+      setTsToDate(t("errors.invalidTimestamp"));
       setTsToDateErr(true);
       return;
     }
     setTsToDate(
-      d.toLocaleString("zh-CN", { hour12: false }) + "  (" + formatTimezone(d) + ")",
+      d.toLocaleString(locale, { hour12: false }) + "  (" + formatTimezone(d) + ")",
     );
     setTsToDateErr(false);
   };
@@ -155,11 +130,16 @@ export default function ToolsPage() {
     }
     const d = new Date(raw.replace(/-/g, "/"));
     if (isNaN(d.getTime())) {
-      setTsToTs("✗ 无效日期");
+      setTsToTs(t("errors.invalidDate"));
       setTsToTsErr(true);
       return;
     }
-    setTsToTs("秒: " + Math.floor(d.getTime() / 1000) + "   毫秒: " + d.getTime());
+    setTsToTs(
+      t("timestamp.secondsMs", {
+        seconds: String(Math.floor(d.getTime() / 1000)),
+        milliseconds: String(d.getTime()),
+      }),
+    );
     setTsToTsErr(false);
   };
 
@@ -241,9 +221,9 @@ export default function ToolsPage() {
             <span className="tool-icon" aria-hidden="true">
               {tool.icon}
             </span>
-            <h3>{tool.name}</h3>
+            <h3>{t(`items.${tool.key}.name`)}</h3>
           </div>
-          <p className="tool-desc">{tool.description}</p>
+          <p className="tool-desc">{t(`items.${tool.key}.description`)}</p>
 
           {/* JSON Formatter */}
           {tool.id === "json-formatter" && (
@@ -251,8 +231,8 @@ export default function ToolsPage() {
               <textarea
                 className="tool-textarea"
                 rows={6}
-                placeholder='{\"hello\":\"world\",\"numbers\":[1,2,3]}'
-                aria-label="JSON 输入"
+                placeholder={t("placeholders.jsonSample")}
+                aria-label={t("labels.jsonInput")}
                 value={jsonInput}
                 onChange={(e) => setJsonInput(e.target.value)}
               />
@@ -262,21 +242,21 @@ export default function ToolsPage() {
                   className="btn btn--primary btn--sm"
                   onClick={jsonFormat}
                 >
-                  格式化
+                  {t("actions.format")}
                 </button>
                 <button
                   type="button"
                   className="btn btn--secondary btn--sm"
                   onClick={jsonMinify}
                 >
-                  压缩
+                  {t("actions.minify")}
                 </button>
                 <button
                   type="button"
                   className="btn btn--secondary btn--sm"
                   onClick={jsonClear}
                 >
-                  清空
+                  {t("actions.clear")}
                 </button>
               </div>
               {jsonOutput && (
@@ -296,8 +276,8 @@ export default function ToolsPage() {
               <textarea
                 className="tool-textarea"
                 rows={4}
-                placeholder="输入要编码或解码的文本"
-                aria-label="Base64 输入"
+                placeholder={t("placeholders.b64")}
+                aria-label={t("labels.b64Input")}
                 value={b64Input}
                 onChange={(e) => setB64Input(e.target.value)}
               />
@@ -307,21 +287,21 @@ export default function ToolsPage() {
                   className="btn btn--primary btn--sm"
                   onClick={b64Encode}
                 >
-                  编码 →
+                  {t("actions.encode")}
                 </button>
                 <button
                   type="button"
                   className="btn btn--secondary btn--sm"
                   onClick={b64Decode}
                 >
-                  ← 解码
+                  {t("actions.decode")}
                 </button>
                 <button
                   type="button"
                   className="btn btn--secondary btn--sm"
                   onClick={b64Clear}
                 >
-                  清空
+                  {t("actions.clear")}
                 </button>
               </div>
               {b64Output && (
@@ -339,7 +319,7 @@ export default function ToolsPage() {
           {tool.id === "timestamp" && (
             <div className="tool-body">
               <label className="tool-label" htmlFor="ts-now">
-                当前时间戳
+                {t("labels.currentTs")}
               </label>
               <div className="ts-now-row">
                 <input
@@ -354,18 +334,18 @@ export default function ToolsPage() {
                   className="btn btn--secondary btn--sm"
                   onClick={refreshTs}
                 >
-                  刷新
+                  {t("actions.refresh")}
                 </button>
               </div>
 
               <label className="tool-label" htmlFor="ts-ts-input">
-                时间戳 → 日期
+                {t("labels.tsToDate")}
               </label>
               <input
                 className="tool-input"
                 id="ts-ts-input"
                 type="text"
-                placeholder="例如 1786139195 或 1786139195000"
+                placeholder={t("placeholders.tsInput")}
                 value={tsInput}
                 onChange={(e) => handleTsToDate(e.target.value)}
               />
@@ -379,13 +359,13 @@ export default function ToolsPage() {
               )}
 
               <label className="tool-label" htmlFor="ts-date-input">
-                日期 → 时间戳
+                {t("labels.dateToTs")}
               </label>
               <input
                 className="tool-input"
                 id="ts-date-input"
                 type="text"
-                placeholder="例如 2026-08-08 12:00:00"
+                placeholder={t("placeholders.dateInput")}
                 value={dateInput}
                 onChange={(e) => handleTsToTs(e.target.value)}
               />
@@ -405,7 +385,7 @@ export default function ToolsPage() {
             <div className="tool-body">
               <div className="tool-row">
                 <label className="sr-only" htmlFor="unit-category">
-                  单位类型
+                  {t("labels.unitType")}
                 </label>
                 <select
                   id="unit-category"
@@ -413,14 +393,16 @@ export default function ToolsPage() {
                   value={unitCategory}
                   onChange={(e) => changeUnitCategory(e.target.value)}
                 >
-                  <option value="length">长度</option>
-                  <option value="temperature">温度</option>
-                  <option value="data">数据容量</option>
+                  <option value="length">{t("labels.categoryLength")}</option>
+                  <option value="temperature">
+                    {t("labels.categoryTemperature")}
+                  </option>
+                  <option value="data">{t("labels.categoryData")}</option>
                 </select>
               </div>
               <div className="tool-row">
                 <label className="sr-only" htmlFor="unit-from-val">
-                  输入值
+                  {t("labels.inputValue")}
                 </label>
                 <input
                   id="unit-from-val"
@@ -430,7 +412,7 @@ export default function ToolsPage() {
                   onChange={(e) => setUnitFromVal(e.target.value)}
                 />
                 <label className="sr-only" htmlFor="unit-from-unit">
-                  源单位
+                  {t("labels.sourceUnit")}
                 </label>
                 <select
                   id="unit-from-unit"
@@ -440,7 +422,7 @@ export default function ToolsPage() {
                 >
                   {currentUnits.map((u, i) => (
                     <option key={i} value={i}>
-                      {u.label}
+                      {tu(`${unitCategory}.${u.label}`)}
                     </option>
                   ))}
                 </select>
@@ -450,7 +432,7 @@ export default function ToolsPage() {
               </div>
               <div className="tool-row">
                 <label className="sr-only" htmlFor="unit-to-val">
-                  换算结果
+                  {t("labels.result")}
                 </label>
                 <input
                   id="unit-to-val"
@@ -460,7 +442,7 @@ export default function ToolsPage() {
                   value={unitResult}
                 />
                 <label className="sr-only" htmlFor="unit-to-unit">
-                  目标单位
+                  {t("labels.targetUnit")}
                 </label>
                 <select
                   id="unit-to-unit"
@@ -470,7 +452,7 @@ export default function ToolsPage() {
                 >
                   {currentUnits.map((u, i) => (
                     <option key={i} value={i}>
-                      {u.label}
+                      {tu(`${unitCategory}.${u.label}`)}
                     </option>
                   ))}
                 </select>
@@ -481,7 +463,7 @@ export default function ToolsPage() {
                   className="btn btn--secondary btn--sm"
                   onClick={swapUnits}
                 >
-                  交换 ⇄
+                  {t("actions.swap")}
                 </button>
               </div>
             </div>
@@ -497,7 +479,7 @@ export default function ToolsPage() {
                   type="color"
                   value={colorHex}
                   onChange={(e) => handleColorPick(e.target.value)}
-                  aria-label="选择颜色"
+                  aria-label={t("labels.pickColor")}
                 />
                 <div className="color-values">
                   <div className="color-line">
@@ -513,27 +495,23 @@ export default function ToolsPage() {
                     />
                   </div>
                   <div className="color-line">
-                    <span className="color-label">
-                      RGB
-                    </span>
+                    <span className="color-label">RGB</span>
                     <input
                       className="tool-input color-code"
                       type="text"
                       readOnly
                       value={colorRgb}
-                      aria-label="RGB 值"
+                      aria-label={t("labels.rgbValue")}
                     />
                   </div>
                   <div className="color-line">
-                    <span className="color-label">
-                      HSL
-                    </span>
+                    <span className="color-label">HSL</span>
                     <input
                       className="tool-input color-code"
                       type="text"
                       readOnly
                       value={colorHsl}
-                      aria-label="HSL 值"
+                      aria-label={t("labels.hslValue")}
                     />
                   </div>
                 </div>
@@ -547,8 +525,8 @@ export default function ToolsPage() {
               <textarea
                 className="tool-textarea"
                 rows={3}
-                placeholder="输入要转换的文本"
-                aria-label="文本输入"
+                placeholder={t("placeholders.caseInput")}
+                aria-label={t("labels.textInput")}
                 value={caseInput}
                 onChange={(e) => setCaseInput(e.target.value)}
               />

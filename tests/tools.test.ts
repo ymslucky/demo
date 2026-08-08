@@ -5,7 +5,7 @@ import {
   convertCase,
   convertUnit,
   unitData,
-} from "../app/tools/utils";
+} from "../app/[locale]/tools/utils";
 
 describe("hexToRgb", () => {
   it("converts a 6-digit hex to RGB tuple", () => {
