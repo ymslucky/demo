@@ -49,6 +49,9 @@ coverage/
 .next/
 out/
 
+# EdgeOne build artifacts
+.edgeone/
+
 # TypeScript
 *.tsbuildinfo
 next-env.d.ts

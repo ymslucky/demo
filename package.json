@@ -17,6 +17,7 @@
     "@types/node": "^24",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "edgeone": "^1.6.21",
     "typescript": "^7"
   }
 }
