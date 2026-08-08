@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import Nav from "./components/Nav";
 import Footer from "./components/Footer";
+import { themeInitScript } from "./lib/theme";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -40,8 +41,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="zh-CN" className={inter.variable}>
+    <html lang="zh-CN" className={inter.variable} suppressHydrationWarning>
       <body>
+        {/* 首帧前同步应用主题，避免主题闪烁 (FOUC) */}
+        <script dangerouslySetInnerHTML={{ __html: themeInitScript() }} />
         <div className="page">
           <Nav />
           <main>

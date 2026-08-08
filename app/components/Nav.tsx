@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import ThemeToggle from "./ThemeToggle";
 
 const navItems = [
   { href: "/", label: "首页" },
@@ -21,24 +22,27 @@ export default function Nav() {
         <Link href="/" className="nav-logo">
           LuckyLab
         </Link>
-        <nav className="nav-links" aria-label="主导航">
-          {navItems.map((item) => {
-            const isActive =
-              item.href === "/"
-                ? currentPath === "/"
-                : currentPath.startsWith(item.href);
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`nav-link${isActive ? " nav-link--active" : ""}`}
-                aria-current={isActive ? "page" : undefined}
-              >
-                {item.label}
-              </Link>
-            );
-          })}
-        </nav>
+        <div className="nav-right">
+          <nav className="nav-links" aria-label="主导航">
+            {navItems.map((item) => {
+              const isActive =
+                item.href === "/"
+                  ? currentPath === "/"
+                  : currentPath.startsWith(item.href);
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={`nav-link${isActive ? " nav-link--active" : ""}`}
+                  aria-current={isActive ? "page" : undefined}
+                >
+                  {item.label}
+                </Link>
+              );
+            })}
+          </nav>
+          <ThemeToggle />
+        </div>
       </div>
     </header>
   );
