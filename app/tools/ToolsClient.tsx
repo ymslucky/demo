@@ -1,9 +1,11 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback, useMemo } from "react";
+import { useState, useRef, useCallback, useMemo } from "react";
 import {
   unitData,
   convertUnit,
+  hexToRgb,
+  rgbToHsl,
   getColorStrings,
   encodeBase64,
   decodeBase64,
@@ -111,7 +113,9 @@ export default function ToolsPage() {
   };
 
   // Timestamp state
-  const [tsNow, setTsNow] = useState("");
+  const [tsNow, setTsNow] = useState(() =>
+    String(Math.floor(Date.now() / 1000))
+  );
   const [tsInput, setTsInput] = useState("");
   const [tsToDate, setTsToDate] = useState("");
   const [tsToDateErr, setTsToDateErr] = useState(false);
@@ -122,10 +126,6 @@ export default function ToolsPage() {
   const refreshTs = useCallback(() => {
     setTsNow(String(Math.floor(Date.now() / 1000)));
   }, []);
-
-  useEffect(() => {
-    refreshTs();
-  }, [refreshTs]);
 
   const handleTsToDate = (raw: string) => {
     setTsInput(raw);
@@ -189,8 +189,15 @@ export default function ToolsPage() {
   const [colorHex, setColorHex] = useState("#4f46e5");
   const colorInputRef = useRef<HTMLInputElement>(null);
 
-  const [colorRgb, setColorRgb] = useState("");
-  const [colorHsl, setColorHsl] = useState("");
+  const [colorRgb, setColorRgb] = useState(() => {
+    const [r, g, b] = hexToRgb("#4f46e5");
+    return `rgb(${r}, ${g}, ${b})`;
+  });
+  const [colorHsl, setColorHsl] = useState(() => {
+    const [r, g, b] = hexToRgb("#4f46e5");
+    const [h, s, l] = rgbToHsl(r, g, b);
+    return `hsl(${h}, ${s}%, ${l}%)`;
+  });
 
   const updateColorValues = useCallback((hex: string) => {
     const { rgb, hsl } = getColorStrings(hex);
@@ -198,23 +205,22 @@ export default function ToolsPage() {
     setColorHsl(hsl);
   }, []);
 
-  useEffect(() => {
-    updateColorValues(colorHex);
-  }, [colorHex, updateColorValues]);
-
   const handleHexInput = (val: string) => {
     setColorHex(val);
     if (/^#[0-9a-fA-F]{6}$/.test(val)) {
       if (colorInputRef.current) colorInputRef.current.value = val;
+      updateColorValues(val);
     } else if (/^#?[0-9a-fA-F]{6}$/.test(val)) {
       const fixed = val.startsWith("#") ? val : "#" + val;
       setColorHex(fixed);
       if (colorInputRef.current) colorInputRef.current.value = fixed;
+      updateColorValues(fixed);
     }
   };
 
   const handleColorPick = (val: string) => {
     setColorHex(val);
+    updateColorValues(val);
   };
 
   // Case converter state
