@@ -23,8 +23,8 @@ const contacts: Contact[] = [
   },
   {
     key: "website",
-    value: "meta-p.com",
-    href: "https://holiday.meta-p.com",
+    value: "rdom.com",
+    href: "https://rdom.com",
     external: true,
   },
 ];
