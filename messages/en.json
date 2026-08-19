@@ -11,6 +11,7 @@
     "projects": "Projects",
     "links": "Links",
     "tools": "Tools",
+    "blog": "Blog",
     "contact": "Contact"
   },
   "footer": {
@@ -110,6 +111,21 @@
         "tags": [
           "Exploring"
         ]
+      }
+    }
+  },
+  "blog": {
+    "title": "Blog",
+    "description": "Tech articles and tutorials by LuckyLab",
+    "heading": "Blog",
+    "subtitle": "Notes on development, algorithms, and architecture",
+    "readMore": "Read more →",
+    "items": {
+      "rateLimiter": {
+        "title": "Local Rate Limiter in Action",
+        "description": "Four classic rate limiting algorithms (Fixed Window, Sliding Window, Leaky Bucket, Token Bucket) and their implementation ideas.",
+        "date": "2023-12-29",
+        "tags": ["Backend", "RateLimiter", "Concurrent"]
       }
     }
   },

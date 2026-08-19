@@ -11,6 +11,7 @@
     "projects": "项目",
     "links": "导航",
     "tools": "工具",
+    "blog": "博客",
     "contact": "联系"
   },
   "footer": {
@@ -110,6 +111,21 @@
         "tags": [
           "探索中"
         ]
+      }
+    }
+  },
+  "blog": {
+    "title": "博客",
+    "description": "LuckyLab 的技术文章与教程",
+    "heading": "博客",
+    "subtitle": "关于开发、算法与架构的笔记",
+    "readMore": "阅读全文 →",
+    "items": {
+      "rateLimiter": {
+        "title": "技术实战——本地限流器",
+        "description": "本地限流最常见的四种算法（固定窗口、滑动窗口、漏桶、令牌桶）的直觉、优缺点以及实现思路。",
+        "date": "2023-12-29",
+        "tags": ["后端", "限流", "并发"]
       }
     }
   },
