@@ -44,16 +44,18 @@ export default async function BlogPage({
               <h3>
                 <Link href={post.slug}>{t(`items.${post.id}.title`)}</Link>
               </h3>
-              <p className="text-sm opacity-80 mb-2">{t(`items.${post.id}.date`)}</p>
+              <p style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-xs)', color: 'var(--color-text-muted)', marginBottom: 'var(--space-xs)' }}>
+                {t(`items.${post.id}.date`)}
+              </p>
               <p>{t(`items.${post.id}.description`)}</p>
-              <div className="tag-list">
+              <div className="tag-list" style={{ marginTop: 'var(--space-sm)' }}>
                 {tags.map((tag) => (
                   <span key={tag} className="tag">
                     {tag}
                   </span>
                 ))}
               </div>
-              <div className="project-links mt-4">
+              <div className="project-links" style={{ marginTop: 'var(--space-md)' }}>
                 <Link href={post.slug} className="btn btn--primary btn--sm">
                   {t("readMore")}
                 </Link>
