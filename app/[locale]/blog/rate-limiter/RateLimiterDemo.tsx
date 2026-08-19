@@ -15,15 +15,15 @@ export default function RateLimiterDemo() {
   const nextTokenId = useRef(0);
   const nextReqId = useRef(0);
 
+  const tokensRef = useRef<number[]>([]);
+
   // Token refill interval
   useEffect(() => {
     const interval = setInterval(() => {
-      setTokens((prev) => {
-        if (prev.length < capacity) {
-          return [...prev, nextTokenId.current++];
-        }
-        return prev;
-      });
+      if (tokensRef.current.length < capacity) {
+        tokensRef.current = [...tokensRef.current, nextTokenId.current++];
+        setTokens([...tokensRef.current]);
+      }
     }, 1000 / rate);
     return () => clearInterval(interval);
   }, [capacity, rate]);
@@ -35,20 +35,11 @@ export default function RateLimiterDemo() {
         const hasPending = prevReqs.some(r => r.status === "pending");
         if (!hasPending) return prevReqs;
 
-        let tokensConsumed = 0;
+        let consumed = 0;
         const newReqs = prevReqs.map((req) => {
           if (req.status === "pending") {
-            let tokenAvailable = false;
-            setTokens(prevTokens => {
-              if (prevTokens.length > tokensConsumed) {
-                tokenAvailable = true;
-                return prevTokens;
-              }
-              return prevTokens;
-            });
-
-            if (tokenAvailable) {
-              tokensConsumed++;
+            if (tokensRef.current.length > consumed) {
+              consumed++;
               return { ...req, status: "success" as const };
             } else {
               return { ...req, status: "rejected" as const };
@@ -57,8 +48,9 @@ export default function RateLimiterDemo() {
           return req;
         });
 
-        if (tokensConsumed > 0) {
-          setTokens(prev => prev.slice(tokensConsumed));
+        if (consumed > 0) {
+          tokensRef.current = tokensRef.current.slice(consumed);
+          setTokens([...tokensRef.current]);
         }
 
         return newReqs;
