@@ -4,8 +4,13 @@ import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Zap, Play, Settings2, Trash2 } from "lucide-react";
 
+interface Token {
+  id: number;
+  rotate: number;
+}
+
 export default function RateLimiterDemo() {
-  const [tokens, setTokens] = useState<number[]>([]);
+  const [tokens, setTokens] = useState<Token[]>([]);
   const [requests, setRequests] = useState<{ id: number; status: "pending" | "success" | "rejected" }[]>([]);
   
   // Interactive controls
@@ -15,13 +20,15 @@ export default function RateLimiterDemo() {
   const nextTokenId = useRef(0);
   const nextReqId = useRef(0);
 
-  const tokensRef = useRef<number[]>([]);
+  const tokensRef = useRef<Token[]>([]);
 
   // Token refill interval
   useEffect(() => {
     const interval = setInterval(() => {
       if (tokensRef.current.length < capacity) {
-        tokensRef.current = [...tokensRef.current, nextTokenId.current++];
+        // Generate random rotation outside render to keep render pure
+        const newToken: Token = { id: nextTokenId.current++, rotate: Math.random() * 20 - 10 };
+        tokensRef.current = [...tokensRef.current, newToken];
         setTokens([...tokensRef.current]);
       }
     }, 1000 / rate);
@@ -133,10 +140,10 @@ export default function RateLimiterDemo() {
             </div>
 
             <AnimatePresence>
-              {tokens.map((id) => (
+              {tokens.map((token) => (
                 <motion.div
-                  key={id}
-                  initial={{ y: -150, scale: 0.5, opacity: 0, rotate: Math.random() * 20 - 10 }}
+                  key={token.id}
+                  initial={{ y: -150, scale: 0.5, opacity: 0, rotate: token.rotate }}
                   animate={{ y: 0, scale: 1, opacity: 1, rotate: 0 }}
                   exit={{ scale: 0, opacity: 0, transition: { duration: 0.15 } }}
                   transition={{ type: "spring", bounce: 0.6, duration: 0.6 }}
@@ -144,7 +151,7 @@ export default function RateLimiterDemo() {
                 >
                   {/* Token shine effect */}
                   <div className="absolute top-0 left-0 w-full h-1/2 bg-white opacity-20"></div>
-                  <span className="text-[10px] font-mono text-white opacity-60">T-{id % 100}</span>
+                  <span className="text-[10px] font-mono text-white opacity-60">T-{token.id % 100}</span>
                 </motion.div>
               ))}
             </AnimatePresence>

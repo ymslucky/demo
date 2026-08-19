@@ -275,10 +275,12 @@ describe("key usage coverage", () => {
 
   it("has no hardcoded Chinese in user-facing source files", () => {
     // Acceptance: all user-facing text goes through t(). Chinese characters
-    // are only allowed in CSS comments (globals.css) and test fixtures.
+    // are only allowed in CSS comments (globals.css), test fixtures, and
+    // blog articles (standalone Chinese content, not i18n UI copy).
     const offenders: string[] = [];
     for (const file of collectSourceFiles(join(process.cwd(), "app"))) {
       if (file.endsWith("globals.css")) continue;
+      if (file.includes(join("app", "[locale]", "blog"))) continue;
       const lines = readFileSync(file, "utf8").split("\n");
       lines.forEach((line, idx) => {
         if (/[\u4e00-\u9fff]/.test(line)) {
