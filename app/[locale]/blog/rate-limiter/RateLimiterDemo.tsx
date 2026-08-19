@@ -1,8 +1,7 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { useTranslations } from "next-intl";
 
 export default function RateLimiterDemo() {
   const [tokens, setTokens] = useState<number[]>([]);
@@ -47,14 +46,14 @@ export default function RateLimiterDemo() {
             });
 
             if (tokenAvailable) {
-              tokensConsumed++;
-              return { ...req, status: "success" };
-            } else {
-              return { ...req, status: "rejected" };
+                tokensConsumed++;
+                return { ...req, status: "success" as const };
+              } else {
+                return { ...req, status: "rejected" as const };
+              }
             }
-          }
-          return req;
-        });
+            return req;
+          });
 
         if (tokensConsumed > 0) {
           setTokens(prev => prev.slice(tokensConsumed));
@@ -70,7 +69,7 @@ export default function RateLimiterDemo() {
 
   const sendRequest = () => {
     setRequests((prev) => [
-      { id: nextReqId.current++, status: "pending" },
+      { id: nextReqId.current++, status: "pending" as const },
       ...prev,
     ].slice(0, 10)); // Keep last 10 requests
   };
