@@ -1110,6 +1110,17 @@ a:focus-visible,
   box-shadow: inset 4px 4px 0px 0px rgba(0,0,0,0.05);
 }
 
+/* Shiki code wrapper styling */
+.code-wrapper pre {
+  margin: 0;
+  padding: 1.5rem;
+  font-family: var(--font-mono);
+  font-size: var(--fs-sm);
+  line-height: 1.5;
+  overflow-x: auto;
+  background-color: var(--color-bg) !important;
+}
+
 .blog-inline-code {
   background: var(--color-tint);
   border: 2px solid var(--color-border);
