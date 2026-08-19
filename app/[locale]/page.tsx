@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { getTranslations, setRequestLocale } from "next-intl/server";
-import { Link, getPathname } from "@/i18n/navigation";
+import { getPathname } from "@/i18n/navigation";
+import ImmersiveLink from "./components/ImmersiveLink";
 
 export async function generateMetadata({
   params,
@@ -34,12 +35,12 @@ export default async function HomePage({
       <p className="hero-tagline">{t("tagline")}</p>
       <p className="hero-bio">{t("bio")}</p>
       <div className="hero-cta">
-        <Link href="/projects" className="btn btn--primary">
+        <ImmersiveLink href="/projects" className="btn btn--primary">
           {t("viewProjects")}
-        </Link>
-        <Link href="/about" className="btn btn--secondary">
+        </ImmersiveLink>
+        <ImmersiveLink href="/about" className="btn btn--secondary">
           {t("learnMore")}
-        </Link>
+        </ImmersiveLink>
       </div>
     </section>
   );
