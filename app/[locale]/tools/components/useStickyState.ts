@@ -1,26 +1,29 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 
 export function useStickyState<T>(defaultValue: T, key: string): [T, React.Dispatch<React.SetStateAction<T>>] {
   const [value, setValue] = useState<T>(defaultValue);
-  const [isMounted, setIsMounted] = useState(false);
+  const isFirstRender = useRef(true);
 
   useEffect(() => {
-    setIsMounted(true);
     const stickyValue = window.localStorage.getItem(key);
     if (stickyValue !== null) {
       try {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setValue(JSON.parse(stickyValue));
       } catch {
+         
         setValue(stickyValue as unknown as T);
       }
     }
   }, [key]);
 
   useEffect(() => {
-    if (isMounted) {
-      window.localStorage.setItem(key, JSON.stringify(value));
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
     }
-  }, [key, value, isMounted]);
+    window.localStorage.setItem(key, JSON.stringify(value));
+  }, [key, value]);
 
   return [value, setValue];
 }
