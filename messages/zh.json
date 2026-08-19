@@ -405,7 +405,7 @@
       "tsInput": "例如 1786139195 或 1786139195000",
       "dateInput": "例如 2026-08-08 12:00:00",
       "caseInput": "输入要转换的文本",
-      "jsonSample": "{\"hello\":\"world\",\"numbers\":[1,2,3]}"
+      "jsonSample": "'{'\"hello\":\"world\",\"numbers\":[1,2,3]'}'"
     },
     "errors": {
       "encodeFailed": "✗ 编码失败",

@@ -405,7 +405,7 @@
       "tsInput": "e.g. 1786139195 or 1786139195000",
       "dateInput": "e.g. 2026-08-08 12:00:00",
       "caseInput": "Enter text to convert",
-      "jsonSample": "{\"hello\":\"world\",\"numbers\":[1,2,3]}"
+      "jsonSample": "'{'\"hello\":\"world\",\"numbers\":[1,2,3]'}'"
     },
     "errors": {
       "encodeFailed": "✗ Encoding failed",
