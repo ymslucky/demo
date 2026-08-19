@@ -23,8 +23,8 @@ const contacts: Contact[] = [
   },
   {
     key: "website",
-    value: "rdom.com",
-    href: "https://rdom.com",
+    value: "rdom.cn",
+    href: "https://rdom.cn",
     external: true,
   },
 ];
