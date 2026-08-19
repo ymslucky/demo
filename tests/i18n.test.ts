@@ -163,6 +163,9 @@ function extractConst(src: string, name: string): unknown {
         const raw = src.slice(start, i + 1);
         const json =
           raw
+            // Remove Component values before parsing (e.g. Component: JsonFormatter)
+            .replace(/,\s*Component\s*:\s*[A-Za-z0-9_]+/g, "")
+            .replace(/Component\s*:\s*[A-Za-z0-9_]+\s*,/g, "")
             // Quote bare object keys: `key: "cloud"` -> `"key": "cloud"`
             .replace(/([{,]\s*)([A-Za-z_$][\w$]*)\s*:/g, '$1"$2":')
             // Drop trailing commas before } or ]
