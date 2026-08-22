@@ -81,7 +81,6 @@ export default async function ProjectsPage({
       labels={{ demo: t("demo"), source: t("source"), close: t("close") }}
       outro={{
         title: t("outroTitle"),
-        subtitle: t("outroSubtitle"),
         githubCta: t("githubCta"),
         contactCta: t("contactCta"),
         githubUrl: "https://github.com/ymslucky",

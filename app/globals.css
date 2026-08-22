@@ -677,30 +677,42 @@ main {
   will-change: transform, opacity;
 }
 
-/* 3D 变换模式下固定像素尺寸 (drei <Html transform>) */
+/* 卡片层: 屏幕空间投影 (JS 每帧写 transform/opacity/filter,
+   CSS 只负责外观; 初始 opacity:0 由首帧投影点亮) */
+.cardwall-cards {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none; /* 卡片本身由 JS 按可点性开启 */
+}
+
 .cardwall-card {
-  width: 760px;
-  will-change: filter, opacity;
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: min(88vw, 620px);
+  opacity: 0;
+  visibility: hidden;
   cursor: pointer;
-  /* 排除 filter/opacity, 避免与逐帧景深更新冲突 */
-  transition: transform 0.15s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.15s ease;
+  will-change: transform, opacity, filter;
+  /* 只过渡外观属性 — transform 由 JS 每帧写入, 不可加过渡 */
+  transition: box-shadow 0.15s ease, border-color 0.15s ease;
 }
 
 .cardwall-card h3 {
-  font-size: 3rem;
+  font-size: 2.5rem;
   margin-bottom: var(--space-sm);
   padding-right: 1.6em;
 }
 
-/* Hover: lift + crisp shadow (blur/opacity handled per-frame in the rig) */
+/* Hover: stronger presence (transform is JS-owned, so no translate here) */
 .cardwall-card:hover {
-  transform: translate(-4px, -4px);
   box-shadow: 10px 10px 0px 0px var(--color-border);
+  border-color: var(--color-primary);
 }
 
-/* Focused (centered by click): strong presence + enlarged content */
+/* Focused (centered by click): enlarged content */
 .cardwall-card[data-focused='1'] {
-  transform: none;
   box-shadow: 12px 12px 0px 0px var(--color-border);
 }
 

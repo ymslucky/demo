@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
-import { Html } from "@react-three/drei";
 import { ExternalLink, Code2, MousePointerClick, ChevronDown } from "lucide-react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
@@ -26,41 +25,42 @@ export interface WallLabels {
 
 export interface WallOutro {
   title: string;
-  subtitle: string;
   githubCta: string;
   contactCta: string;
   githubUrl: string;
   contactHref: string;
 }
 
-/* ---- Scene params: camera angle / distance / depth-of-field knobs ---- */
-const SPACING = 6.4; // distance between cards along the Z axis
-const START_Z = 6.5; // camera start distance (first card ~85% viewport width, no clipping)
-const END_PAD = 8; // extra flight room beyond the last card
-const FOV = 55; // field of view (perspective strength)
-const CARD_SCALE = 0.38; // DOM px -> drei matrix units. NOTE: drei <Html transform> applies an
-// internal calibration factor of distanceFactor?10/400 = 0.025 when distanceFactor is
-// unset, so the effective DOM px -> world-unit ratio is CARD_SCALE * 0.025
-// (760px card -> ~7.2 world units, ~75% viewport width at the 3.4-8.5 focus window).
-const CARD_PX_TO_WORLD = CARD_SCALE * 0.025; // effective DOM px -> world units
-const FOCUS_NEAR = 3.4; // near focal plane of the fake depth of field
-const FOCUS_FAR = 8.5; // far focal plane of the fake depth of field
-const OUTRO_FROM = 0.82; // scroll progress where the outro starts fading in
-const FOCUS_FILL = 0.96; // fraction of viewport width the focused card fills
-const FOCUS_FILL_H = 0.86; // max fraction of viewport height the focused card fills
-const FOCUS_DIST_FALLBACK = 4.4; // used until the card pixel size is measured
-const FOCUS_DIST_MIN = 2.5; // clamp so the camera never clips into the card
+/* ============================================================
+   Scene params — the single place to tune camera / DOF / fill.
 
-/* Cards fly toward the camera nearly head-on (readable at large size),
-   with a small alternating lateral/vertical stagger for spatial depth. */
-function cardLayout(i: number) {
+   Architecture (rebuilt after debug session cardwall-card-tiny):
+   - The Three.js scene drives ONLY the camera flight and the
+     background dust/fog. Cards are NOT drei <Html transform>
+     (its hidden 0.025 matrix calibration caused the tiny-card
+     bug); instead each frame we project the card's virtual
+     world position with camera.project() and write a plain
+     CSS transform. Sizes/aspect therefore always match the
+     live camera, and card DOM stays crisp & hit-test exact.
+   ============================================================ */
+const SPACING = 6.4;       // Z distance between cards
+const START_Z = 6.5;       // camera start (first card ~80% viewport width)
+const END_PAD = 8;         // extra flight room past the last card
+const FOV = 55;            // vertical field of view (perspective strength)
+const CARD_W_WORLD = 7.2;  // card width in world units (height derives from DOM ratio)
+const FOCUS_NEAR = 3.4;    // fake DOF: near focal plane
+const FOCUS_FAR = 8.5;     // fake DOF: far focal plane
+const FOCUS_FILL = 0.88;   // focused card fills this fraction of viewport width
+const FOCUS_FILL_H = 0.82; // ...and at most this fraction of viewport height
+const OVERFILL_FROM = 0.9; // viewport-width fraction where flythrough fade starts
+const OVERFILL_END = 1.04; // ...fully faded (prevents side clipping)
+const OUTRO_FROM = 0.82;   // scroll progress where the outro fades in
+
+/** Virtual world position of card #i (staggered for spatial depth). */
+function cardWorld(i: number): [number, number, number] {
   const side = i % 2 === 0 ? -1 : 1;
   const y = [0.12, -0.22, 0.35][i % 3];
-  return {
-    position: [side * 0.5, y, -i * SPACING] as [number, number, number],
-    // subtle tilt so the wall keeps a hint of 3D without skewing the text
-    rotation: [0, -side * 0.045, side * 0.012] as [number, number, number],
-  };
+  return [side * 0.5, y, -i * SPACING];
 }
 
 /** Deterministic PRNG so the dust field stays stable across re-renders */
@@ -74,113 +74,129 @@ function mulberry32(seed: number) {
   };
 }
 
-/** Camera rig: scroll flight + mouse parallax + focus mode (fly to a card) + fake DOF */
-function Rig({
+/** Camera flight + per-frame projection of every card into screen space. */
+function Flight({
   count,
   targetProgress,
   pointer,
-  stageRef,
   focusIndex,
   hoverIndex,
+  stageRef,
 }: {
   count: number;
   targetProgress: React.RefObject<number>;
   pointer: React.RefObject<{ x: number; y: number }>;
-  stageRef: React.RefObject<HTMLDivElement | null>;
   focusIndex: React.RefObject<number>;
   hoverIndex: React.RefObject<number>;
+  stageRef: React.RefObject<HTMLDivElement | null>;
 }) {
   const progress = useRef(0);
-  const lookTarget = useMemo(() => new THREE.Vector3(), []);
-  // card DOM elements are queried lazily once, then cached (avoids per-frame querySelectorAll)
+  const lookAt = useMemo(() => new THREE.Vector3(), []);
+  const v = useMemo(() => new THREE.Vector3(), []);
+  const tanHalf = useMemo(() => Math.tan(THREE.MathUtils.degToRad(FOV) / 2), []);
+  // card DOM nodes are queried lazily once, then cached (avoids per-frame querySelectorAll)
   const cachedCards = useRef<NodeListOf<HTMLElement> | null>(null);
 
   useFrame((state, delta) => {
     const cam = state.camera;
+    const { size } = state;
     progress.current = THREE.MathUtils.damp(progress.current, targetProgress.current, 4, delta);
     const p = progress.current;
     const fi = focusIndex.current;
     const hi = hoverIndex.current;
     const focusing = fi >= 0;
 
-    // resolve the cached card DOM first (the focus branch needs the card pixel size)
+    /* ---- resolve the cached card DOM (needed by both branches below) ---- */
     const stage = stageRef.current;
     if (!stage) return;
     if (!cachedCards.current || cachedCards.current.length !== count) {
       cachedCards.current = stage.querySelectorAll<HTMLElement>(".cardwall-card");
     }
-    const els = cachedCards.current;
+    const cards = cachedCards.current;
 
-    // effective camera Z (also drives the DOF math below)
-    let camZ: number;
-
+    /* ---- camera motion: scroll flight vs. focus glide ---- */
     if (focusing) {
-      // Focus mode: glide the camera in front of the chosen card, centered.
-      // Distance is derived from the card's measured pixel size + viewport
-      // aspect so the card always fills FOCUS_FILL of the screen width.
-      const { position } = cardLayout(fi);
-      let dist = FOCUS_DIST_FALLBACK;
-      const focusEl = els?.[fi];
-      if (focusEl) {
-        const cardW = focusEl.offsetWidth * CARD_PX_TO_WORLD;
-        const cardH = focusEl.offsetHeight * CARD_PX_TO_WORLD;
-        const aspect = state.size.width / state.size.height;
-        const halfTan = Math.tan(THREE.MathUtils.degToRad(FOV) / 2);
-        if (cardW > 0 && cardH > 0 && aspect > 0) {
-          // fill FOCUS_FILL of the viewport width, but never exceed ~82% of
-          // its height (the larger distance wins, so both caps hold)
-          const distW = (cardW / 2) / (FOCUS_FILL * halfTan * aspect);
-          const distH = (cardH / 2) / (FOCUS_FILL_H * halfTan);
-          dist = Math.max(distW, distH);
-        }
-      }
-      dist = Math.max(dist, FOCUS_DIST_MIN);
-      camZ = position[2] + dist;
-      cam.position.x = THREE.MathUtils.damp(cam.position.x, position[0], 5, delta);
-      cam.position.y = THREE.MathUtils.damp(cam.position.y, position[1], 5, delta);
-      cam.position.z = THREE.MathUtils.damp(cam.position.z, camZ, 5, delta);
-      lookTarget.set(position[0], position[1], position[2]);
-      cam.lookAt(lookTarget);
+      const [cx, cy, cz] = cardWorld(fi);
+      const el = cards[fi];
+      // DOM aspect of the focused card (safe: focus switch is rare)
+      const ratio = el && el.offsetWidth > 0 ? el.offsetHeight / el.offsetWidth : 0.63;
+      const aspect = size.width / size.height;
+      const distW = CARD_W_WORLD / 2 / (FOCUS_FILL * tanHalf * aspect);
+      const distH = (CARD_W_WORLD * ratio) / 2 / (FOCUS_FILL_H * tanHalf);
+      const dist = Math.max(distW, distH);
+      cam.position.x = THREE.MathUtils.damp(cam.position.x, cx, 5, delta);
+      cam.position.y = THREE.MathUtils.damp(cam.position.y, cy, 5, delta);
+      cam.position.z = THREE.MathUtils.damp(cam.position.z, cz + dist, 5, delta);
+      lookAt.set(cx, cy, cz);
+      cam.lookAt(lookAt);
     } else {
-      // fly the camera through the wall along Z with a gentle lateral sway
       const endZ = -((count - 1) * SPACING) - END_PAD;
-      camZ = THREE.MathUtils.lerp(START_Z, endZ, p);
+      const z = THREE.MathUtils.lerp(START_Z, endZ, p);
       const swayX = Math.sin(p * Math.PI * 1.35) * 0.3;
-      const px = THREE.MathUtils.damp(cam.position.x, swayX + pointer.current.x * 0.3, 5, delta);
-      const py = THREE.MathUtils.damp(cam.position.y, 0.1 - pointer.current.y * 0.25, 5, delta);
-      cam.position.set(px, py, camZ);
-      lookTarget.set(swayX * 0.35, 0.05, camZ - 10);
-      cam.lookAt(lookTarget);
-      // mouse parallax: small extra rotation on top of lookAt
+      cam.position.x = THREE.MathUtils.damp(cam.position.x, swayX + pointer.current.x * 0.3, 5, delta);
+      cam.position.y = THREE.MathUtils.damp(cam.position.y, 0.1 - pointer.current.y * 0.25, 5, delta);
+      cam.position.z = z;
+      lookAt.set(swayX * 0.35, 0.05, z - 10);
+      cam.lookAt(lookAt);
+      // subtle mouse parallax on top of lookAt
       cam.rotation.y += pointer.current.x * 0.05;
       cam.rotation.x += pointer.current.y * 0.04;
     }
-    // per-frame constants for the overfill fade below
-    const halfTan = Math.tan(THREE.MathUtils.degToRad(FOV) / 2);
-    const aspect = state.size.width / state.size.height;
-    const cardWWorld = els[0] ? els[0].offsetWidth * CARD_PX_TO_WORLD : 0;
 
-    for (let i = 0; i < Math.min(count, els.length); i++) {
-      const el = els[i];
+    /* ---- project every card to screen space (plain DOM, no drei Html) ---- */
+    for (let i = 0; i < Math.min(count, cards.length); i++) {
+      const el = cards[i];
+      if (!el) continue;
+
+      const [cx, cy, cz] = cardWorld(i);
+      v.set(cx, cy, cz);
+      const dist = cam.position.distanceTo(v);
+      v.project(cam);
+
       const isFocus = focusing && i === fi;
       const isHover = !focusing && i === hi;
-      const dist = camZ - -i * SPACING;
+
+      if (v.z > 1 || dist <= 0.05) {
+        // behind the camera
+        el.style.visibility = "hidden";
+        el.style.pointerEvents = "none";
+        continue;
+      }
+
+      const sx = (v.x * 0.5 + 0.5) * size.width;
+      const sy = (-v.y * 0.5 + 0.5) * size.height;
+      // projected card width in px (tanHalf is vertical-fov based -> use height)
+      const projW = (CARD_W_WORLD / (2 * tanHalf * dist)) * size.height;
+      const layoutW = el.offsetWidth;
+      if (layoutW <= 0) {
+        el.style.visibility = "hidden";
+        continue;
+      }
+      const scale = projW / layoutW;
+      const pct = projW / size.width;
+
+      // fake depth of field
       const nearBlur = THREE.MathUtils.clamp((FOCUS_NEAR - dist) * 2.0, 0, 9);
       const farBlur = THREE.MathUtils.clamp((dist - FOCUS_FAR) * 0.5, 0, 7);
       const blur = isFocus || isHover ? 0 : Math.max(nearBlur, farBlur);
-      let opacity =
+
+      // flythrough fade once the card would clip the viewport sides
+      const overfill = THREE.MathUtils.clamp(
+        (OVERFILL_END - pct) / (OVERFILL_END - OVERFILL_FROM),
+        0,
+        1
+      );
+      const base =
         THREE.MathUtils.clamp((dist - 0.8) / 1.2, 0, 1) *
         THREE.MathUtils.clamp((28 - dist) / 8, 0, 1);
-      // overfill fade: once a card exceeds ~90% of the viewport width it would
-      // clip its sides, so fade it out instead (focus/hover states are exempt)
-      if (cardWWorld > 0 && aspect > 0 && dist > 0) {
-        const pct = cardWWorld / (2 * halfTan * aspect * dist);
-        opacity *= THREE.MathUtils.clamp((1.04 - pct) / 0.14, 0, 1);
-      }
+      const opacity = isFocus ? 1 : isHover ? Math.max(base, 0.95) : base * overfill;
+
+      el.style.transform = `translate3d(${sx.toFixed(1)}px, ${sy.toFixed(1)}px, 0) translate(-50%, -50%) scale(${scale.toFixed(4)})`;
       el.style.filter = blur > 0.05 ? `blur(${blur.toFixed(2)}px)` : "";
-      el.style.opacity = isFocus || isHover ? "1" : opacity.toFixed(3);
-      el.style.visibility = opacity <= 0.01 && !isFocus && !isHover ? "hidden" : "visible";
-      el.style.pointerEvents = dist > 1.2 && blur < 2.5 ? "auto" : "none";
+      el.style.opacity = opacity.toFixed(3);
+      el.style.visibility = opacity <= 0.01 ? "hidden" : "visible";
+      el.style.pointerEvents =
+        isFocus || isHover || (opacity > 0.2 && pct < 1.0) ? "auto" : "none";
       el.style.zIndex = isFocus ? "30" : isHover ? "20" : "";
     }
   });
@@ -325,7 +341,7 @@ export default function CardWall3D({
     };
   }, [items.length]);
 
-  // sync focused state -> rig ref (imperative, read every frame)
+  // sync focused state -> rig ref (read imperatively every frame)
   useEffect(() => {
     focusIndex.current = focused === null ? -1 : focused;
   }, [focused]);
@@ -356,85 +372,78 @@ export default function CardWall3D({
       <div className="cardwall-stage" ref={stageRef}>
         <Canvas
           dpr={[1, 1.75]}
-          camera={{ fov: FOV, near: 0.1, far: 70, position: [0, 0.2, START_Z] }}
+          camera={{ fov: FOV, near: 0.1, far: 70, position: [0, 0.1, START_Z] }}
           gl={{ antialias: true, alpha: true }}
         >
           <fog attach="fog" args={[colors.bg, 15, 36]} />
           <DustField color={colors.dot} depth={depth} />
-          {items.map((item, i) => {
-            const { position, rotation } = cardLayout(i);
-            return (
-              <Html
-                key={item.key}
-                transform
-                position={position}
-                rotation={rotation}
-                scale={CARD_SCALE}
-                zIndexRange={[40, 0]}
-              >
-                <article
-                  className="card cardwall-card"
-                  data-focused={focused === i ? "1" : "0"}
-                  onPointerEnter={() => {
-                    hoverIndex.current = i;
-                  }}
-                  onPointerLeave={() => {
-                    if (hoverIndex.current === i) hoverIndex.current = -1;
-                  }}
-                  onClick={() => {
-                    setFocused((cur) => (cur === i ? null : i));
-                  }}
-                >
-                  <span className="cardwall-index" aria-hidden="true">
-                    {String(i + 1).padStart(2, "0")}
-                  </span>
-                  <h3>{item.name}</h3>
-                  <div className="tag-list">
-                    {item.tags.map((tag) => (
-                      <span key={tag} className="tag">
-                        {tag}
-                      </span>
-                    ))}
-                  </div>
-                  <div className="cardwall-actions">
-                    {item.demo && (
-                      <a
-                        className="cardwall-icon-link"
-                        href={item.demo}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        title={labels.demo}
-                        aria-label={`${item.name} ${labels.demo}`}
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <ExternalLink size={22} strokeWidth={2.5} />
-                      </a>
-                    )}
-                    <a
-                      className="cardwall-icon-link"
-                      href={item.repo}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      title={labels.source}
-                      aria-label={`${item.name} ${labels.source}`}
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <Code2 size={22} strokeWidth={2.5} />
-                    </a>
-                  </div>
-                </article>
-              </Html>
-            );
-          })}
-          <Rig
+          <Flight
             count={items.length}
             targetProgress={targetProgress}
             pointer={pointer}
-            stageRef={stageRef}
             focusIndex={focusIndex}
             hoverIndex={hoverIndex}
+            stageRef={stageRef}
           />
         </Canvas>
+
+        {/* Screen-space card layer: projected by <Flight> each frame */}
+        <div className="cardwall-cards">
+          {items.map((item, i) => (
+            <article
+              key={item.key}
+              className="card cardwall-card"
+              data-focused={focused === i ? "1" : "0"}
+              onPointerEnter={() => {
+                hoverIndex.current = i;
+              }}
+              onPointerLeave={() => {
+                if (hoverIndex.current === i) hoverIndex.current = -1;
+              }}
+              onClick={() => {
+                setFocused((cur) => (cur === i ? null : i));
+              }}
+            >
+              <span className="cardwall-index" aria-hidden="true">
+                {String(i + 1).padStart(2, "0")}
+              </span>
+              <h3>{item.name}</h3>
+              <div className="tag-list">
+                {item.tags.map((tag) => (
+                  <span key={tag} className="tag">
+                    {tag}
+                  </span>
+                ))}
+              </div>
+              <div className="cardwall-actions">
+                {item.demo && (
+                  <a
+                    className="cardwall-icon-link"
+                    href={item.demo}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    title={labels.demo}
+                    aria-label={`${item.name} ${labels.demo}`}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <ExternalLink size={22} strokeWidth={2.5} />
+                  </a>
+                )}
+                <a
+                  className="cardwall-icon-link"
+                  href={item.repo}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title={labels.source}
+                  aria-label={`${item.name} ${labels.source}`}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <Code2 size={22} strokeWidth={2.5} />
+                </a>
+              </div>
+            </article>
+          ))}
+        </div>
 
         <div className="cardwall-intro" ref={introRef}>
           <h1 className="page-title">{heading}</h1>
@@ -443,6 +452,7 @@ export default function CardWall3D({
             <ChevronDown size={18} strokeWidth={3} />
           </div>
         </div>
+
         <div className="cardwall-outro" ref={outroRef}>
           <h2>{outro.title}</h2>
           <div className="hero-cta">
