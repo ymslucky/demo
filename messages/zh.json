@@ -60,6 +60,10 @@
     "subtitle": "用代码解决实际问题的产品与实验",
     "demo": "在线 Demo →",
     "source": "源码 →",
+    "outroTitle": "还有更多在 GitHub",
+    "outroSubtitle": "以上只是精选，完整项目列表与开源贡献都在我的 GitHub。",
+    "githubCta": "查看全部项目",
+    "contactCta": "联系我",
     "items": {
       "holiday": {
         "name": "Holiday — 节假日日历",

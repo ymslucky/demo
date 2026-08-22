@@ -6,6 +6,7 @@ import { Html } from "@react-three/drei";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import * as THREE from "three";
+import { Link } from "@/i18n/navigation";
 
 export interface WallItem {
   key: string;
@@ -21,14 +22,24 @@ export interface WallLabels {
   source: string;
 }
 
+export interface WallOutro {
+  title: string;
+  subtitle: string;
+  githubCta: string;
+  contactCta: string;
+  githubUrl: string;
+  contactHref: string;
+}
+
 /* ---- Scene params: camera angle / distance / depth-of-field knobs ---- */
 const SPACING = 6.4; // distance between cards along the Z axis
 const START_Z = 5.5; // camera start distance
-const END_PAD = 5.5; // extra flight room beyond the last card
+const END_PAD = 8; // extra flight room beyond the last card
 const FOV = 55; // field of view (perspective strength)
 const CARD_SCALE = 0.0105; // DOM pixels -> world units
 const FOCUS_NEAR = 4.2; // near focal plane of the fake depth of field
 const FOCUS_FAR = 9.5; // far focal plane of the fake depth of field
+const OUTRO_FROM = 0.82; // scroll progress where the outro starts fading in
 
 function cardLayout(i: number) {
   const side = i % 2 === 0 ? -1 : 1;
@@ -65,6 +76,8 @@ function Rig({
 }) {
   const progress = useRef(0);
   const lookTarget = useMemo(() => new THREE.Vector3(), []);
+  // card DOM elements are queried lazily once, then cached (avoids per-frame querySelectorAll)
+  const cachedCards = useRef<NodeListOf<HTMLElement> | null>(null);
 
   useFrame((state, delta) => {
     const cam = state.camera;
@@ -87,7 +100,10 @@ function Rig({
     // fake depth of field: focus/defocus + fade each DOM card by its Z distance to the camera
     const stage = stageRef.current;
     if (!stage) return;
-    const els = stage.querySelectorAll<HTMLElement>(".cardwall-card");
+    if (!cachedCards.current || cachedCards.current.length !== count) {
+      cachedCards.current = stage.querySelectorAll<HTMLElement>(".cardwall-card");
+    }
+    const els = cachedCards.current;
     for (let i = 0; i < Math.min(count, els.length); i++) {
       const el = els[i];
       const dist = z - -i * SPACING;
@@ -170,17 +186,22 @@ function useThemeColors() {
 export default function CardWall3D({
   items,
   labels,
+  outro,
   heading,
   subtitle,
 }: {
   items: WallItem[];
   labels: WallLabels;
+  outro: WallOutro;
   heading: string;
   subtitle: string;
 }) {
   const sectionRef = useRef<HTMLElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
   const introRef = useRef<HTMLDivElement>(null);
+  const outroRef = useRef<HTMLDivElement>(null);
+  const railRef = useRef<HTMLDivElement>(null);
+  const stRef = useRef<ScrollTrigger | null>(null);
   const targetProgress = useRef(0);
   const pointer = useRef({ x: 0, y: 0 });
   const colors = useThemeColors();
@@ -192,14 +213,30 @@ export default function CardWall3D({
       start: "top top",
       end: "bottom bottom",
       onUpdate: (self) => {
-        targetProgress.current = self.progress;
+        const p = self.progress;
+        targetProgress.current = p;
         if (introRef.current) {
-          introRef.current.style.opacity = String(
-            Math.max(0, 1 - self.progress * 2.6)
+          introRef.current.style.opacity = String(Math.max(0, 1 - p * 2.6));
+        }
+        if (outroRef.current) {
+          outroRef.current.style.opacity = String(
+            THREE.MathUtils.clamp((p - OUTRO_FROM) / (1 - OUTRO_FROM), 0, 1)
           );
+          outroRef.current.style.visibility =
+            p > OUTRO_FROM ? "visible" : "hidden";
+        }
+        if (railRef.current) {
+          const active = Math.round(p * (items.length - 1));
+          railRef.current.dataset.active = String(active);
+          railRef.current
+            .querySelectorAll(".cardwall-rail-item")
+            .forEach((el, i) => {
+              (el as HTMLElement).dataset.on = i <= active ? "1" : "0";
+            });
         }
       },
     });
+    stRef.current = st;
     const onMove = (e: PointerEvent) => {
       pointer.current.x = e.clientX / window.innerWidth - 0.5;
       pointer.current.y = e.clientY / window.innerHeight - 0.5;
@@ -207,9 +244,17 @@ export default function CardWall3D({
     window.addEventListener("pointermove", onMove);
     return () => {
       st.kill();
+      stRef.current = null;
       window.removeEventListener("pointermove", onMove);
     };
-  }, []);
+  }, [items.length]);
+
+  const jumpTo = (i: number) => {
+    const st = stRef.current;
+    if (!st) return;
+    const p = items.length > 1 ? i / (items.length - 1) : 0;
+    window.scrollTo({ top: st.start + (st.end - st.start) * p, behavior: "smooth" });
+  };
 
   const depth = (items.length - 1) * SPACING + END_PAD;
 
@@ -296,6 +341,45 @@ export default function CardWall3D({
             ↓ SCROLL
           </div>
         </div>
+
+        <div className="cardwall-outro" ref={outroRef}>
+          <h2>{outro.title}</h2>
+          <p>{outro.subtitle}</p>
+          <div className="hero-cta">
+            <a
+              className="btn btn--primary"
+              href={outro.githubUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              {outro.githubCta}
+            </a>
+            <Link className="btn btn--secondary" href={outro.contactHref}>
+              {outro.contactCta}
+            </Link>
+          </div>
+        </div>
+
+        <nav
+          className="cardwall-rail"
+          ref={railRef}
+          aria-label={heading}
+        >
+          {items.map((item, i) => (
+            <button
+              key={item.key}
+              type="button"
+              className="cardwall-rail-item"
+              onClick={() => jumpTo(i)}
+              aria-label={`${String(i + 1).padStart(2, "0")} ${item.name}`}
+            >
+              <span className="cardwall-rail-dot" aria-hidden="true" />
+              <span className="cardwall-rail-num" aria-hidden="true">
+                {String(i + 1).padStart(2, "0")}
+              </span>
+            </button>
+          ))}
+        </nav>
       </div>
     </section>
   );

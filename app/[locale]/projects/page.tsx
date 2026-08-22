@@ -79,6 +79,14 @@ export default async function ProjectsPage({
       subtitle={t("subtitle")}
       items={items}
       labels={{ demo: t("demo"), source: t("source") }}
+      outro={{
+        title: t("outroTitle"),
+        subtitle: t("outroSubtitle"),
+        githubCta: t("githubCta"),
+        contactCta: t("contactCta"),
+        githubUrl: "https://github.com/ymslucky",
+        contactHref: "/contact",
+      }}
     />
   );
 }
