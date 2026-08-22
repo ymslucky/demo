@@ -676,20 +676,21 @@ main {
 
 /* 3D 变换模式下固定像素尺寸 (drei <Html transform>) */
 .cardwall-card {
-  width: 400px;
+  width: 460px;
   will-change: filter, opacity;
   /* 排除 filter/opacity, 避免与逐帧景深更新冲突 */
   transition: transform 0.15s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.15s ease;
 }
 
 .cardwall-card h3 {
-  font-size: var(--fs-2xl);
+  font-size: var(--fs-3xl);
   margin-bottom: var(--space-xs);
   padding-right: 2.5em;
 }
 
 .cardwall-card p {
-  font-size: var(--fs-base);
+  font-size: var(--fs-lg);
+  line-height: 1.6;
 }
 
 .cardwall-index {

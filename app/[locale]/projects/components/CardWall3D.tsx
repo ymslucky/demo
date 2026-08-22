@@ -36,18 +36,18 @@ const SPACING = 6.4; // distance between cards along the Z axis
 const START_Z = 5.5; // camera start distance
 const END_PAD = 8; // extra flight room beyond the last card
 const FOV = 55; // field of view (perspective strength)
-const CARD_SCALE = 0.0105; // DOM pixels -> world units
-const FOCUS_NEAR = 4.2; // near focal plane of the fake depth of field
-const FOCUS_FAR = 9.5; // far focal plane of the fake depth of field
+const CARD_SCALE = 0.0112; // DOM pixels -> world units
+const FOCUS_NEAR = 2.8; // near focal plane of the fake depth of field
+const FOCUS_FAR = 8.2; // far focal plane of the fake depth of field
 const OUTRO_FROM = 0.82; // scroll progress where the outro starts fading in
 
 function cardLayout(i: number) {
   const side = i % 2 === 0 ? -1 : 1;
   const y = [0.35, -0.45, 0.75][i % 3];
   return {
-    position: [side * 1.75, y, -i * SPACING] as [number, number, number],
-    // angle each card slightly toward the flight path (fan-shaped wall)
-    rotation: [0, -side * 0.16, side * 0.02] as [number, number, number],
+    position: [side * 2.3, y, -i * SPACING] as [number, number, number],
+    // slight angle toward the flight path: 3D feel without skewing the text
+    rotation: [0, -side * 0.12, side * 0.02] as [number, number, number],
   };
 }
 
@@ -107,11 +107,11 @@ function Rig({
     for (let i = 0; i < Math.min(count, els.length); i++) {
       const el = els[i];
       const dist = z - -i * SPACING;
-      const nearBlur = THREE.MathUtils.clamp((FOCUS_NEAR - dist) * 1.4, 0, 8);
+      const nearBlur = THREE.MathUtils.clamp((FOCUS_NEAR - dist) * 1.8, 0, 9);
       const farBlur = THREE.MathUtils.clamp((dist - FOCUS_FAR) * 0.5, 0, 7);
       const blur = Math.max(nearBlur, farBlur);
       const opacity =
-        THREE.MathUtils.clamp((dist - 0.2) / 1.4, 0, 1) *
+        THREE.MathUtils.clamp((dist - 0.6) / 1.2, 0, 1) *
         THREE.MathUtils.clamp((26 - dist) / 8, 0, 1);
       el.style.filter = blur > 0.05 ? `blur(${blur.toFixed(2)}px)` : "";
       el.style.opacity = opacity.toFixed(3);
