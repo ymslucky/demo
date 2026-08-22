@@ -35,10 +35,14 @@ export interface WallOutro {
 
 /* ---- Scene params: camera angle / distance / depth-of-field knobs ---- */
 const SPACING = 6.4; // distance between cards along the Z axis
-const START_Z = 5.5; // camera start distance
+const START_Z = 6.5; // camera start distance (first card ~85% viewport width, no clipping)
 const END_PAD = 8; // extra flight room beyond the last card
 const FOV = 55; // field of view (perspective strength)
-const CARD_SCALE = 0.0095; // DOM pixels -> world units (760px card -> ~7.2 units, ~75% viewport width at focus)
+const CARD_SCALE = 0.38; // DOM px -> drei matrix units. NOTE: drei <Html transform> applies an
+// internal calibration factor of distanceFactor?10/400 = 0.025 when distanceFactor is
+// unset, so the effective DOM px -> world-unit ratio is CARD_SCALE * 0.025
+// (760px card -> ~7.2 world units, ~75% viewport width at the 3.4-8.5 focus window).
+const CARD_PX_TO_WORLD = CARD_SCALE * 0.025; // effective DOM px -> world units
 const FOCUS_NEAR = 3.4; // near focal plane of the fake depth of field
 const FOCUS_FAR = 8.5; // far focal plane of the fake depth of field
 const OUTRO_FROM = 0.82; // scroll progress where the outro starts fading in
@@ -118,8 +122,8 @@ function Rig({
       let dist = FOCUS_DIST_FALLBACK;
       const focusEl = els?.[fi];
       if (focusEl) {
-        const cardW = focusEl.offsetWidth * CARD_SCALE;
-        const cardH = focusEl.offsetHeight * CARD_SCALE;
+        const cardW = focusEl.offsetWidth * CARD_PX_TO_WORLD;
+        const cardH = focusEl.offsetHeight * CARD_PX_TO_WORLD;
         const aspect = state.size.width / state.size.height;
         const halfTan = Math.tan(THREE.MathUtils.degToRad(FOV) / 2);
         if (cardW > 0 && cardH > 0 && aspect > 0) {
@@ -151,6 +155,11 @@ function Rig({
       cam.rotation.y += pointer.current.x * 0.05;
       cam.rotation.x += pointer.current.y * 0.04;
     }
+    // per-frame constants for the overfill fade below
+    const halfTan = Math.tan(THREE.MathUtils.degToRad(FOV) / 2);
+    const aspect = state.size.width / state.size.height;
+    const cardWWorld = els[0] ? els[0].offsetWidth * CARD_PX_TO_WORLD : 0;
+
     for (let i = 0; i < Math.min(count, els.length); i++) {
       const el = els[i];
       const isFocus = focusing && i === fi;
@@ -159,9 +168,15 @@ function Rig({
       const nearBlur = THREE.MathUtils.clamp((FOCUS_NEAR - dist) * 2.0, 0, 9);
       const farBlur = THREE.MathUtils.clamp((dist - FOCUS_FAR) * 0.5, 0, 7);
       const blur = isFocus || isHover ? 0 : Math.max(nearBlur, farBlur);
-      const opacity =
+      let opacity =
         THREE.MathUtils.clamp((dist - 0.8) / 1.2, 0, 1) *
         THREE.MathUtils.clamp((28 - dist) / 8, 0, 1);
+      // overfill fade: once a card exceeds ~90% of the viewport width it would
+      // clip its sides, so fade it out instead (focus/hover states are exempt)
+      if (cardWWorld > 0 && aspect > 0 && dist > 0) {
+        const pct = cardWWorld / (2 * halfTan * aspect * dist);
+        opacity *= THREE.MathUtils.clamp((1.04 - pct) / 0.14, 0, 1);
+      }
       el.style.filter = blur > 0.05 ? `blur(${blur.toFixed(2)}px)` : "";
       el.style.opacity = isFocus || isHover ? "1" : opacity.toFixed(3);
       el.style.visibility = opacity <= 0.01 && !isFocus && !isHover ? "hidden" : "visible";

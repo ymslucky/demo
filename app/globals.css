@@ -535,9 +535,12 @@ main {
 }
 
 /* ---- 3D 沉浸式卡片墙 (Projects) ---- */
+/* Full-bleed: span the entire viewport, escaping the container max-width
+   (the 50vw - 50% trick) so cards are never clipped at the column edges */
 .cardwall {
   position: relative;
-  margin: 0 calc(var(--space-md) * -1);
+  margin-left: calc(50vw - 50%);
+  margin-right: calc(50vw - 50%);
 }
 
 .cardwall-stage {
