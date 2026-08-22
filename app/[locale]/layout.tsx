@@ -63,10 +63,17 @@ export default async function LocaleLayout({
   setRequestLocale(locale);
 
   return (
-    <html lang={locale} className={inter.variable} suppressHydrationWarning>
+    <html
+      lang={locale}
+      className={inter.variable}
+      data-scroll-behavior="smooth"
+      suppressHydrationWarning
+    >
       <body>
-        {/* Pre-paint theme sync: applies data-theme before first paint to avoid FOUC */}
-        <script dangerouslySetInnerHTML={{ __html: themeInitScript() }} />
+        {/* Pre-paint theme sync: applies data-theme before first paint to avoid FOUC.
+            `async` makes it a hoistable script (React 19 dedupes + hoists to <head>),
+            which keeps it out of the client render tree (no React dev warning). */}
+        <script async dangerouslySetInnerHTML={{ __html: themeInitScript() }} />
         <NextIntlClientProvider>
           <ThemeSync />
           <div className="page">
