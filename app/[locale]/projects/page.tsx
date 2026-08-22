@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { getTranslations, setRequestLocale } from "next-intl/server";
+import type { WallItem } from "./components/CardWall3D";
+import ProjectsClient from "./ProjectsClient";
 
 interface Project {
   key: string;
@@ -62,55 +64,21 @@ export default async function ProjectsPage({
   setRequestLocale(locale);
   const t = await getTranslations("projects");
 
-  return (
-    <>
-      <h1 className="page-title">{t("heading")}</h1>
-      <p className="page-subtitle">{t("subtitle")}</p>
+  const items: WallItem[] = projects.map((project) => ({
+    key: project.key,
+    name: t(`items.${project.key}.name`),
+    description: t(`items.${project.key}.description`),
+    tags: t.raw(`items.${project.key}.tags`) as string[],
+    demo: project.demo,
+    repo: project.repo,
+  }));
 
-      <div className="card-grid">
-        {projects.map((project) => {
-          const tags = t.raw(`items.${project.key}.tags`) as string[];
-          return (
-            <article key={project.repo} className="card project-card">
-              <h3>
-                <a
-                  href={project.repo}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  {t(`items.${project.key}.name`)}
-                </a>
-              </h3>
-              <p>{t(`items.${project.key}.description`)}</p>
-              <div className="tag-list">
-                {tags.map((tag) => (
-                  <span key={tag} className="tag">
-                    {tag}
-                  </span>
-                ))}
-              </div>
-              <div className="project-links">
-                {project.demo && (
-                  <a
-                    href={project.demo}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    {t("demo")}
-                  </a>
-                )}
-                <a
-                  href={project.repo}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  {t("source")}
-                </a>
-              </div>
-            </article>
-          );
-        })}
-      </div>
-    </>
+  return (
+    <ProjectsClient
+      heading={t("heading")}
+      subtitle={t("subtitle")}
+      items={items}
+      labels={{ demo: t("demo"), source: t("source") }}
+    />
   );
 }
