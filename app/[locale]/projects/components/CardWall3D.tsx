@@ -42,8 +42,10 @@ const CARD_SCALE = 0.0095; // DOM pixels -> world units (760px card -> ~7.2 unit
 const FOCUS_NEAR = 3.4; // near focal plane of the fake depth of field
 const FOCUS_FAR = 8.5; // far focal plane of the fake depth of field
 const OUTRO_FROM = 0.82; // scroll progress where the outro starts fading in
-const FOCUS_DIST = 5.2; // camera-to-card distance when a card is centered on click
-const HOVER_LIFT = 0.25; // world units a hovered card lifts toward the camera
+const FOCUS_FILL = 0.88; // fraction of viewport width the focused card fills
+const FOCUS_FILL_H = 0.82; // max fraction of viewport height the focused card fills
+const FOCUS_DIST_FALLBACK = 4.4; // used until the card pixel size is measured
+const FOCUS_DIST_MIN = 2.5; // clamp so the camera never clips into the card
 
 /* Cards fly toward the camera nearly head-on (readable at large size),
    with a small alternating lateral/vertical stagger for spatial depth. */
@@ -97,42 +99,58 @@ function Rig({
     const hi = hoverIndex.current;
     const focusing = fi >= 0;
 
-    if (focusing) {
-      // Focus mode: glide the camera in front of the chosen card, centered
-      const { position } = cardLayout(fi);
-      const tz = position[2] + FOCUS_DIST;
-      cam.position.x = THREE.MathUtils.damp(cam.position.x, position[0], 5, delta);
-      cam.position.y = THREE.MathUtils.damp(cam.position.y, position[1], 5, delta);
-      cam.position.z = THREE.MathUtils.damp(cam.position.z, tz, 5, delta);
-      lookTarget.set(position[0], position[1], position[2]);
-      cam.lookAt(lookTarget);
-    } else {
-      // fly the camera through the wall along Z with a gentle lateral sway
-      const endZ = -((count - 1) * SPACING) - END_PAD;
-      const z = THREE.MathUtils.lerp(START_Z, endZ, p);
-      const swayX = Math.sin(p * Math.PI * 1.35) * 0.3;
-      const px = THREE.MathUtils.damp(cam.position.x, swayX + pointer.current.x * 0.3, 5, delta);
-      const py = THREE.MathUtils.damp(cam.position.y, 0.1 - pointer.current.y * 0.25, 5, delta);
-      cam.position.set(px, py, z);
-      lookTarget.set(swayX * 0.35, 0.05, z - 10);
-      cam.lookAt(lookTarget);
-      // mouse parallax: small extra rotation on top of lookAt
-      cam.rotation.y += pointer.current.x * 0.05;
-      cam.rotation.x += pointer.current.y * 0.04;
-    }
-
-    // effective camera Z for the DOF math (same as flight Z when not focusing)
-    const camZ = focusing
-      ? cardLayout(fi).position[2] + FOCUS_DIST
-      : THREE.MathUtils.lerp(START_Z, -((count - 1) * SPACING) - END_PAD, p);
-
-    // fake depth of field: focus/defocus + fade each DOM card by its Z distance to the camera
+    // resolve the cached card DOM first (the focus branch needs the card pixel size)
     const stage = stageRef.current;
     if (!stage) return;
     if (!cachedCards.current || cachedCards.current.length !== count) {
       cachedCards.current = stage.querySelectorAll<HTMLElement>(".cardwall-card");
     }
     const els = cachedCards.current;
+
+    // effective camera Z (also drives the DOF math below)
+    let camZ: number;
+
+    if (focusing) {
+      // Focus mode: glide the camera in front of the chosen card, centered.
+      // Distance is derived from the card's measured pixel size + viewport
+      // aspect so the card always fills FOCUS_FILL of the screen width.
+      const { position } = cardLayout(fi);
+      let dist = FOCUS_DIST_FALLBACK;
+      const focusEl = els?.[fi];
+      if (focusEl) {
+        const cardW = focusEl.offsetWidth * CARD_SCALE;
+        const cardH = focusEl.offsetHeight * CARD_SCALE;
+        const aspect = state.size.width / state.size.height;
+        const halfTan = Math.tan(THREE.MathUtils.degToRad(FOV) / 2);
+        if (cardW > 0 && cardH > 0 && aspect > 0) {
+          // fill FOCUS_FILL of the viewport width, but never exceed ~82% of
+          // its height (the larger distance wins, so both caps hold)
+          const distW = (cardW / 2) / (FOCUS_FILL * halfTan * aspect);
+          const distH = (cardH / 2) / (FOCUS_FILL_H * halfTan);
+          dist = Math.max(distW, distH);
+        }
+      }
+      dist = Math.max(dist, FOCUS_DIST_MIN);
+      camZ = position[2] + dist;
+      cam.position.x = THREE.MathUtils.damp(cam.position.x, position[0], 5, delta);
+      cam.position.y = THREE.MathUtils.damp(cam.position.y, position[1], 5, delta);
+      cam.position.z = THREE.MathUtils.damp(cam.position.z, camZ, 5, delta);
+      lookTarget.set(position[0], position[1], position[2]);
+      cam.lookAt(lookTarget);
+    } else {
+      // fly the camera through the wall along Z with a gentle lateral sway
+      const endZ = -((count - 1) * SPACING) - END_PAD;
+      camZ = THREE.MathUtils.lerp(START_Z, endZ, p);
+      const swayX = Math.sin(p * Math.PI * 1.35) * 0.3;
+      const px = THREE.MathUtils.damp(cam.position.x, swayX + pointer.current.x * 0.3, 5, delta);
+      const py = THREE.MathUtils.damp(cam.position.y, 0.1 - pointer.current.y * 0.25, 5, delta);
+      cam.position.set(px, py, camZ);
+      lookTarget.set(swayX * 0.35, 0.05, camZ - 10);
+      cam.lookAt(lookTarget);
+      // mouse parallax: small extra rotation on top of lookAt
+      cam.rotation.y += pointer.current.x * 0.05;
+      cam.rotation.x += pointer.current.y * 0.04;
+    }
     for (let i = 0; i < Math.min(count, els.length); i++) {
       const el = els[i];
       const isFocus = focusing && i === fi;
