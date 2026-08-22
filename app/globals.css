@@ -676,21 +676,30 @@ main {
 
 /* 3D 变换模式下固定像素尺寸 (drei <Html transform>) */
 .cardwall-card {
-  width: 460px;
+  width: 760px;
   will-change: filter, opacity;
   /* 排除 filter/opacity, 避免与逐帧景深更新冲突 */
   transition: transform 0.15s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.15s ease;
 }
 
 .cardwall-card h3 {
-  font-size: var(--fs-3xl);
-  margin-bottom: var(--space-xs);
-  padding-right: 2.5em;
+  font-size: 3rem;
+  margin-bottom: var(--space-sm);
+  padding-right: 2em;
 }
 
 .cardwall-card p {
+  font-size: 1.625rem;
+  line-height: 1.55;
+}
+
+.cardwall-card .tag {
+  font-size: var(--fs-sm);
+  padding: 0.25em 0.7em;
+}
+
+.cardwall-card .project-links {
   font-size: var(--fs-lg);
-  line-height: 1.6;
 }
 
 .cardwall-index {
