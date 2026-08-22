@@ -695,10 +695,36 @@ main {
   box-shadow: 10px 10px 0px 0px var(--color-border);
 }
 
-/* Focused (centered by click): strong presence */
+/* Focused (centered by click): strong presence + enlarged content */
 .cardwall-card[data-focused='1'] {
   transform: none;
   box-shadow: 12px 12px 0px 0px var(--color-border);
+}
+
+.cardwall-card[data-focused='1'] h3 {
+  font-size: 4rem;
+  padding-right: 1.4em;
+}
+
+.cardwall-card[data-focused='1'] .tag {
+  font-size: 1.25rem;
+  padding: 0.3em 0.8em;
+}
+
+.cardwall-card[data-focused='1'] .cardwall-icon-link {
+  width: 76px;
+  height: 76px;
+}
+
+.cardwall-card[data-focused='1'] .cardwall-icon-link svg {
+  width: 32px;
+  height: 32px;
+}
+
+.cardwall-card[data-focused='1'] .cardwall-index {
+  font-size: var(--fs-lg);
+  top: -22px;
+  left: -18px;
 }
 
 .cardwall-card .tag {

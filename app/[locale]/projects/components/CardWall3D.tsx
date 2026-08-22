@@ -42,8 +42,8 @@ const CARD_SCALE = 0.0095; // DOM pixels -> world units (760px card -> ~7.2 unit
 const FOCUS_NEAR = 3.4; // near focal plane of the fake depth of field
 const FOCUS_FAR = 8.5; // far focal plane of the fake depth of field
 const OUTRO_FROM = 0.82; // scroll progress where the outro starts fading in
-const FOCUS_FILL = 0.88; // fraction of viewport width the focused card fills
-const FOCUS_FILL_H = 0.82; // max fraction of viewport height the focused card fills
+const FOCUS_FILL = 0.96; // fraction of viewport width the focused card fills
+const FOCUS_FILL_H = 0.86; // max fraction of viewport height the focused card fills
 const FOCUS_DIST_FALLBACK = 4.4; // used until the card pixel size is measured
 const FOCUS_DIST_MIN = 2.5; // clamp so the camera never clips into the card
 
