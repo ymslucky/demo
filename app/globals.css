@@ -535,6 +535,11 @@ main {
 }
 
 /* ---- About ---- */
+.about-text {
+  /* 限制行文长度，容器在宽屏变宽后仍保持可读的行宽 */
+  max-width: 72ch;
+}
+
 .about-text p {
   margin-bottom: var(--space-md);
   font-size: var(--fs-lg);
@@ -1030,6 +1035,51 @@ a:focus-visible,
   .footer-container {
     flex-direction: column;
     gap: var(--space-xs);
+  }
+}
+
+/* ---- 宽屏适配 (≥1280px): 容器变宽 + 网格增加列数 + 排版放大 ---- */
+@media (min-width: 1280px) {
+  :root {
+    --container-max: 1120px;
+    --fs-3xl: 2.25rem;
+    --fs-4xl: 3rem;
+  }
+
+  .hero {
+    padding: calc(var(--space-2xl) + 1rem) 0;
+  }
+
+  .hero-tagline {
+    font-size: var(--fs-4xl);
+  }
+
+  .hero-bio {
+    max-width: 640px;
+    font-size: 1.25rem;
+  }
+
+  .card-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .tool-card-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .links-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+/* ---- 超宽屏 (≥1536px) ---- */
+@media (min-width: 1536px) {
+  :root {
+    --container-max: 1280px;
+  }
+
+  .links-grid {
+    grid-template-columns: repeat(4, 1fr);
   }
 }
 
