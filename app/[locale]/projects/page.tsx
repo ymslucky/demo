@@ -78,7 +78,7 @@ export default async function ProjectsPage({
       heading={t("heading")}
       subtitle={t("subtitle")}
       items={items}
-      labels={{ demo: t("demo"), source: t("source") }}
+      labels={{ demo: t("demo"), source: t("source"), close: t("close") }}
       outro={{
         title: t("outroTitle"),
         subtitle: t("outroSubtitle"),

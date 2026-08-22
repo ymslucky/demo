@@ -678,6 +678,7 @@ main {
 .cardwall-card {
   width: 760px;
   will-change: filter, opacity;
+  cursor: pointer;
   /* 排除 filter/opacity, 避免与逐帧景深更新冲突 */
   transition: transform 0.15s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.15s ease;
 }
@@ -685,12 +686,19 @@ main {
 .cardwall-card h3 {
   font-size: 3rem;
   margin-bottom: var(--space-sm);
-  padding-right: 2em;
+  padding-right: 1.6em;
 }
 
-.cardwall-card p {
-  font-size: 1.625rem;
-  line-height: 1.55;
+/* Hover: lift + crisp shadow (blur/opacity handled per-frame in the rig) */
+.cardwall-card:hover {
+  transform: translate(-4px, -4px);
+  box-shadow: 10px 10px 0px 0px var(--color-border);
+}
+
+/* Focused (centered by click): strong presence */
+.cardwall-card[data-focused='1'] {
+  transform: none;
+  box-shadow: 12px 12px 0px 0px var(--color-border);
 }
 
 .cardwall-card .tag {
@@ -698,8 +706,82 @@ main {
   padding: 0.25em 0.7em;
 }
 
-.cardwall-card .project-links {
-  font-size: var(--fs-lg);
+/* Icon-only action links (demo / source) */
+.cardwall-actions {
+  display: flex;
+  gap: var(--space-sm);
+  margin-top: var(--space-sm);
+}
+
+.cardwall-icon-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  border: 3px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text);
+  box-shadow: var(--shadow-sm);
+  transition: var(--transition);
+}
+
+.cardwall-icon-link:hover {
+  background: var(--color-primary);
+  border-color: var(--color-border);
+  color: var(--color-on-primary);
+  transform: translate(-2px, -2px);
+  box-shadow: var(--shadow-md);
+}
+
+/* Close button for the centered card */
+.cardwall-close {
+  position: absolute;
+  top: calc(var(--space-lg) + 40px);
+  right: var(--space-lg);
+  z-index: 60;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  font-size: 1.75rem;
+  font-weight: 700;
+  line-height: 1;
+  border: 3px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text);
+  cursor: pointer;
+  box-shadow: var(--shadow-sm);
+  transition: var(--transition);
+}
+
+.cardwall-close:hover {
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+  transform: translate(-2px, -2px);
+  box-shadow: var(--shadow-md);
+}
+
+/* Click-to-center hint icon (bottom center, fades with intro) */
+.cardwall-tip {
+  position: absolute;
+  bottom: var(--space-md);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 6;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: 2px solid var(--color-border);
+  border-radius: 50%;
+  background: var(--color-nav-bg);
+  color: var(--color-text-muted);
+  animation: cardwall-bounce 2.2s ease-in-out infinite;
 }
 
 .cardwall-index {

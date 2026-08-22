@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
 import { Html } from "@react-three/drei";
+import { ExternalLink, Code2, MousePointerClick, ChevronDown } from "lucide-react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import * as THREE from "three";
@@ -20,6 +21,7 @@ export interface WallItem {
 export interface WallLabels {
   demo: string;
   source: string;
+  close: string;
 }
 
 export interface WallOutro {
@@ -40,6 +42,8 @@ const CARD_SCALE = 0.0095; // DOM pixels -> world units (760px card -> ~7.2 unit
 const FOCUS_NEAR = 3.4; // near focal plane of the fake depth of field
 const FOCUS_FAR = 8.5; // far focal plane of the fake depth of field
 const OUTRO_FROM = 0.82; // scroll progress where the outro starts fading in
+const FOCUS_DIST = 5.2; // camera-to-card distance when a card is centered on click
+const HOVER_LIFT = 0.25; // world units a hovered card lifts toward the camera
 
 /* Cards fly toward the camera nearly head-on (readable at large size),
    with a small alternating lateral/vertical stagger for spatial depth. */
@@ -64,17 +68,21 @@ function mulberry32(seed: number) {
   };
 }
 
-/** Camera rig: GSAP scroll progress -> damped camera flight + mouse parallax + fake DOF on DOM cards */
+/** Camera rig: scroll flight + mouse parallax + focus mode (fly to a card) + fake DOF */
 function Rig({
   count,
   targetProgress,
   pointer,
   stageRef,
+  focusIndex,
+  hoverIndex,
 }: {
   count: number;
   targetProgress: React.RefObject<number>;
   pointer: React.RefObject<{ x: number; y: number }>;
   stageRef: React.RefObject<HTMLDivElement | null>;
+  focusIndex: React.RefObject<number>;
+  hoverIndex: React.RefObject<number>;
 }) {
   const progress = useRef(0);
   const lookTarget = useMemo(() => new THREE.Vector3(), []);
@@ -85,19 +93,38 @@ function Rig({
     const cam = state.camera;
     progress.current = THREE.MathUtils.damp(progress.current, targetProgress.current, 4, delta);
     const p = progress.current;
+    const fi = focusIndex.current;
+    const hi = hoverIndex.current;
+    const focusing = fi >= 0;
 
-    // fly the camera through the wall along Z with a gentle lateral sway
-    const endZ = -((count - 1) * SPACING) - END_PAD;
-    const z = THREE.MathUtils.lerp(START_Z, endZ, p);
-    const swayX = Math.sin(p * Math.PI * 1.35) * 0.85;
-    const px = THREE.MathUtils.damp(cam.position.x, swayX + pointer.current.x * 0.5, 5, delta);
-    const py = THREE.MathUtils.damp(cam.position.y, 0.2 - pointer.current.y * 0.4, 5, delta);
-    cam.position.set(px, py, z);
-    lookTarget.set(swayX * 0.35, 0.05, z - 10);
-    cam.lookAt(lookTarget);
-    // mouse parallax: small extra rotation on top of lookAt
-    cam.rotation.y += pointer.current.x * 0.05;
-    cam.rotation.x += pointer.current.y * 0.04;
+    if (focusing) {
+      // Focus mode: glide the camera in front of the chosen card, centered
+      const { position } = cardLayout(fi);
+      const tz = position[2] + FOCUS_DIST;
+      cam.position.x = THREE.MathUtils.damp(cam.position.x, position[0], 5, delta);
+      cam.position.y = THREE.MathUtils.damp(cam.position.y, position[1], 5, delta);
+      cam.position.z = THREE.MathUtils.damp(cam.position.z, tz, 5, delta);
+      lookTarget.set(position[0], position[1], position[2]);
+      cam.lookAt(lookTarget);
+    } else {
+      // fly the camera through the wall along Z with a gentle lateral sway
+      const endZ = -((count - 1) * SPACING) - END_PAD;
+      const z = THREE.MathUtils.lerp(START_Z, endZ, p);
+      const swayX = Math.sin(p * Math.PI * 1.35) * 0.3;
+      const px = THREE.MathUtils.damp(cam.position.x, swayX + pointer.current.x * 0.3, 5, delta);
+      const py = THREE.MathUtils.damp(cam.position.y, 0.1 - pointer.current.y * 0.25, 5, delta);
+      cam.position.set(px, py, z);
+      lookTarget.set(swayX * 0.35, 0.05, z - 10);
+      cam.lookAt(lookTarget);
+      // mouse parallax: small extra rotation on top of lookAt
+      cam.rotation.y += pointer.current.x * 0.05;
+      cam.rotation.x += pointer.current.y * 0.04;
+    }
+
+    // effective camera Z for the DOF math (same as flight Z when not focusing)
+    const camZ = focusing
+      ? cardLayout(fi).position[2] + FOCUS_DIST
+      : THREE.MathUtils.lerp(START_Z, -((count - 1) * SPACING) - END_PAD, p);
 
     // fake depth of field: focus/defocus + fade each DOM card by its Z distance to the camera
     const stage = stageRef.current;
@@ -108,17 +135,20 @@ function Rig({
     const els = cachedCards.current;
     for (let i = 0; i < Math.min(count, els.length); i++) {
       const el = els[i];
-      const dist = z - -i * SPACING;
+      const isFocus = focusing && i === fi;
+      const isHover = !focusing && i === hi;
+      const dist = camZ - -i * SPACING;
       const nearBlur = THREE.MathUtils.clamp((FOCUS_NEAR - dist) * 2.0, 0, 9);
       const farBlur = THREE.MathUtils.clamp((dist - FOCUS_FAR) * 0.5, 0, 7);
-      const blur = Math.max(nearBlur, farBlur);
+      const blur = isFocus || isHover ? 0 : Math.max(nearBlur, farBlur);
       const opacity =
         THREE.MathUtils.clamp((dist - 0.8) / 1.2, 0, 1) *
         THREE.MathUtils.clamp((28 - dist) / 8, 0, 1);
       el.style.filter = blur > 0.05 ? `blur(${blur.toFixed(2)}px)` : "";
-      el.style.opacity = opacity.toFixed(3);
-      el.style.visibility = opacity <= 0.01 ? "hidden" : "visible";
+      el.style.opacity = isFocus || isHover ? "1" : opacity.toFixed(3);
+      el.style.visibility = opacity <= 0.01 && !isFocus && !isHover ? "hidden" : "visible";
       el.style.pointerEvents = dist > 1.2 && blur < 2.5 ? "auto" : "none";
+      el.style.zIndex = isFocus ? "30" : isHover ? "20" : "";
     }
   });
 
@@ -203,9 +233,13 @@ export default function CardWall3D({
   const introRef = useRef<HTMLDivElement>(null);
   const outroRef = useRef<HTMLDivElement>(null);
   const railRef = useRef<HTMLDivElement>(null);
+  const tipRef = useRef<HTMLDivElement>(null);
   const stRef = useRef<ScrollTrigger | null>(null);
   const targetProgress = useRef(0);
   const pointer = useRef({ x: 0, y: 0 });
+  const focusIndex = useRef(-1);
+  const hoverIndex = useRef(-1);
+  const [focused, setFocused] = useState<number | null>(null);
   const colors = useThemeColors();
 
   useEffect(() => {
@@ -218,7 +252,9 @@ export default function CardWall3D({
         const p = self.progress;
         targetProgress.current = p;
         if (introRef.current) {
-          introRef.current.style.opacity = String(Math.max(0, 1 - p * 2.6));
+          const fade = String(Math.max(0, 1 - p * 2.6));
+          introRef.current.style.opacity = fade;
+          if (tipRef.current) tipRef.current.style.opacity = fade;
         }
         if (outroRef.current) {
           outroRef.current.style.opacity = String(
@@ -243,13 +279,31 @@ export default function CardWall3D({
       pointer.current.x = e.clientX / window.innerWidth - 0.5;
       pointer.current.y = e.clientY / window.innerHeight - 0.5;
     };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setFocused(null);
+    };
     window.addEventListener("pointermove", onMove);
+    window.addEventListener("keydown", onKey);
     return () => {
       st.kill();
       stRef.current = null;
       window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("keydown", onKey);
     };
   }, [items.length]);
+
+  // sync focused state -> rig ref (imperative, read every frame)
+  useEffect(() => {
+    focusIndex.current = focused === null ? -1 : focused;
+  }, [focused]);
+
+  // lock page scroll while a card is centered
+  useEffect(() => {
+    document.body.style.overflow = focused !== null ? "hidden" : "";
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [focused]);
 
   const jumpTo = (i: number) => {
     const st = stRef.current;
@@ -285,20 +339,23 @@ export default function CardWall3D({
                 scale={CARD_SCALE}
                 zIndexRange={[40, 0]}
               >
-                <article className="card cardwall-card">
+                <article
+                  className="card cardwall-card"
+                  data-focused={focused === i ? "1" : "0"}
+                  onPointerEnter={() => {
+                    hoverIndex.current = i;
+                  }}
+                  onPointerLeave={() => {
+                    if (hoverIndex.current === i) hoverIndex.current = -1;
+                  }}
+                  onClick={() => {
+                    setFocused((cur) => (cur === i ? null : i));
+                  }}
+                >
                   <span className="cardwall-index" aria-hidden="true">
                     {String(i + 1).padStart(2, "0")}
                   </span>
-                  <h3>
-                    <a
-                      href={item.repo}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      {item.name}
-                    </a>
-                  </h3>
-                  <p>{item.description}</p>
+                  <h3>{item.name}</h3>
                   <div className="tag-list">
                     {item.tags.map((tag) => (
                       <span key={tag} className="tag">
@@ -306,22 +363,30 @@ export default function CardWall3D({
                       </span>
                     ))}
                   </div>
-                  <div className="project-links">
+                  <div className="cardwall-actions">
                     {item.demo && (
                       <a
+                        className="cardwall-icon-link"
                         href={item.demo}
                         target="_blank"
                         rel="noopener noreferrer"
+                        title={labels.demo}
+                        aria-label={`${item.name} ${labels.demo}`}
+                        onClick={(e) => e.stopPropagation()}
                       >
-                        {labels.demo}
+                        <ExternalLink size={22} strokeWidth={2.5} />
                       </a>
                     )}
                     <a
+                      className="cardwall-icon-link"
                       href={item.repo}
                       target="_blank"
                       rel="noopener noreferrer"
+                      title={labels.source}
+                      aria-label={`${item.name} ${labels.source}`}
+                      onClick={(e) => e.stopPropagation()}
                     >
-                      {labels.source}
+                      <Code2 size={22} strokeWidth={2.5} />
                     </a>
                   </div>
                 </article>
@@ -333,6 +398,8 @@ export default function CardWall3D({
             targetProgress={targetProgress}
             pointer={pointer}
             stageRef={stageRef}
+            focusIndex={focusIndex}
+            hoverIndex={hoverIndex}
           />
         </Canvas>
 
@@ -340,13 +407,11 @@ export default function CardWall3D({
           <h1 className="page-title">{heading}</h1>
           <p className="page-subtitle">{subtitle}</p>
           <div className="cardwall-hint" aria-hidden="true">
-            ↓ SCROLL
+            <ChevronDown size={18} strokeWidth={3} />
           </div>
         </div>
-
         <div className="cardwall-outro" ref={outroRef}>
           <h2>{outro.title}</h2>
-          <p>{outro.subtitle}</p>
           <div className="hero-cta">
             <a
               className="btn btn--primary"
@@ -354,6 +419,7 @@ export default function CardWall3D({
               target="_blank"
               rel="noopener noreferrer"
             >
+              <Code2 size={20} strokeWidth={2.5} />
               {outro.githubCta}
             </a>
             <Link className="btn btn--secondary" href={outro.contactHref}>
@@ -362,11 +428,22 @@ export default function CardWall3D({
           </div>
         </div>
 
-        <nav
-          className="cardwall-rail"
-          ref={railRef}
-          aria-label={heading}
-        >
+        {focused !== null && (
+          <button
+            type="button"
+            className="cardwall-close"
+            onClick={() => setFocused(null)}
+            aria-label={labels.close}
+          >
+            <span aria-hidden="true">×</span>
+          </button>
+        )}
+
+        <div className="cardwall-tip" ref={tipRef} aria-hidden="true">
+          <MousePointerClick size={16} strokeWidth={2.5} />
+        </div>
+
+        <nav className="cardwall-rail" ref={railRef} aria-label={heading}>
           {items.map((item, i) => (
             <button
               key={item.key}
