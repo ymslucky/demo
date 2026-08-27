@@ -126,10 +126,10 @@
     "readMore": "Read more →",
     "items": {
       "rateLimiter": {
-        "title": "Local Rate Limiter in Action",
-        "description": "Four classic rate limiting algorithms (Fixed Window, Sliding Window, Leaky Bucket, Token Bucket) and their implementation ideas.",
+        "title": "A Formal Analysis of Local Rate Limiters",
+        "description": "Academic-style treatment of four classic local rate limiters — fixed window, sliding window log, leaky bucket (GCRA) and token bucket — with proofs, complexity analysis, an interactive simulation and 11 references.",
         "date": "2023-12-29",
-        "tags": ["Backend", "RateLimiter", "Concurrent"]
+        "tags": ["Paper", "Rate Limiting", "Network Calculus"]
       }
     }
   },
