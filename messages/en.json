@@ -387,6 +387,10 @@
       "case": {
         "name": "Text Case Converter",
         "description": "One-click conversion between UPPER, lower, Title, camelCase and more."
+      },
+      "httpCheck": {
+        "name": "HTTP Request Health Check",
+        "description": "See each visit the way the server does: your IP, geo hints, device fingerprint and full request headers — rendered live on the server."
       }
     },
     "actions": {
@@ -396,7 +400,32 @@
       "encode": "Encode →",
       "decode": "← Decode",
       "refresh": "Refresh",
-      "swap": "Swap ⇄"
+      "swap": "Swap ⇄",
+      "open": "Open tool →"
+    },
+    "httpCheck": {
+      "subtitle": "Every click tells the server who you are — here is the complete dossier of this request.",
+      "ipCard": "Source IP",
+      "ipSource": "Identified via",
+      "ipUnknown": "No public IP could be identified (expected in local development).",
+      "deviceCard": "Client & Device",
+      "browserLabel": "Browser",
+      "osLabel": "Operating system",
+      "deviceLabel": "Device type",
+      "devices": {
+        "desktop": "Desktop",
+        "tablet": "Tablet",
+        "mobile": "Mobile",
+        "bot": "Bot / automated"
+      },
+      "geoCard": "Geo-location clues",
+      "geoEmpty": "No geo headers were injected on this route (availability depends on the CDN / gateway in front of you).",
+      "headersCard": "Full request headers",
+      "headerCount": "{count} headers",
+      "refreshHint": "Tip: reopen this page after switching networks or proxies to compare the differences.",
+      "apiCard": "JSON echo API",
+      "apiDesc": "The same data is also available as JSON — send any request to /api/echo for debugging.",
+      "openApi": "View JSON output"
     },
     "labels": {
       "jsonInput": "JSON input",

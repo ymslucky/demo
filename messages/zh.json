@@ -387,6 +387,10 @@
       "case": {
         "name": "文本大小写转换",
         "description": "UPPER、lower、Title、camelCase 等多种模式一键转换。"
+      },
+      "httpCheck": {
+        "name": "HTTP 请求体检",
+        "description": "从服务器视角解读你的每一次访问：IP、地理线索、设备指纹与完整请求头，由服务端实时渲染。"
       }
     },
     "actions": {
@@ -396,7 +400,32 @@
       "encode": "编码 →",
       "decode": "← 解码",
       "refresh": "刷新",
-      "swap": "交换 ⇄"
+      "swap": "交换 ⇄",
+      "open": "进入工具 →"
+    },
+    "httpCheck": {
+      "subtitle": "每次点击都在告诉服务器你是谁 —— 以下是本次请求的完整档案。",
+      "ipCard": "来源 IP",
+      "ipSource": "识别依据",
+      "ipUnknown": "未能识别出公网 IP（本地开发环境属正常现象）。",
+      "deviceCard": "客户端与设备",
+      "browserLabel": "浏览器",
+      "osLabel": "操作系统",
+      "deviceLabel": "设备类型",
+      "devices": {
+        "desktop": "桌面端",
+        "tablet": "平板",
+        "mobile": "手机",
+        "bot": "爬虫 / 自动化"
+      },
+      "geoCard": "地理位置线索",
+      "geoEmpty": "当前链路未注入地理位置头（是否携带由所经 CDN / 网关决定）。",
+      "headersCard": "完整请求头",
+      "headerCount": "{count} 个标头",
+      "refreshHint": "提示：更换网络或代理后重新打开本页，可对比数据变化。",
+      "apiCard": "JSON 回显接口",
+      "apiDesc": "同样的数据也以 JSON 形式公开，可将任意请求发往 /api/echo 用于调试。",
+      "openApi": "查看 JSON 输出"
     },
     "labels": {
       "jsonInput": "JSON 输入",
