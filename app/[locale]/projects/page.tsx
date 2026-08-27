@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { getTranslations, setRequestLocale } from "next-intl/server";
-import type { WallItem } from "./components/CardWall3D";
-import ProjectsClient from "./ProjectsClient";
+import { Code2, ExternalLink } from "lucide-react";
+import { Link } from "@/i18n/navigation";
 
 interface Project {
   key: string;
@@ -42,6 +42,15 @@ const projects: Project[] = [
   },
 ];
 
+interface ProjectItem {
+  key: string;
+  name: string;
+  description: string;
+  tags: string[];
+  demo: string | null;
+  repo: string;
+}
+
 export async function generateMetadata({
   params,
 }: {
@@ -64,7 +73,7 @@ export default async function ProjectsPage({
   setRequestLocale(locale);
   const t = await getTranslations("projects");
 
-  const items: WallItem[] = projects.map((project) => ({
+  const items: ProjectItem[] = projects.map((project) => ({
     key: project.key,
     name: t(`items.${project.key}.name`),
     description: t(`items.${project.key}.description`),
@@ -74,18 +83,74 @@ export default async function ProjectsPage({
   }));
 
   return (
-    <ProjectsClient
-      heading={t("heading")}
-      subtitle={t("subtitle")}
-      items={items}
-      labels={{ demo: t("demo"), source: t("source"), close: t("close") }}
-      outro={{
-        title: t("outroTitle"),
-        githubCta: t("githubCta"),
-        contactCta: t("contactCta"),
-        githubUrl: "https://github.com/ymslucky",
-        contactHref: "/contact",
-      }}
-    />
+    <>
+      <h1 className="page-title">{t("heading")}</h1>
+      <p className="page-subtitle">{t("subtitle")}</p>
+
+      <div className="bento">
+        {items.map((item, i) => (
+          <article key={item.key} className="card bento-card">
+            <span className="bento-index" aria-hidden="true">
+              {String(i + 1).padStart(2, "0")}
+            </span>
+            <h3>
+              <a href={item.repo} target="_blank" rel="noopener noreferrer">
+                {item.name}
+              </a>
+            </h3>
+            <p>{item.description}</p>
+            <div className="tag-list">
+              {item.tags.map((tag) => (
+                <span key={tag} className="tag">
+                  {tag}
+                </span>
+              ))}
+            </div>
+            <div className="project-links">
+              {item.demo && (
+                <a
+                  className="icon-link"
+                  href={item.demo}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title={t("demo")}
+                  aria-label={`${item.name} ${t("demo")}`}
+                >
+                  <ExternalLink size={22} strokeWidth={2.5} />
+                </a>
+              )}
+              <a
+                className="icon-link"
+                href={item.repo}
+                target="_blank"
+                rel="noopener noreferrer"
+                title={t("source")}
+                aria-label={`${item.name} ${t("source")}`}
+              >
+                <Code2 size={22} strokeWidth={2.5} />
+              </a>
+            </div>
+          </article>
+        ))}
+      </div>
+
+      <section className="projects-outro">
+        <h2>{t("outroTitle")}</h2>
+        <div className="hero-cta">
+          <a
+            className="btn btn--primary"
+            href="https://github.com/ymslucky"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <Code2 size={20} strokeWidth={2.5} />
+            {t("githubCta")}
+          </a>
+          <Link className="btn btn--secondary" href="/contact">
+            {t("contactCta")}
+          </Link>
+        </div>
+      </section>
+    </>
   );
 }

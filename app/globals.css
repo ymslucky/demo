@@ -534,301 +534,79 @@ main {
   font-weight: 500;
 }
 
-/* ---- 3D 沉浸式卡片墙 (Projects) ---- */
-/* Full-bleed: span the entire viewport, escaping the container max-width
-   (the 50vw - 50% trick) so cards are never clipped at the column edges */
-.cardwall {
+/* ---- 项目展示 Bento 网格 (Projects) ---- */
+.bento {
+  display: grid;
+  gap: var(--space-md);
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 580px) {
+  .bento {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* 宽屏切换为 6 列 Bento：宽窄交错形成大小不一的卡片组合（每 6 张一循环） */
+@media (min-width: 960px) {
+  .bento {
+    grid-template-columns: repeat(6, 1fr);
+  }
+
+  .bento > :nth-child(6n + 1),
+  .bento > :nth-child(6n + 4) {
+    grid-column: span 4;
+  }
+
+  .bento > :nth-child(6n + 2),
+  .bento > :nth-child(6n + 3) {
+    grid-column: span 2;
+  }
+
+  .bento > :nth-child(6n),
+  .bento > :nth-child(6n + 5) {
+    grid-column: span 3;
+  }
+}
+
+.bento-card {
   position: relative;
-  margin-left: calc(50vw - 50%);
-  margin-right: calc(50vw - 50%);
-}
-
-.cardwall-stage {
-  position: sticky;
-  top: 0;
-  height: 100vh;
-  height: 100svh;
-  overflow: hidden;
-}
-
-.cardwall-intro {
-  position: absolute;
-  inset: 0;
-  z-index: 5;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-  padding: 0 var(--space-md);
-  pointer-events: none;
 }
 
-.cardwall-intro .page-title {
-  margin-bottom: var(--space-sm);
-}
-
-.cardwall-intro .page-subtitle {
-  margin-bottom: var(--space-xl);
-}
-
-.cardwall-hint {
-  font-family: var(--font-mono);
-  font-size: var(--fs-xs);
-  font-weight: 700;
-  letter-spacing: 0.3em;
-  color: var(--color-text-muted);
-  animation: cardwall-bounce 1.8s ease-in-out infinite;
-}
-
-@keyframes cardwall-bounce {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(10px); }
-}
-
-/* Outro CTA: fades in near the end of the camera flight */
-.cardwall-outro {
-  position: absolute;
-  inset: 0;
-  z-index: 5;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-sm);
-  text-align: center;
-  padding: 0 var(--space-xl);
-  opacity: 0;
-  visibility: hidden;
-  background: var(--color-nav-bg);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
-}
-
-.cardwall-outro h2 {
-  font-size: var(--fs-3xl);
-}
-
-.cardwall-outro p {
-  font-size: var(--fs-lg);
-  color: var(--color-text-muted);
-  max-width: 520px;
-  margin: 0 0 var(--space-md);
-}
-
-/* Progress rail: jump between cards */
-.cardwall-rail {
-  position: absolute;
-  right: var(--space-sm);
-  top: 50%;
-  transform: translateY(-50%);
-  z-index: 6;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-xs);
-}
-
-.cardwall-rail-item {
-  display: flex;
-  align-items: center;
-  gap: var(--space-xs);
-  background: transparent;
-  border: none;
-  padding: 4px 6px;
-  cursor: pointer;
-}
-
-.cardwall-rail-dot {
-  width: 10px;
-  height: 10px;
-  border: 2px solid var(--color-border);
-  background: var(--color-surface);
-  border-radius: 50%;
-  transition: var(--transition);
-}
-
-.cardwall-rail-num {
-  font-family: var(--font-mono);
-  font-size: var(--fs-xs);
-  font-weight: 700;
-  color: var(--color-text-muted);
-  opacity: 0;
-  transition: var(--transition);
-}
-
-.cardwall-rail-item:hover .cardwall-rail-num,
-.cardwall-rail-item[data-on='1'] .cardwall-rail-num {
-  opacity: 1;
-}
-
-.cardwall-rail-item[data-on='1'] .cardwall-rail-dot {
-  background: var(--color-primary);
-  transform: scale(1.15);
-}
-
-.cardwall-rail-item:focus-visible {
-  outline: 2px solid var(--color-primary);
-  outline-offset: 2px;
-  border-radius: var(--radius-sm);
-}
-
-/* CSS 3D scroll enhancement for the fallback grid (mobile) */
-.card-grid--3d .card {
-  will-change: transform, opacity;
-}
-
-/* 卡片层: 屏幕空间投影 (JS 每帧写 transform/opacity/filter,
-   CSS 只负责外观; 初始 opacity:0 由首帧投影点亮) */
-.cardwall-cards {
-  position: absolute;
-  inset: 0;
-  z-index: 4;
-  pointer-events: none; /* 卡片本身由 JS 按可点性开启 */
-}
-
-.cardwall-card {
-  position: absolute;
-  left: 0;
-  top: 0;
-  width: min(88vw, 620px);
-  opacity: 0;
-  visibility: hidden;
-  cursor: pointer;
-  will-change: transform, opacity, filter;
-  /* 只过渡外观属性 — transform 由 JS 每帧写入, 不可加过渡 */
-  transition: box-shadow 0.15s ease, border-color 0.15s ease;
-}
-
-.cardwall-card h3 {
-  font-size: 2.5rem;
-  margin-bottom: var(--space-sm);
-  padding-right: 1.6em;
-}
-
-/* Hover: stronger presence (transform is JS-owned, so no translate here) */
-.cardwall-card:hover {
-  box-shadow: 10px 10px 0px 0px var(--color-border);
+.bento-card:hover {
   border-color: var(--color-primary);
+  box-shadow: var(--shadow-md);
 }
 
-/* Focused (centered by click): enlarged content */
-.cardwall-card[data-focused='1'] {
-  box-shadow: 12px 12px 0px 0px var(--color-border);
+.bento-card h3 {
+  margin-bottom: var(--space-xs);
 }
 
-.cardwall-card[data-focused='1'] h3 {
-  font-size: 4rem;
-  padding-right: 1.4em;
+.bento-card h3 a {
+  color: inherit;
 }
 
-.cardwall-card[data-focused='1'] .tag {
-  font-size: 1.25rem;
-  padding: 0.3em 0.8em;
+.bento-card h3 a:hover {
+  color: var(--color-primary);
 }
 
-.cardwall-card[data-focused='1'] .cardwall-icon-link {
-  width: 76px;
-  height: 76px;
-}
-
-.cardwall-card[data-focused='1'] .cardwall-icon-link svg {
-  width: 32px;
-  height: 32px;
-}
-
-.cardwall-card[data-focused='1'] .cardwall-index {
-  font-size: var(--fs-lg);
-  top: -22px;
-  left: -18px;
-}
-
-.cardwall-card .tag {
+.bento-card p {
   font-size: var(--fs-sm);
-  padding: 0.25em 0.7em;
-}
-
-/* Icon-only action links (demo / source) */
-.cardwall-actions {
-  display: flex;
-  gap: var(--space-sm);
-  margin-top: var(--space-sm);
-}
-
-.cardwall-icon-link {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 56px;
-  height: 56px;
-  border: 3px solid var(--color-border);
-  border-radius: var(--radius-md);
-  background: var(--color-surface);
-  color: var(--color-text);
-  box-shadow: var(--shadow-sm);
-  transition: var(--transition);
-}
-
-.cardwall-icon-link:hover {
-  background: var(--color-primary);
-  border-color: var(--color-border);
-  color: var(--color-on-primary);
-  transform: translate(-2px, -2px);
-  box-shadow: var(--shadow-md);
-}
-
-/* Close button for the centered card */
-.cardwall-close {
-  position: absolute;
-  top: calc(var(--space-lg) + 40px);
-  right: var(--space-lg);
-  z-index: 60;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 48px;
-  height: 48px;
-  font-size: 1.75rem;
-  font-weight: 700;
-  line-height: 1;
-  border: 3px solid var(--color-border);
-  border-radius: var(--radius-md);
-  background: var(--color-surface);
-  color: var(--color-text);
-  cursor: pointer;
-  box-shadow: var(--shadow-sm);
-  transition: var(--transition);
-}
-
-.cardwall-close:hover {
-  background: var(--color-primary);
-  color: var(--color-on-primary);
-  transform: translate(-2px, -2px);
-  box-shadow: var(--shadow-md);
-}
-
-/* Click-to-center hint icon (bottom center, fades with intro) */
-.cardwall-tip {
-  position: absolute;
-  bottom: var(--space-md);
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 6;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 40px;
-  height: 40px;
-  border: 2px solid var(--color-border);
-  border-radius: 50%;
-  background: var(--color-nav-bg);
   color: var(--color-text-muted);
-  animation: cardwall-bounce 2.2s ease-in-out infinite;
+  margin-bottom: var(--space-sm);
 }
 
-.cardwall-index {
+/* 链接区固定在卡片底部，不同高度的卡片视觉对齐 */
+.bento-card .project-links {
+  margin-top: auto;
+}
+
+.bento-index {
   position: absolute;
-  top: -16px;
-  left: -14px;
+  top: -14px;
+  left: -12px;
   font-family: var(--font-mono);
   font-size: var(--fs-xs);
   font-weight: 700;
@@ -837,6 +615,37 @@ main {
   border: 3px solid var(--color-border);
   border-radius: var(--radius-sm);
   padding: 0.15em 0.5em;
+}
+
+.icon-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border: 3px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text);
+  box-shadow: var(--shadow-sm);
+  transition: var(--transition);
+}
+
+.icon-link:hover {
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+  transform: translate(-2px, -2px);
+  box-shadow: var(--shadow-md);
+}
+
+.projects-outro {
+  margin-top: var(--space-xl);
+  text-align: center;
+}
+
+.projects-outro h2 {
+  font-size: var(--fs-3xl);
+  margin-bottom: var(--space-sm);
 }
 
 /* ---- About ---- */
