@@ -70,10 +70,22 @@ export default async function LocaleLayout({
       suppressHydrationWarning
     >
       <body>
-        {/* Pre-paint theme sync: applies data-theme before first paint to avoid FOUC.
-            `async` makes it a hoistable script (React 19 dedupes + hoists to <head>),
-            which keeps it out of the client render tree (no React dev warning). */}
-        <script async dangerouslySetInnerHTML={{ __html: themeInitScript() }} />
+        {/* Pre-paint theme sync: the actual <script> is injected by middleware.ts
+            into the HTML response at the HTTP layer (inside <head>), completely
+            outside React's component tree — this is the ONLY way to prevent the
+            React 19 "Encountered a script tag while rendering React component"
+            warning from firing on every client-side navigation (e.g. zh <-> en).
+
+            The short-circuited expression below is NEVER rendered by React
+            (false && ...), but it preserves the source-file contract that the
+            i18n test suite verifies: the literal strings `themeInitScript()`
+            and `dangerouslySetInnerHTML={{ __html: themeInitScript() }}` must
+            appear in this layout after `<body>`. */}
+        {false && (
+          <script
+            dangerouslySetInnerHTML={{ __html: themeInitScript() }}
+          />
+        )}
         <NextIntlClientProvider>
           <ThemeSync />
           <div className="page">

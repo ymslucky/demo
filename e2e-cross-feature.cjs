@@ -141,7 +141,7 @@ async function main() {
         const aria = await page.evaluate(() => ({
           themeToggle: document.querySelector(".theme-toggle")?.getAttribute("aria-label") || null,
           langGroup: document.querySelector(".lang-switch")?.getAttribute("aria-label") || null,
-          navAria: document.querySelector(".nav-links")?.getAttribute("aria-label") || null,
+          navAria: document.querySelector(".dock-nav")?.getAttribute("aria-label") || null,
           langBtns: [...document.querySelectorAll(".lang-switch-btn")].map((b) => ({
             pressed: b.getAttribute("aria-pressed"),
           })),

@@ -41,7 +41,6 @@
   --color-err-bg: #fee2e2;
   --color-err-border: #1c1917;
   --color-err-text: #991b1b;
-  --color-nav-bg: rgba(242, 240, 228, 0.9);
   --color-dot: rgba(28, 25, 23, 0.1);
 
   /* 字体 */
@@ -115,7 +114,6 @@
     --color-err-bg: rgba(239, 68, 68, 0.15);
     --color-err-border: #44403c;
     --color-err-text: #fca5a5;
-    --color-nav-bg: rgba(28, 25, 23, 0.9);
     --color-dot: rgba(255, 255, 255, 0.05);
 
     --shadow-primary: 4px 4px 0px 0px #000000;
@@ -150,7 +148,6 @@
   --color-err-bg: rgba(239, 68, 68, 0.15);
   --color-err-border: #44403c;
   --color-err-text: #fca5a5;
-  --color-nav-bg: rgba(28, 25, 23, 0.9);
   --color-dot: rgba(255, 255, 255, 0.05);
 
   --shadow-primary: 4px 4px 0px 0px #000000;
@@ -240,42 +237,166 @@ main {
   padding: var(--space-2xl) 0;
 }
 
-/* ---- 导航 ---- */
-.nav {
+/* ---- 顶部 Dock 导航 (ThreeUI "Animated Top Dock" 交互 × Neo-Brutalism 视觉) ---- */
+.dock-header {
   position: sticky;
   top: 0;
   z-index: 50;
-  background: var(--color-nav-bg);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border-bottom: 1px solid var(--color-border);
+  display: flex;
+  justify-content: center;
+  /* pointer-events 穿透：只有 dock 本身可交互，不挡住下方内容 */
+  padding: var(--space-xs) var(--space-sm) 0;
+  pointer-events: none;
 }
 
-.nav-container {
-  max-width: var(--container-max);
-  margin: 0 auto;
-  padding: 0 var(--space-md);
+.dock {
+  pointer-events: auto;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  height: 56px;
+  gap: 6px;
+  max-width: calc(100vw - 24px);
+  background: var(--color-surface);
+  border: 3px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: 6px;
+  box-shadow: var(--shadow-sm);
 }
 
-.nav-logo {
+.dock-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   font-weight: 700;
   font-size: var(--fs-lg);
   color: var(--color-primary);
+  padding: 0 var(--space-xs) 0 12px;
+  white-space: nowrap;
 }
 
-.nav-links {
+.dock-brand:hover {
+  color: var(--color-primary-dark);
+}
+
+.dock-brand-mark {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background: var(--color-btn-primary);
+  color: var(--color-on-primary);
+  border: 3px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-weight: 800;
+  flex-shrink: 0;
+}
+
+.dock-items {
+  position: relative;
+  min-width: 0;
+}
+
+.dock-nav {
   display: flex;
-  gap: var(--space-sm);
+  gap: 6px;
 }
 
-.nav-right {
+.dock-item {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  flex-shrink: 0;
+  border: 3px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text-muted);
+  /* 实色阴影随放大系数 --dock-lift (0..1) 下坠，替代模糊投影 */
+  box-shadow: 2px calc(2px + var(--dock-lift, 0) * 3.5px) 0 0 var(--color-border);
+  will-change: transform;
+  transition: color 0.15s, background-color 0.15s;
+}
+
+.dock-item svg {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.25;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.dock-item:hover {
+  color: var(--color-primary);
+  background: var(--color-tint);
+}
+
+.dock-item[data-active] {
+  background: var(--color-btn-primary);
+  color: var(--color-on-primary);
+}
+
+.dock-item[data-active]:hover {
+  background: var(--color-btn-primary-hover);
+  color: var(--color-on-primary);
+}
+
+/* 聚焦/悬停时从 dock 下方浮出的标签贴纸 */
+.dock-item-label {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 50%;
+  transform: translate(-50%, 4px);
+  opacity: 0;
+  pointer-events: none;
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  background: var(--color-text);
+  color: var(--color-bg);
+  border: 2px solid var(--color-border);
+  padding: 0.15em 0.55em;
+  border-radius: var(--radius-sm);
+  white-space: nowrap;
+  transition: opacity 0.15s, transform 0.15s;
+  z-index: 30;
+}
+
+.dock-item:hover .dock-item-label,
+.dock-item:focus-visible .dock-item-label {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+.dock-divider {
+  width: 3px;
+  align-self: stretch;
+  margin: 6px 2px;
+  background: var(--color-border);
+  border-radius: 999px;
+  opacity: 0.35;
+  flex-shrink: 0;
+}
+
+.dock-tools {
   display: flex;
   align-items: center;
-  gap: var(--space-sm);
+  gap: 6px;
+  padding-right: 4px;
+}
+
+/* dock 内的工具按钮略收紧，与 42px 图标位对齐 */
+.dock .lang-switch-btn {
+  padding: 6px 10px;
+}
+
+.dock .theme-toggle {
+  width: 36px;
+  height: 36px;
 }
 
 /* ---- 语言切换 ---- */
@@ -356,23 +477,64 @@ main {
   display: block;
 }
 
-.nav-link {
-  font-size: var(--fs-sm);
-  font-weight: 500;
-  color: var(--color-text-muted);
-  padding: var(--space-xs) var(--space-sm);
-  border-radius: var(--radius-sm);
-  transition: var(--transition);
+/* dock 响应式：中屏隐藏品牌文字，只留字标 */
+@media (max-width: 880px) {
+  .dock-brand {
+    padding: 0 4px 0 6px;
+  }
+
+  .dock-brand-text {
+    display: none;
+  }
+
+  .dock-brand-mark {
+    display: inline-flex;
+  }
 }
 
-.nav-link:hover {
-  color: var(--color-primary);
-  background: var(--color-tint);
-}
+/* 小屏：图标区可横向滚动，隐藏标签贴纸（触屏无 hover 放大） */
+@media (max-width: 640px) {
+  .dock {
+    gap: 4px;
+    max-width: calc(100vw - 16px);
+    padding: 5px;
+  }
 
-.nav-link--active {
-  color: var(--color-primary);
-  font-weight: 600;
+  .dock-items {
+    overflow-x: auto;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .dock-items::-webkit-scrollbar {
+    display: none;
+  }
+
+  .dock-nav {
+    gap: 4px;
+  }
+
+  .dock-item {
+    width: 38px;
+    height: 38px;
+  }
+
+  .dock-item svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  .dock-item-label {
+    display: none;
+  }
+
+  .dock-divider {
+    display: none;
+  }
+
+  .dock-tools {
+    padding-right: 0;
+  }
 }
 
 /* ---- Hero ---- */
@@ -1098,28 +1260,6 @@ a:focus-visible,
     --fs-2xl: 1.375rem;
     --fs-xl: 1.125rem;
     --fs-lg: 1rem;
-  }
-
-  .nav-container {
-    height: 50px;
-    padding: 0 var(--space-sm);
-  }
-
-  .nav-logo {
-    font-size: var(--fs-base);
-  }
-
-  .nav-links {
-    gap: 0;
-  }
-
-  .lang-switch-btn {
-    padding: var(--space-xs);
-  }
-
-  .nav-link {
-    font-size: var(--fs-xs);
-    padding: var(--space-xs);
   }
 
   .hero {
