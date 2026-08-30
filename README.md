@@ -63,7 +63,7 @@ i18n/
 messages/
 ├── zh.json             # 中文消息目录
 └── en.json             # 英文消息目录
-proxy.ts                # 语言协商 (next-intl middleware)
+middleware.ts           # 语言协商 + HTTP 层脚本注入 (next-intl middleware)
 ```
 
 新增语言：在 `i18n/routing.ts` 的 `locales` 中加入代码，新建 `messages/<code>.json`（与现有目录键结构一致，`tests/i18n.test.ts` 会校验键一致性），重新构建即可。
