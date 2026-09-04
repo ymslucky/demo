@@ -56,6 +56,7 @@ export default function ToolsPage() {
             ) : (
               <Link
                 href={`/tools/${tool.id}`}
+                prefetch={false}
                 className={cx("btn", "btn--primary", "btn--sm")}
               >
                 {t("actions.open")}

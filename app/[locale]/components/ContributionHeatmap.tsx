@@ -1,20 +1,8 @@
 "use client";
 
-import { useEffect, useState, type CSSProperties } from "react";
+import type { CSSProperties } from "react";
 import { useLocale, useTranslations } from "next-intl";
-
-interface DayCell {
-  /** contribution count */
-  c: number;
-  /** ISO date (YYYY-MM-DD) */
-  d: string;
-}
-
-interface ContributionsData {
-  ok: true;
-  login: string;
-  weeks: DayCell[][];
-}
+import type { ContributionsData } from "../../lib/contributions";
 
 /** Contribution count → intensity level 0..4 (mirrors the legend). */
 function level(count: number): number {
@@ -33,34 +21,17 @@ function parseDay(iso: string): Date {
   return new Date(`${iso}T00:00:00`);
 }
 
-export default function ContributionHeatmap() {
+export default function ContributionHeatmap({
+  data,
+}: {
+  /** Server-fetched calendar (ISR); `null` renders the unavailable state. */
+  data: ContributionsData | null;
+}) {
   const t = useTranslations("home.heatmap");
   const locale = useLocale();
-  const [data, setData] = useState<ContributionsData | null>(null);
-  const [failed, setFailed] = useState(false);
 
-  useEffect(() => {
-    let cancelled = false;
-    fetch("/api/contributions")
-      .then((res) =>
-        res.ok ? res.json() : Promise.reject(new Error(String(res.status)))
-      )
-      .then((json: ContributionsData) => {
-        if (!cancelled) setData(json);
-      })
-      .catch(() => {
-        if (!cancelled) setFailed(true);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  if (failed) {
-    return <p className="heatmap-status">{t("unavailable")}</p>;
-  }
   if (!data) {
-    return <p className="heatmap-status">{t("loading")}</p>;
+    return <p className="heatmap-status">{t("unavailable")}</p>;
   }
 
   const total = data.weeks.flat().reduce((sum, day) => sum + day.c, 0);

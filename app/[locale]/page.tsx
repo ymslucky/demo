@@ -1,7 +1,12 @@
 import type { Metadata } from "next";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { getPathname } from "@/i18n/navigation";
+import { getContributions, type ContributionsData } from "../lib/contributions";
 import ContributionHeatmap from "./components/ContributionHeatmap";
+
+// Contribution data refreshes hourly on the server; the browser never
+// requests it at runtime.
+export const revalidate = 3600;
 
 export async function generateMetadata({
   params,
@@ -29,6 +34,7 @@ export default async function HomePage({
   const { locale } = await params;
   setRequestLocale(locale);
   const t = await getTranslations("home");
+  const contributions = await getContributions();
 
   return (
     <>
@@ -36,16 +42,22 @@ export default async function HomePage({
         <p className="hero-tagline">{t("tagline")}</p>
         <p className="hero-bio">{t("bio")}</p>
       </section>
-      <HeatmapSection title={t("heatmap.title")} />
+      <HeatmapSection title={t("heatmap.title")} data={contributions} />
     </>
   );
 }
 
-function HeatmapSection({ title }: { title: string }) {
+function HeatmapSection({
+  title,
+  data,
+}: {
+  title: string;
+  data: ContributionsData | null;
+}) {
   return (
     <section className="heatmap-section">
       <h2 className="heatmap-title">{title}</h2>
-      <ContributionHeatmap />
+      <ContributionHeatmap data={data} />
     </section>
   );
 }

@@ -34,7 +34,7 @@ export default async function BlogPage({
         {posts.map((post) => (
           <Card key={post.id} as="article" className="project-card">
             <h3>
-              <Link href={post.slug}>{post.title}</Link>
+              <Link href={post.slug} prefetch={false}>{post.title}</Link>
             </h3>
             <p className="blog-card-date">{post.date}</p>
             <p>{post.description}</p>
@@ -44,7 +44,7 @@ export default async function BlogPage({
               ))}
             </div>
             <div className="project-links blog-card-links">
-              <Link href={post.slug} className="btn btn--primary btn--sm">
+              <Link href={post.slug} prefetch={false} className="btn btn--primary btn--sm">
                 {t("readMore")}
               </Link>
             </div>

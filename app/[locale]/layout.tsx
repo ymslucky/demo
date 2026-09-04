@@ -9,9 +9,11 @@ import Footer from "./components/Footer";
 import ThemeSync from "./components/ThemeSync";
 import { themeInitScript } from "../lib/theme";
 
+// Omitting `weight` loads Inter's variable font file (one woff2 covering
+// 100-900) instead of four static per-weight files — fewer requests, and
+// font-weight values like 800/900 render with real glyphs, not faux bold.
 const inter = Inter({
   subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
   variable: "--font-inter",
   display: "swap",
 });

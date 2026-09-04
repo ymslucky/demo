@@ -44,7 +44,10 @@ export default function Nav() {
       <div className="dock" ref={dockRef}>
         <span className="dock-progress" aria-hidden="true" />
         <div className="dock-inner">
-          <Link href="/" className="dock-brand">
+          {/* prefetch={false}: every route on this site is a tiny static page;
+              prefetching all of them on every page load spams the network log
+              with background RSC requests for links users rarely click. */}
+          <Link href="/" className="dock-brand" prefetch={false}>
             <span className="dock-brand-mark" aria-hidden="true">
               L
             </span>
@@ -61,6 +64,7 @@ export default function Nav() {
                       itemRefs.current[i] = el;
                     }}
                     href={item.href}
+                    prefetch={false}
                     className="dock-item"
                     data-active={isActive ? "true" : undefined}
                     aria-current={isActive ? "page" : undefined}
