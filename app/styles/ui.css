@@ -1,0 +1,63 @@
+/* ============================================
+   UI primitives — classes consumed by components/ui/*
+   Button/Card/Badge/Input/Textarea reuse the existing
+   .btn/.card/.tag/.tool-* classes in the other files;
+   only the gaps (Alert, Table) live here.
+   ============================================ */
+
+/* ---- Alert (ui/Alert) ---- */
+.nb-alert {
+  padding: var(--space-md);
+  border: 3px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  font-size: var(--fs-sm);
+  font-weight: 500;
+}
+
+.nb-alert--info {
+  background: var(--color-info-bg);
+  border-color: var(--color-info-border);
+  color: var(--color-info-text);
+}
+
+.nb-alert--err {
+  background: var(--color-err-bg);
+  border-color: var(--color-err-border);
+  color: var(--color-err-text);
+}
+
+/* ---- Table (ui/Table) ---- */
+.nb-table-wrap {
+  overflow-x: auto;
+  background: var(--color-surface);
+  border: 3px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+}
+
+.nb-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--fs-sm);
+}
+
+.nb-table th {
+  background: var(--color-tint);
+  color: var(--color-text);
+  text-align: left;
+  font-weight: 700;
+  text-transform: uppercase;
+  font-size: var(--fs-xs);
+  letter-spacing: 0.05em;
+}
+
+.nb-table th,
+.nb-table td {
+  padding: var(--space-xs) var(--space-sm);
+  border-bottom: 2px solid var(--color-border);
+}
+
+.nb-table tr:last-child td {
+  border-bottom: none;
+}

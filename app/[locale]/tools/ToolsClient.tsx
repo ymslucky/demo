@@ -4,6 +4,7 @@ import type { ComponentType } from "react";
 import dynamic from "next/dynamic";
 import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
+import { Card, cx } from "../components/ui";
 
 const JsonFormatter = dynamic(() => import("./components/JsonFormatter"), { ssr: false });
 const Base64Tool = dynamic(() => import("./components/Base64Tool"), { ssr: false });
@@ -42,7 +43,7 @@ export default function ToolsPage() {
       {tools.map((tool) => {
         const Component = COMPONENTS[tool.id];
         return (
-          <article key={tool.id} className="card tool-card" id={tool.id}>
+          <Card key={tool.id} as="article" className="tool-card" id={tool.id}>
             <div className="tool-header">
               <span className="tool-icon" aria-hidden="true">
                 {tool.icon}
@@ -53,11 +54,14 @@ export default function ToolsPage() {
             {Component ? (
               <Component />
             ) : (
-              <Link href={`/${tool.id}`} className="btn btn--primary btn--sm">
+              <Link
+                href={`/tools/${tool.id}`}
+                className={cx("btn", "btn--primary", "btn--sm")}
+              >
                 {t("actions.open")}
               </Link>
             )}
-          </article>
+          </Card>
         );
       })}
     </div>

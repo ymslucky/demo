@@ -4,6 +4,8 @@ import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { convertCase } from "../utils";
 import { useStickyState } from "./useStickyState";
+import { Button, Textarea } from "../../components/ui";
+import { ToolActions, ToolResult, ToolShell } from "./ToolShell";
 
 export default function CaseConverter() {
   const t = useTranslations("tools");
@@ -15,57 +17,52 @@ export default function CaseConverter() {
   };
 
   return (
-    <div className="tool-body">
-      <textarea
-        className="tool-textarea"
+    <ToolShell>
+      <Textarea
         rows={3}
         placeholder={t("placeholders.caseInput")}
         aria-label={t("labels.textInput")}
         value={caseInput}
         onChange={(e) => setCaseInput(e.target.value)}
       />
-      <div className="tool-actions">
-        <button
-          type="button"
-          className="btn btn--primary btn--sm"
+      <ToolActions>
+        <Button
+          variant="primary"
+          size="sm"
           onClick={() => handleConvertCase("upper")}
         >
           {t("caseModes.upper")}
-        </button>
-        <button
-          type="button"
-          className="btn btn--secondary btn--sm"
+        </Button>
+        <Button
+          variant="secondary"
+          size="sm"
           onClick={() => handleConvertCase("lower")}
         >
           {t("caseModes.lower")}
-        </button>
-        <button
-          type="button"
-          className="btn btn--secondary btn--sm"
+        </Button>
+        <Button
+          variant="secondary"
+          size="sm"
           onClick={() => handleConvertCase("title")}
         >
           {t("caseModes.title")}
-        </button>
-        <button
-          type="button"
-          className="btn btn--secondary btn--sm"
+        </Button>
+        <Button
+          variant="secondary"
+          size="sm"
           onClick={() => handleConvertCase("camel")}
         >
           {t("caseModes.camel")}
-        </button>
-        <button
-          type="button"
-          className="btn btn--secondary btn--sm"
+        </Button>
+        <Button
+          variant="secondary"
+          size="sm"
           onClick={() => handleConvertCase("snake")}
         >
           {t("caseModes.snake")}
-        </button>
-      </div>
-      {caseOutput && (
-        <div className="tool-result tool-result--ok" aria-live="polite">
-          {caseOutput}
-        </div>
-      )}
-    </div>
+        </Button>
+      </ToolActions>
+      <ToolResult>{caseOutput}</ToolResult>
+    </ToolShell>
   );
 }

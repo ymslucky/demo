@@ -4,6 +4,8 @@ import { useMemo } from "react";
 import { useTranslations } from "next-intl";
 import { unitData, convertUnit } from "../utils";
 import { useStickyState } from "./useStickyState";
+import { Button, Input } from "../../components/ui";
+import { ToolActions, ToolShell } from "./ToolShell";
 
 export default function UnitConverter() {
   const t = useTranslations("tools");
@@ -33,7 +35,7 @@ export default function UnitConverter() {
   const currentUnits = unitData[unitCategory] || [];
 
   return (
-    <div className="tool-body">
+    <ToolShell>
       <div className="tool-row">
         <label className="sr-only" htmlFor="unit-category">
           {t("labels.unitType")}
@@ -55,9 +57,8 @@ export default function UnitConverter() {
         <label className="sr-only" htmlFor="unit-from-val">
           {t("labels.inputValue")}
         </label>
-        <input
+        <Input
           id="unit-from-val"
-          className="tool-input"
           type="number"
           value={unitFromVal}
           onChange={(e) => setUnitFromVal(e.target.value)}
@@ -85,13 +86,7 @@ export default function UnitConverter() {
         <label className="sr-only" htmlFor="unit-to-val">
           {t("labels.result")}
         </label>
-        <input
-          id="unit-to-val"
-          className="tool-input"
-          type="text"
-          readOnly
-          value={unitResult}
-        />
+        <Input id="unit-to-val" type="text" readOnly value={unitResult} />
         <label className="sr-only" htmlFor="unit-to-unit">
           {t("labels.targetUnit")}
         </label>
@@ -108,15 +103,11 @@ export default function UnitConverter() {
           ))}
         </select>
       </div>
-      <div className="tool-actions">
-        <button
-          type="button"
-          className="btn btn--secondary btn--sm"
-          onClick={swapUnits}
-        >
+      <ToolActions>
+        <Button variant="secondary" size="sm" onClick={swapUnits}>
           {t("actions.swap")}
-        </button>
-      </div>
-    </div>
+        </Button>
+      </ToolActions>
+    </ToolShell>
   );
 }

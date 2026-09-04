@@ -4,6 +4,8 @@ import { useRef, useCallback, useEffect } from "react";
 import { useTranslations } from "next-intl";
 import { hexToRgb, rgbToHsl, getColorStrings } from "../utils";
 import { useStickyState } from "./useStickyState";
+import { Input } from "../../components/ui";
+import { ToolShell } from "./ToolShell";
 
 export default function ColorPicker() {
   const t = useTranslations("tools");
@@ -15,7 +17,7 @@ export default function ColorPicker() {
     return `rgb(${r}, ${g}, ${b})`;
   })();
   const [colorRgb, setColorRgb] = useStickyState(initialRgb, "colorRgb");
-  
+
   const initialHsl = (() => {
     const [r, g, b] = hexToRgb("#4f46e5");
     const [h, s, l] = rgbToHsl(r, g, b);
@@ -55,7 +57,7 @@ export default function ColorPicker() {
   };
 
   return (
-    <div className="tool-body">
+    <ToolShell>
       <div className="color-row">
         <input
           ref={colorInputRef}
@@ -70,9 +72,9 @@ export default function ColorPicker() {
             <label className="color-label" htmlFor="color-hex">
               {t("labels.hex")}
             </label>
-            <input
+            <Input
               id="color-hex"
-              className="tool-input color-code"
+              className="color-code"
               type="text"
               value={colorHex}
               onChange={(e) => handleHexInput(e.target.value)}
@@ -80,8 +82,8 @@ export default function ColorPicker() {
           </div>
           <div className="color-line">
             <span className="color-label">{t("labels.rgb")}</span>
-            <input
-              className="tool-input color-code"
+            <Input
+              className="color-code"
               type="text"
               readOnly
               value={colorRgb}
@@ -90,8 +92,8 @@ export default function ColorPicker() {
           </div>
           <div className="color-line">
             <span className="color-label">{t("labels.hsl")}</span>
-            <input
-              className="tool-input color-code"
+            <Input
+              className="color-code"
               type="text"
               readOnly
               value={colorHsl}
@@ -100,6 +102,6 @@ export default function ColorPicker() {
           </div>
         </div>
       </div>
-    </div>
+    </ToolShell>
   );
 }

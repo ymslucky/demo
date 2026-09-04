@@ -1,0 +1,181 @@
+/* ============================================
+   Design Tokens — LuckyLab personal site
+   Fresh theme: orange accent + warm gray neutrals
+   Theme system: CSS custom properties (data-theme driven)
+
+   Theme contract:
+   - <html> without data-theme attribute -> follow system prefers-color-scheme
+   - <html data-theme="light"> -> force light
+   - <html data-theme="dark">  -> force dark
+   - Component styles may only reference var(--color-*) / var(--shadow-*) /
+     var(--focus-ring); hard-coded theme colors are forbidden.
+
+   Responsive token overrides live at the bottom of this file.
+   ============================================ */
+
+/* ---- Light theme (defaults; visual parity preserved) ---- */
+:root,
+[data-theme='light'] {
+  color-scheme: light;
+
+  /* Color system (Neo-Brutalism) */
+  --color-primary: #ea580c;       /* bright orange accent */
+  --color-primary-dark: #c2410c;
+  --color-primary-light: #f97316;
+  --color-accent: #10b981;        /* emerald */
+  --color-text: #1c1917;          /* near-black */
+  --color-text-muted: #57534e;
+  --color-bg: #f2f0e4;            /* warm off-white background */
+  --color-surface: #ffffff;       /* pure white cards */
+  --color-border: #1c1917;        /* near-black borders */
+
+  /* Semantic colors (components only, theme-aware) */
+  --color-on-primary: #ffffff;
+  --color-btn-primary: #ea580c;
+  --color-btn-primary-hover: #c2410c;
+  --color-tint: #e7e5d8;
+  --color-tint-strong: #d6d3c4;
+  --color-tag-bg: #e7e5d8;
+  --color-tag-text: #1c1917;
+  --color-info-bg: #d1fae5;
+  --color-info-border: #1c1917;
+  --color-info-text: #065f46;
+  --color-err-bg: #fee2e2;
+  --color-err-border: #1c1917;
+  --color-err-text: #991b1b;
+  --color-dot: rgba(28, 25, 23, 0.1);
+
+  /* Typography */
+  --font-body: var(--font-inter), "Inter", system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", monospace;
+
+  /* Font sizes */
+  --fs-xs: 0.75rem;
+  --fs-sm: 0.875rem;
+  --fs-base: 1rem;
+  --fs-lg: 1.125rem;
+  --fs-xl: 1.25rem;
+  --fs-2xl: 1.5rem;
+  --fs-3xl: 2rem;
+  --fs-4xl: 2.5rem;
+
+  /* Spacing (generous breathing room) */
+  --space-xs: 0.75rem;
+  --space-sm: 1rem;
+  --space-md: 1.5rem;
+  --space-lg: 2.5rem;
+  --space-xl: 4rem;
+  --space-2xl: 6rem;
+
+  /* Radii (Bento-style smooth corners) */
+  --radius-sm: 8px;
+  --radius-md: 16px;
+  --radius-lg: 24px;
+
+  /* Container */
+  --container-max: 960px;
+
+  /* Shadows (solid brutalist offsets, no blur) */
+  --shadow-sm: 2px 2px 0px 0px var(--color-border);
+  --shadow-md: 6px 6px 0px 0px var(--color-border);
+  --shadow-primary: 6px 6px 0px 0px var(--color-border);
+
+  /* Focus ring */
+  --focus-ring: 0 0 0 4px rgba(234, 88, 12, 0.4);
+
+  /* Transitions (snappy physical feedback) */
+  --transition: all 0.15s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  --transition-slow: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ---- Dark theme (system preference, applies only when user has not chosen explicitly) ---- */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    color-scheme: dark;
+
+    --color-primary: #ea580c;
+    --color-primary-dark: #c2410c;
+    --color-primary-light: #f97316;
+    --color-accent: #10b981;
+    --color-text: #f5f5f4;
+    --color-text-muted: #a8a29e;
+    --color-bg: #1c1917;
+    --color-surface: #292524;
+    --color-border: #44403c;
+
+    --color-on-primary: #ffffff;
+    --color-btn-primary: #ea580c;
+    --color-btn-primary-hover: #c2410c;
+    --color-tint: rgba(234, 88, 12, 0.15);
+    --color-tint-strong: rgba(234, 88, 12, 0.3);
+    --color-tag-bg: #44403c;
+    --color-tag-text: #f5f5f4;
+    --color-info-bg: rgba(16, 185, 129, 0.1);
+    --color-info-border: #44403c;
+    --color-info-text: #6ee7b7;
+    --color-err-bg: rgba(239, 68, 68, 0.15);
+    --color-err-border: #44403c;
+    --color-err-text: #fca5a5;
+    --color-dot: rgba(255, 255, 255, 0.05);
+
+    --shadow-primary: 4px 4px 0px 0px #000000;
+    --focus-ring: 0 0 0 3px rgba(234, 88, 12, 0.4);
+  }
+}
+
+/* ---- Dark theme (explicit, highest priority) ---- */
+[data-theme='dark'] {
+  color-scheme: dark;
+
+  --color-primary: #ea580c;
+  --color-primary-dark: #c2410c;
+  --color-primary-light: #f97316;
+  --color-accent: #10b981;
+  --color-text: #f5f5f4;
+  --color-text-muted: #a8a29e;
+  --color-bg: #1c1917;
+  --color-surface: #292524;
+  --color-border: #44403c;
+
+  --color-on-primary: #ffffff;
+  --color-btn-primary: #ea580c;
+  --color-btn-primary-hover: #c2410c;
+  --color-tint: rgba(234, 88, 12, 0.15);
+  --color-tint-strong: rgba(234, 88, 12, 0.3);
+  --color-tag-bg: #44403c;
+  --color-tag-text: #f5f5f4;
+  --color-info-bg: rgba(16, 185, 129, 0.1);
+  --color-info-border: #44403c;
+  --color-info-text: #6ee7b7;
+  --color-err-bg: rgba(239, 68, 68, 0.15);
+  --color-err-border: #44403c;
+  --color-err-text: #fca5a5;
+  --color-dot: rgba(255, 255, 255, 0.05);
+
+  --shadow-primary: 4px 4px 0px 0px #000000;
+  --focus-ring: 0 0 0 3px rgba(234, 88, 12, 0.4);
+}
+
+/* ---- Responsive token overrides ---- */
+@media (max-width: 480px) {
+  :root {
+    --fs-3xl: 1.75rem;
+    --fs-2xl: 1.375rem;
+    --fs-xl: 1.125rem;
+    --fs-lg: 1rem;
+  }
+}
+
+@media (min-width: 1280px) {
+  :root {
+    --container-max: 1120px;
+    --fs-3xl: 2.25rem;
+    --fs-4xl: 3rem;
+  }
+}
+
+@media (min-width: 1536px) {
+  :root {
+    --container-max: 1280px;
+  }
+}

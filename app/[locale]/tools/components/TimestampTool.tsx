@@ -4,6 +4,8 @@ import { useState, useCallback } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import { formatTimezone } from "../utils";
 import { useStickyState } from "./useStickyState";
+import { Button, Input } from "../../components/ui";
+import { ToolResult, ToolShell } from "./ToolShell";
 
 export default function TimestampTool() {
   const t = useTranslations("tools");
@@ -63,66 +65,40 @@ export default function TimestampTool() {
   };
 
   return (
-    <div className="tool-body">
+    <ToolShell>
       <label className="tool-label" htmlFor="ts-now">
         {t("labels.currentTs")}
       </label>
       <div className="ts-now-row">
-        <input
-          className="tool-input"
-          id="ts-now"
-          type="text"
-          readOnly
-          value={tsNow}
-        />
-        <button
-          type="button"
-          className="btn btn--secondary btn--sm"
-          onClick={refreshTs}
-        >
+        <Input id="ts-now" type="text" readOnly value={tsNow} />
+        <Button variant="secondary" size="sm" onClick={refreshTs}>
           {t("actions.refresh")}
-        </button>
+        </Button>
       </div>
 
       <label className="tool-label" htmlFor="ts-ts-input">
         {t("labels.tsToDate")}
       </label>
-      <input
-        className="tool-input"
+      <Input
         id="ts-ts-input"
         type="text"
         placeholder={t("placeholders.tsInput")}
         value={tsInput}
         onChange={(e) => handleTsToDate(e.target.value)}
       />
-      {tsToDate && (
-        <div
-          className={`tool-result ${tsToDateErr ? "tool-result--err" : "tool-result--ok"}`}
-          aria-live="polite"
-        >
-          {tsToDate}
-        </div>
-      )}
+      <ToolResult tone={tsToDateErr ? "err" : "ok"}>{tsToDate}</ToolResult>
 
       <label className="tool-label" htmlFor="ts-date-input">
         {t("labels.dateToTs")}
       </label>
-      <input
-        className="tool-input"
+      <Input
         id="ts-date-input"
         type="text"
         placeholder={t("placeholders.dateInput")}
         value={dateInput}
         onChange={(e) => handleTsToTs(e.target.value)}
       />
-      {tsToTs && (
-        <div
-          className={`tool-result ${tsToTsErr ? "tool-result--err" : "tool-result--ok"}`}
-          aria-live="polite"
-        >
-          {tsToTs}
-        </div>
-      )}
-    </div>
+      <ToolResult tone={tsToTsErr ? "err" : "ok"}>{tsToTs}</ToolResult>
+    </ToolShell>
   );
 }

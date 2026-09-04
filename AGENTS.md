@@ -59,7 +59,7 @@ React 19 emits a console warning **every time** a client render produces a `<scr
 
 ## 4. Quality Gates (must all be green before any push)
 ```bash
-npm test     # vitest run — 6 files / ~118 cases, < 2s
+npm test     # vitest run — 5 files / 95 cases, < 2s
 npm run lint # eslint . via eslint.config.mjs — TS rules enabled
 npm run build  # next build --webpack — confirm 22 static routes generate
 ```

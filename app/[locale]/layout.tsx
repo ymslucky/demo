@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { NextIntlClientProvider } from "next-intl";
-import { getTranslations, setRequestLocale } from "next-intl/server";
+import { getMessages, getTranslations, setRequestLocale } from "next-intl/server";
 import { routing } from "@/i18n/routing";
 import "../globals.css";
 import Nav from "./components/Nav";
@@ -62,6 +62,14 @@ export default async function LocaleLayout({
   // Enable static rendering of all configured locales.
   setRequestLocale(locale);
 
+  // Pass messages + locale explicitly so client hydration does not depend on the
+  // implicit server-side request-config cache (which breaks when a page calls
+  // `headers()` on this request before the provider reads it — the react cache
+  // scopes `headers()` reads differently across server components).
+  // See next-intl `getRequestConfig` docs about explicit messages prop.
+  const messages = await getMessages();
+  const t = await getTranslations("nav");
+
   return (
     <html
       lang={locale}
@@ -86,11 +94,14 @@ export default async function LocaleLayout({
             dangerouslySetInnerHTML={{ __html: themeInitScript() }}
           />
         )}
-        <NextIntlClientProvider>
+        <NextIntlClientProvider messages={messages} locale={locale}>
           <ThemeSync />
           <div className="page">
+            <a className="skip-link" href="#main-content">
+              {t("skipToContent")}
+            </a>
             <Nav />
-            <main>
+            <main id="main-content" tabIndex={-1}>
               <div className="container">{children}</div>
             </main>
             <Footer />

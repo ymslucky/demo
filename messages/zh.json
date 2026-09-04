@@ -6,6 +6,7 @@
   },
   "nav": {
     "ariaLabel": "主导航",
+    "skipToContent": "跳到正文",
     "home": "首页",
     "about": "关于",
     "projects": "项目",
@@ -34,7 +35,17 @@
     "tagline": "用代码把想法变成产品。",
     "bio": "独立开发者，专注于 Web 应用与自动化工具的全栈开发。喜欢用 Next.js 和 Python 快速搭建解决实际问题的小工具，从节假日日历到 Serverless 函数平台都有涉猎。",
     "viewProjects": "查看项目",
-    "learnMore": "了解更多"
+    "learnMore": "了解更多",
+    "heatmap": {
+      "title": "GitHub 活跃度",
+      "subtitle": "过去一年的代码贡献记录",
+      "loading": "加载贡献数据中…",
+      "unavailable": "暂时无法获取贡献数据",
+      "total": "过去一年 {count} 次贡献 · @{login}",
+      "less": "少",
+      "more": "多",
+      "dayTooltip": "{count} 次贡献 · {date}"
+    }
   },
   "about": {
     "title": "关于",
@@ -124,12 +135,18 @@
     "heading": "博客",
     "subtitle": "关于开发、算法与架构的笔记",
     "readMore": "阅读全文 →",
+    "codeBlock": {
+      "copy": "复制",
+      "copied": "已复制",
+      "copyCode": "复制代码"
+    },
     "items": {
       "rateLimiter": {
         "title": "本地限流器的形式化分析：从固定窗口到令牌桶",
         "description": "以论文体例重构：在统一数学框架下分析固定窗口、滑动窗口日志、漏桶（GCRA）与令牌桶，含定理证明、复杂度对比表、交互仿真与 11 篇参考文献。",
         "date": "2023-12-29",
-        "tags": ["论文", "限流", "网络演算"]
+        "tags": ["论文", "限流", "网络演算"],
+        "backToBlog": "← 返回博客"
       }
     }
   },

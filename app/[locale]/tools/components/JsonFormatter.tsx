@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { useStickyState } from "./useStickyState";
+import { Button, Textarea } from "../../components/ui";
+import { ToolActions, ToolResult, ToolShell } from "./ToolShell";
 
 export default function JsonFormatter() {
   const t = useTranslations("tools");
@@ -32,46 +34,26 @@ export default function JsonFormatter() {
   };
 
   return (
-    <div className="tool-body">
-      <textarea
-        className="tool-textarea"
+    <ToolShell>
+      <Textarea
         rows={6}
         placeholder={t("placeholders.jsonSample")}
         aria-label={t("labels.jsonInput")}
         value={jsonInput}
         onChange={(e) => setJsonInput(e.target.value)}
       />
-      <div className="tool-actions">
-        <button
-          type="button"
-          className="btn btn--primary btn--sm"
-          onClick={jsonFormat}
-        >
+      <ToolActions>
+        <Button variant="primary" size="sm" onClick={jsonFormat}>
           {t("actions.format")}
-        </button>
-        <button
-          type="button"
-          className="btn btn--secondary btn--sm"
-          onClick={jsonMinify}
-        >
+        </Button>
+        <Button variant="secondary" size="sm" onClick={jsonMinify}>
           {t("actions.minify")}
-        </button>
-        <button
-          type="button"
-          className="btn btn--secondary btn--sm"
-          onClick={jsonClear}
-        >
+        </Button>
+        <Button variant="secondary" size="sm" onClick={jsonClear}>
           {t("actions.clear")}
-        </button>
-      </div>
-      {jsonOutput && (
-        <div
-          className={`tool-result ${jsonErr ? "tool-result--err" : "tool-result--ok"}`}
-          aria-live="polite"
-        >
-          {jsonOutput}
-        </div>
-      )}
-    </div>
+        </Button>
+      </ToolActions>
+      <ToolResult tone={jsonErr ? "err" : "ok"}>{jsonOutput}</ToolResult>
+    </ToolShell>
   );
 }

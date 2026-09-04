@@ -10,7 +10,9 @@ const fs = require("fs");
 const path = require("path");
 
 const BASE = "http://localhost:3010";
-const EXEC = "/opt/hermes/.playwright/chromium_headless_shell-1234/chrome-headless-shell-linux64/chrome-headless-shell";
+// Resolve the browser binary portably: CHROMIUM_PATH env var wins, otherwise
+// fall back to playwright-core's own registry (installed via its CLI).
+const EXEC = process.env.CHROMIUM_PATH || "";
 const SHOTS = path.join(__dirname, "e2e-screenshots");
 fs.mkdirSync(SHOTS, { recursive: true });
 
@@ -22,7 +24,10 @@ const ALLOWED_CJK = ["中文", "阿里云", "腾讯云", "华为云"];
 function sleep(ms) { return new Promise((r) => setTimeout(r, ms)); }
 
 async function main() {
-  const browser = await chromium.launch({ executablePath: EXEC, args: ["--no-sandbox"] });
+  const browser = await chromium.launch({
+    ...(EXEC ? { executablePath: EXEC } : {}),
+    args: ["--no-sandbox"],
+  });
   const results = [];
   const check = (name, ok, detail) => {
     results.push({ name, ok, detail });

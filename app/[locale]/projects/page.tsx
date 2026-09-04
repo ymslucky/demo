@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { Code2, ExternalLink } from "lucide-react";
 import { Link } from "@/i18n/navigation";
+import { Badge, Card } from "../components/ui";
 
 interface Project {
   key: string;
@@ -89,7 +90,7 @@ export default async function ProjectsPage({
 
       <div className="bento">
         {items.map((item, i) => (
-          <article key={item.key} className="card bento-card">
+          <Card key={item.key} as="article" className="bento-card">
             <span className="bento-index" aria-hidden="true">
               {String(i + 1).padStart(2, "0")}
             </span>
@@ -130,7 +131,7 @@ export default async function ProjectsPage({
                 <Code2 size={22} strokeWidth={2.5} />
               </a>
             </div>
-          </article>
+          </Card>
         ))}
       </div>
 

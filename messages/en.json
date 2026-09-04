@@ -6,6 +6,7 @@
   },
   "nav": {
     "ariaLabel": "Main navigation",
+    "skipToContent": "Skip to content",
     "home": "Home",
     "about": "About",
     "projects": "Projects",
@@ -34,7 +35,17 @@
     "tagline": "Turning ideas into products with code.",
     "bio": "An indie developer focused on full-stack development of web applications and automation tools. I enjoy building small practical utilities with Next.js and Python — from holiday calendars to serverless function platforms.",
     "viewProjects": "View Projects",
-    "learnMore": "Learn More"
+    "learnMore": "Learn More",
+    "heatmap": {
+      "title": "GitHub Activity",
+      "subtitle": "Contribution history over the past year",
+      "loading": "Loading contribution data…",
+      "unavailable": "Contribution data is currently unavailable",
+      "total": "{count} contributions in the last year · @{login}",
+      "less": "Less",
+      "more": "More",
+      "dayTooltip": "{count} contributions · {date}"
+    }
   },
   "about": {
     "title": "About",
@@ -124,12 +135,18 @@
     "heading": "Blog",
     "subtitle": "Notes on development, algorithms, and architecture",
     "readMore": "Read more →",
+    "codeBlock": {
+      "copy": "Copy",
+      "copied": "Copied",
+      "copyCode": "Copy code"
+    },
     "items": {
       "rateLimiter": {
         "title": "A Formal Analysis of Local Rate Limiters",
         "description": "Academic-style treatment of four classic local rate limiters — fixed window, sliding window log, leaky bucket (GCRA) and token bucket — with proofs, complexity analysis, an interactive simulation and 11 references.",
         "date": "2023-12-29",
-        "tags": ["Paper", "Rate Limiting", "Network Calculus"]
+        "tags": ["Paper", "Rate Limiting", "Network Calculus"],
+        "backToBlog": "← Back to Blog"
       }
     }
   },

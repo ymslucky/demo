@@ -4,6 +4,8 @@ import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { encodeBase64, decodeBase64 } from "../utils";
 import { useStickyState } from "./useStickyState";
+import { Button, Textarea } from "../../components/ui";
+import { ToolActions, ToolResult, ToolShell } from "./ToolShell";
 
 export default function Base64Tool() {
   const t = useTranslations("tools");
@@ -37,46 +39,26 @@ export default function Base64Tool() {
   };
 
   return (
-    <div className="tool-body">
-      <textarea
-        className="tool-textarea"
+    <ToolShell>
+      <Textarea
         rows={4}
         placeholder={t("placeholders.b64")}
         aria-label={t("labels.b64Input")}
         value={b64Input}
         onChange={(e) => setB64Input(e.target.value)}
       />
-      <div className="tool-actions">
-        <button
-          type="button"
-          className="btn btn--primary btn--sm"
-          onClick={b64Encode}
-        >
+      <ToolActions>
+        <Button variant="primary" size="sm" onClick={b64Encode}>
           {t("actions.encode")}
-        </button>
-        <button
-          type="button"
-          className="btn btn--secondary btn--sm"
-          onClick={b64Decode}
-        >
+        </Button>
+        <Button variant="secondary" size="sm" onClick={b64Decode}>
           {t("actions.decode")}
-        </button>
-        <button
-          type="button"
-          className="btn btn--secondary btn--sm"
-          onClick={b64Clear}
-        >
+        </Button>
+        <Button variant="secondary" size="sm" onClick={b64Clear}>
           {t("actions.clear")}
-        </button>
-      </div>
-      {b64Output && (
-        <div
-          className={`tool-result ${b64Err ? "tool-result--err" : "tool-result--ok"}`}
-          aria-live="polite"
-        >
-          {b64Output}
-        </div>
-      )}
-    </div>
+        </Button>
+      </ToolActions>
+      <ToolResult tone={b64Err ? "err" : "ok"}>{b64Output}</ToolResult>
+    </ToolShell>
   );
 }

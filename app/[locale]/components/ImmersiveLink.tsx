@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "@/i18n/navigation";
+import { Link, useRouter } from "@/i18n/navigation";
 
 export default function ImmersiveLink({
   href,
@@ -16,6 +16,10 @@ export default function ImmersiveLink({
   const [isNavigating, setIsNavigating] = useState(false);
 
   const handleClick = (e: React.MouseEvent) => {
+    // Let the browser handle modified clicks (new tab / new window) natively.
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) {
+      return;
+    }
     e.preventDefault();
 
     if (isNavigating) {
@@ -46,8 +50,8 @@ export default function ImmersiveLink({
   };
 
   return (
-    <a href={href} className={className} onClick={handleClick}>
+    <Link href={href} className={className} onClick={handleClick}>
       {children}
-    </a>
+    </Link>
   );
 }
