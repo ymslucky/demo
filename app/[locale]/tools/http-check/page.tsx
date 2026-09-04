@@ -72,8 +72,7 @@ export default async function HttpCheckPage({
 
   return (
     <>
-      <h1 className="page-title">{t("items.httpCheck.name")}</h1>
-      <p className="page-subtitle">{t("httpCheck.subtitle")}</p>
+      <h1 className="sr-only">{t("items.httpCheck.name")}</h1>
 
       <div
         style={{

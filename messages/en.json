@@ -47,7 +47,6 @@
     "title": "About",
     "description": "About LuckyLab — the tech stack, focus areas and open source contributions of an indie developer.",
     "heading": "About Me",
-    "subtitle": "Indie developer · Full-stack web apps · Automation tools",
     "p1": "I'm an indie developer who enjoys using technology to solve practical problems in daily life and work. My stack centers on TypeScript and Python — I build modern web applications with Next.js and am familiar with backend development on serverless platforms like Appwrite and Cloudflare.",
     "p2": "Besides web development, I'm also passionate about desktop automation tools and data visualization — I once prototyped a no-code desktop automation tool with PySide6 and presented complex business data with visualizations like radar charts. I prefer simple, efficient technical solutions and aim to ship usable products with minimal complexity.",
     "p3": "In open source, I maintain several public repositories covering practical tools, a link directory and data visualization projects, and I contributed as an Arctic Code Vault Contributor to code permanently archived by GitHub.",
@@ -64,7 +63,6 @@
     "title": "Projects",
     "description": "Selected projects by LuckyLab — holiday calendar, serverless platform, data visualization, desktop automation tools and more.",
     "heading": "Selected Projects",
-    "subtitle": "Products and experiments that solve real problems with code",
     "demo": "Live Demo →",
     "source": "Source →",
     "close": "Close",
@@ -129,7 +127,6 @@
     "title": "Blog",
     "description": "Tech articles and tutorials by LuckyLab",
     "heading": "Blog",
-    "subtitle": "Notes on development, algorithms, and architecture",
     "readMore": "Read more →",
     "backToBlog": "← Back to Blog",
     "codeBlock": {
@@ -142,7 +139,6 @@
     "title": "Links",
     "description": "Handy links for development & design — cloud services, dev resources, frontend frameworks, design tools, AI and developer communities.",
     "heading": "Links",
-    "subtitle": "A curated collection of useful online resources for development and design, updated continuously",
     "categories": {
       "cloud": {
         "title": "Cloud Providers",
@@ -356,7 +352,6 @@
     "title": "Contact",
     "description": "Contact LuckyLab — email, GitHub and personal domain.",
     "heading": "Contact Me",
-    "subtitle": "Feel free to reach out for collaboration or just to chat",
     "labels": {
       "email": "Email",
       "github": "GitHub",
@@ -367,7 +362,6 @@
     "title": "Online Tools",
     "description": "Everyday online toolbox — JSON formatter, Base64 encoder/decoder, timestamp converter, unit converter, color picker and more, all running locally.",
     "heading": "Online Tools",
-    "subtitle": "A collection of handy developer & everyday tools — everything runs in your browser, no data is uploaded",
     "items": {
       "json": {
         "name": "JSON Formatter",
@@ -409,7 +403,6 @@
       "open": "Open tool →"
     },
     "httpCheck": {
-      "subtitle": "Every click tells the server who you are — here is the complete dossier of this request.",
       "ipCard": "Source IP",
       "ipSource": "Identified via",
       "ipUnknown": "No public IP could be identified (expected in local development).",

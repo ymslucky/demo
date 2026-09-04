@@ -122,8 +122,7 @@ export default async function LinksPage({
 
   return (
     <>
-      <h1 className="page-title">{t("heading")}</h1>
-      <p className="page-subtitle">{t("subtitle")}</p>
+      <h1 className="sr-only">{t("heading")}</h1>
 
       <div className="links-categories">
         {categories.map((cat) => (

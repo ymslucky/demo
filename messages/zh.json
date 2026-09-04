@@ -47,7 +47,6 @@
     "title": "关于",
     "description": "关于 LuckyLab — 独立开发者的技术栈、关注方向与开源贡献。",
     "heading": "关于我",
-    "subtitle": "独立开发者 · 全栈 Web 应用 · 自动化工具",
     "p1": "我是一名独立开发者，热衷于用技术解决日常生活和工作中的实际问题。我的技术栈以 TypeScript 和 Python 为主，擅长使用 Next.js 构建现代 Web 应用，也熟悉 Appwrite、Cloudflare 等无服务器（Serverless）平台的后端开发。",
     "p2": "除了 Web 开发，我也对桌面端自动化工具和数据可视化充满兴趣——曾用 PySide6 构建零代码自动化操作原型，用雷达图等可视化方式呈现复杂业务数据。我倾向于选择简洁、高效的技术方案，追求以最小的复杂度交付可用的产品。",
     "p3": "在开源方面，我维护了多个公开仓库，涵盖实用工具、导航站和数据可视化项目，也曾作为 Arctic Code Vault Contributor 参与过被 GitHub 永久存档的开源代码贡献。",
@@ -64,7 +63,6 @@
     "title": "项目",
     "description": "LuckyLab 的精选项目 — 节假日日历、Serverless 平台、数据可视化、桌面自动化工具等。",
     "heading": "精选项目",
-    "subtitle": "用代码解决实际问题的产品与实验",
     "demo": "在线 Demo →",
     "source": "源码 →",
     "close": "关闭",
@@ -129,7 +127,6 @@
     "title": "博客",
     "description": "LuckyLab 的技术文章与教程",
     "heading": "博客",
-    "subtitle": "关于开发、算法与架构的笔记",
     "readMore": "阅读全文 →",
     "backToBlog": "← 返回博客",
     "codeBlock": {
@@ -142,7 +139,6 @@
     "title": "导航",
     "description": "开发与设计常用网站导航 — 云服务、开发资源、前端框架、设计工具、AI 与开发者社区。",
     "heading": "导航",
-    "subtitle": "收录开发与设计中常用的在线资源，持续更新中",
     "categories": {
       "cloud": {
         "title": "云服务商",
@@ -356,7 +352,6 @@
     "title": "联系",
     "description": "联系 LuckyLab — 邮箱、GitHub 与个人域名。",
     "heading": "联系我",
-    "subtitle": "有任何合作或交流的想法，欢迎与我联系",
     "labels": {
       "email": "邮箱",
       "github": "GitHub",
@@ -367,7 +362,6 @@
     "title": "在线工具",
     "description": "常用在线工具箱 — JSON 格式化、Base64 编解码、时间戳转换、单位换算、颜色选择器等，全部本地运行。",
     "heading": "在线工具",
-    "subtitle": "常用开发者与日常工具合集 — 所有运算均在浏览器本地完成，数据不上传",
     "items": {
       "json": {
         "name": "JSON 格式化",
@@ -409,7 +403,6 @@
       "open": "进入工具 →"
     },
     "httpCheck": {
-      "subtitle": "每次点击都在告诉服务器你是谁 —— 以下是本次请求的完整档案。",
       "ipCard": "来源 IP",
       "ipSource": "识别依据",
       "ipUnknown": "未能识别出公网 IP（本地开发环境属正常现象）。",

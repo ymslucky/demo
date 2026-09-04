@@ -103,18 +103,6 @@
   box-shadow: 0px 0px 0px 0px var(--color-border);
 }
 
-/* ---- Page title ---- */
-.page-title {
-  font-size: var(--fs-3xl);
-  margin-bottom: var(--space-md);
-}
-
-.page-subtitle {
-  font-size: var(--fs-lg);
-  color: var(--color-text-muted);
-  margin-bottom: var(--space-xl);
-}
-
 /* ---- Cards ---- */
 .card {
   background: var(--color-surface);

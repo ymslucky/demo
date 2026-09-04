@@ -64,10 +64,12 @@
   padding: var(--space-xs) clamp(var(--space-md), 4vw, var(--space-2xl));
 }
 
-/* Scrolled: the plate tightens instead of changing shape */
-.dock-header[data-scrolled] .dock-inner {
-  padding-block: calc(var(--space-xs) / 2);
-}
+/* Scrolled: the plate tightens horizontally only. The vertical
+   dimension is frozen on purpose - a shorter sticky plate would shrink
+   the document height, shifting the content and oscillating scrollY on
+   short pages (the "jittering about page"). Inner padding-block and
+   brand block padding never change, so the header height is constant
+   in every state. */
 
 /* Reading-progress ink bar: scaleX is driven per scroll frame by JS
    (compositor friendly), so only the opacity fades via CSS. It fills
@@ -110,7 +112,7 @@
 }
 
 .dock-header[data-scrolled] .dock-brand {
-  padding: 4px 10px;
+  padding: 6px 10px;
   box-shadow: 2px 2px 0 0 var(--color-border);
 }
 
