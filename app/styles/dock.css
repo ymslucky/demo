@@ -21,9 +21,11 @@
   justify-content: center;
   /* pointer-events pass-through: only the dock itself is interactive */
   pointer-events: none;
-  /* Slab: the plate hugs the viewport edges */
+  /* Slab: the plate hugs the viewport edges. Same paper color as the
+     page (--color-bg, not card white) so the bar reads as part of the
+     sheet; the 3px bottom rule marks it once content scrolls beneath */
   padding: 0;
-  background: var(--color-surface);
+  background: var(--color-bg);
   border-bottom: 3px solid var(--color-border);
 }
 
