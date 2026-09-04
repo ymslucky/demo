@@ -237,6 +237,14 @@
     padding: 0;
     transition: none;
   }
+
+  /* The hover/focus rules above are sticker-only (higher specificity
+     would re-apply translate(-50%) and slide the inline caption onto
+     the icon); keep the caption parked on wide screens */
+  .dock-item:hover .dock-item-label,
+  .dock-item:focus-visible .dock-item-label {
+    transform: none;
+  }
 }
 
 .dock-divider {
