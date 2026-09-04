@@ -1,10 +1,17 @@
 /* ============================================
-   Top Dock navigation
-   ThreeUI "Animated Top Dock" interaction x Neo-Brutalism visuals
-   Motion contract (Nav.tsx): gaussian proximity magnification
-   (sigma=60, +20% max), under-damped spring k=0.19 zeta=0.70,
+   Morphing Slab navigation ("letterpress plate")
+   One nav, two physical states driven by scroll:
+   - slab (page top): a full-width plate spanning the viewport; the
+     brand is a riveted nameplate and items sit flush like movable type
+   - capsule (scrolled): the same plate collapses into a centered
+     floating capsule; a primary-ink bar fills its bottom edge with
+     reading progress
+   Motion contract (nav/useDockPress.ts): gaussian proximity press
+   (sigma=48, 3px max key travel), under-damped spring k=0.19 zeta=0.70,
    single rAF style-mutation loop. Disabled entirely by
    prefers-reduced-motion and non-fine pointers.
+   State contract (nav/useDockMode.ts): header[data-dock-mode] and
+   --scroll-progress are plain style mutations (no React re-renders).
    ============================================ */
 .dock-header {
   position: sticky;
@@ -13,48 +20,154 @@
   display: flex;
   justify-content: center;
   /* pointer-events pass-through: only the dock itself is interactive */
-  padding: var(--space-xs) var(--space-sm) 0;
   pointer-events: none;
+  /* Slab: the plate hugs the viewport edges */
+  padding: 0;
+  background: var(--color-surface);
+  border-bottom: 3px solid var(--color-border);
+}
+
+/* Capsule: the plate floats free of the edges */
+.dock-header[data-dock-mode="capsule"] {
+  padding-top: var(--space-sm);
+  background: transparent;
+  border-bottom-color: transparent;
 }
 
 .dock {
   pointer-events: auto;
+  position: relative;
   display: flex;
   align-items: center;
-  gap: 6px;
+  width: 100%;
+  border: 0 solid var(--color-border);
+  background: transparent;
+}
+
+.dock-header[data-dock-mode="capsule"] .dock {
+  width: fit-content;
   max-width: calc(100vw - 24px);
-  background: var(--color-surface);
-  border: 3px solid var(--color-border);
+  border-width: 3px;
   border-radius: var(--radius-lg);
+  background: var(--color-surface);
   padding: 6px;
   box-shadow: var(--shadow-md);
 }
 
-/* Immersive hide while scrolling down; slides back on scroll up or
-   keyboard focus (instant jump when reduced-motion) */
-@media (prefers-reduced-motion: no-preference) {
-  .dock {
-    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+/* The width morph targets the fit-content keyword where the engine can
+   interpolate it; every other property morphs everywhere (older engines
+   snap the width but keep the padded/color morph) */
+@supports (interpolate-size: allow-keywords) {
+  :root {
+    interpolate-size: allow-keywords;
   }
 }
 
-.dock-header[data-dock-hidden] .dock {
-  transform: translateY(calc(-100% - 16px));
+@media (prefers-reduced-motion: no-preference) {
+  .dock-header {
+    transition: padding-top 0.32s cubic-bezier(0.4, 0, 0.2, 1),
+      background-color 0.32s ease, border-bottom-color 0.32s ease;
+  }
+
+  .dock {
+    transition: width 0.32s cubic-bezier(0.4, 0, 0.2, 1),
+      padding 0.32s cubic-bezier(0.4, 0, 0.2, 1),
+      background-color 0.32s ease, border-color 0.32s ease,
+      border-radius 0.32s ease, box-shadow 0.32s ease;
+  }
+
+  .dock-inner {
+    transition: padding 0.32s cubic-bezier(0.4, 0, 0.2, 1),
+      gap 0.32s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .dock-brand {
+    transition: padding 0.32s cubic-bezier(0.4, 0, 0.2, 1),
+      background-color 0.32s ease, border-color 0.32s ease,
+      box-shadow 0.32s ease, transform 0.15s ease;
+  }
+
+  .dock-progress {
+    transition: opacity 0.2s ease;
+  }
 }
 
+/* Inner row mirrors the exact .container geometry in slab mode, so the
+   nameplate aligns with the page content edge (and tools with the right
+   edge); see AGENTS.md section 2 for the container contract */
+.dock-inner {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  width: 100%;
+  max-width: 100rem;
+  margin-inline: auto;
+  padding: var(--space-xs) clamp(var(--space-md), 4vw, var(--space-2xl));
+}
+
+.dock-header[data-dock-mode="capsule"] .dock-inner {
+  width: auto;
+  gap: 6px;
+  padding: 0;
+}
+
+/* Reading-progress ink bar: scaleX is driven per scroll frame by JS
+   (compositor friendly), so only the opacity fades via CSS */
+.dock-progress {
+  position: absolute;
+  left: 3px;
+  right: 3px;
+  bottom: 3px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--color-primary);
+  transform: scaleX(var(--scroll-progress, 0));
+  transform-origin: left;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.dock-header[data-dock-mode="capsule"] .dock-progress {
+  opacity: 1;
+}
+
+/* ---- Brand: riveted nameplate in slab, bare letter mark in capsule ---- */
 .dock-brand {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  font-weight: 700;
+  padding: 6px 14px;
+  border: 3px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-btn-primary);
+  color: var(--color-on-primary);
+  font-weight: 800;
   font-size: var(--fs-lg);
-  color: var(--color-primary);
-  padding: 0 var(--space-xs) 0 12px;
   white-space: nowrap;
+  box-shadow: 3px 3px 0 0 var(--color-border);
 }
 
 .dock-brand:hover {
-  color: var(--color-primary-dark);
+  transform: translate(-1px, -1px);
+  box-shadow: 4px 4px 0 0 var(--color-border);
+  color: var(--color-on-primary);
+}
+
+.dock-header[data-dock-mode="capsule"] .dock-brand {
+  gap: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.dock-header[data-dock-mode="capsule"] .dock-brand:hover {
+  transform: none;
+  box-shadow: none;
+}
+
+.dock-header[data-dock-mode="capsule"] .dock-brand-text {
+  display: none;
 }
 
 .dock-brand-mark {
@@ -71,13 +184,28 @@
   flex-shrink: 0;
 }
 
+/* Capsule (desktop): brand collapses to the letter mark */
+.dock-header[data-dock-mode="capsule"] .dock-brand-mark {
+  display: inline-flex;
+}
+
+/* ---- Nav keys: flush movable type in slab, bordered keys in capsule ---- */
 .dock-items {
   position: relative;
   min-width: 0;
+  margin-left: auto;
+}
+
+.dock-header[data-dock-mode="capsule"] .dock-items {
+  margin-left: 0;
 }
 
 .dock-nav {
   display: flex;
+  gap: var(--space-xs);
+}
+
+.dock-header[data-dock-mode="capsule"] .dock-nav {
   gap: 6px;
 }
 
@@ -86,18 +214,34 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 42px;
+  gap: 6px;
+  min-width: 42px;
   height: 42px;
+  padding-inline: 8px;
   flex-shrink: 0;
-  border: 3px solid var(--color-border);
+  border: 3px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-text-muted);
+  /* Solid shadow retracts as the key travels down (--dock-press 0..1);
+     replaces blurred drop shadows */
+  box-shadow: 2px calc(2px - var(--dock-press, 0) * 2px) 0 0 var(--color-border);
+  will-change: transform;
+  /* No box-shadow transition on purpose: it is driven per frame by the
+     spring via --dock-press and must not lag behind */
+  transition: color 0.15s, background-color 0.15s, border-color 0.3s ease,
+    border-radius 0.3s ease;
+}
+
+.dock-header[data-dock-mode="slab"] .dock-item {
+  box-shadow: none;
+}
+
+.dock-header[data-dock-mode="capsule"] .dock-item {
+  padding-inline: 0;
+  border-color: var(--color-border);
   border-radius: var(--radius-md);
   background: var(--color-surface);
-  color: var(--color-text-muted);
-  /* Solid shadow drops with the magnification factor --dock-lift (0..1);
-     replaces blurred drop shadows */
-  box-shadow: 2px calc(2px + var(--dock-lift, 0) * 3.5px) 0 0 var(--color-border);
-  will-change: transform;
-  transition: color 0.15s, background-color 0.15s;
 }
 
 .dock-item svg {
@@ -132,7 +276,9 @@
   color: var(--color-on-primary);
 }
 
-/* Label sticker floating below the dock on hover/focus */
+/* One label span, two lives:
+   - capsule: sticker chip revealed below the key on hover/focus
+   - slab: hidden by default, inline letterpress caption on wide screens */
 .dock-item-label {
   position: absolute;
   top: calc(100% + 8px);
@@ -161,6 +307,25 @@
   transform: translate(-50%, 0);
 }
 
+.dock-header[data-dock-mode="slab"] .dock-item-label {
+  display: none;
+}
+
+@media (min-width: 1100px) {
+  .dock-header[data-dock-mode="slab"] .dock-item-label {
+    display: inline;
+    position: static;
+    transform: none;
+    opacity: 1;
+    background: transparent;
+    color: inherit;
+    border: 0;
+    box-shadow: none;
+    padding: 0;
+    transition: none;
+  }
+}
+
 .dock-divider {
   width: 3px;
   align-self: stretch;
@@ -176,6 +341,10 @@
   align-items: center;
   gap: 6px;
   padding-right: 4px;
+}
+
+.dock-header[data-dock-mode="capsule"] .dock-tools {
+  padding-right: 2px;
 }
 
 /* Tool buttons inside the dock are tightened to align with 42px icon slots */
@@ -280,10 +449,20 @@ main:focus {
   display: block;
 }
 
-/* Dock responsive: hide brand text on medium screens, keep the letter mark */
+/* Medium screens: brand nameplate collapses to the bare letter mark in
+   every mode (plaque chrome removed, mark carries the identity) */
 @media (max-width: 880px) {
   .dock-brand {
-    padding: 0 4px 0 6px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+    gap: 0;
+  }
+
+  .dock-brand:hover {
+    transform: none;
+    box-shadow: none;
   }
 
   .dock-brand-text {
@@ -296,12 +475,34 @@ main:focus {
 }
 
 /* Small screens: icon rail scrolls horizontally, hide label stickers
-   (no hover magnification on touch) */
+   (no hover press on touch) */
 @media (max-width: 640px) {
-  .dock {
+  .dock-header[data-dock-mode="capsule"] {
+    padding-top: var(--space-xs);
+  }
+
+  .dock-inner {
     gap: 4px;
+    padding-inline: var(--space-sm);
+  }
+
+  .dock-header[data-dock-mode="capsule"] .dock {
     max-width: calc(100vw - 16px);
     padding: 5px;
+  }
+
+  .dock-nav {
+    gap: 4px;
+  }
+
+  .dock-item {
+    min-width: 40px;
+    height: 40px;
+  }
+
+  .dock-item svg {
+    width: 18px;
+    height: 18px;
   }
 
   .dock-items {
@@ -320,20 +521,6 @@ main:focus {
 
   .dock-items::-webkit-scrollbar {
     display: none;
-  }
-
-  .dock-nav {
-    gap: 4px;
-  }
-
-  .dock-item {
-    width: 40px;
-    height: 40px;
-  }
-
-  .dock-item svg {
-    width: 18px;
-    height: 18px;
   }
 
   .dock-item-label {

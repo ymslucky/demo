@@ -1,18 +1,20 @@
 import { useEffect, useRef } from "react";
 import { navItems } from "./NavIcons";
 
-/* ThreeUI "Animated Top Dock" motion (sable dock):
-   gaussian proximity magnification + under-damped spring, applied by
-   mutating element styles directly to avoid React re-renders */
+/* Morphing Slab press-key physics: gaussian proximity "presses" the key
+   under the pointer (small translateY + solid shadow retraction exposed
+   as --dock-press), driven by an under-damped spring in a single
+   rAF style-mutation loop to avoid React re-renders. Keyboard focus
+   presses through the same spring channel. Disabled entirely by
+   prefers-reduced-motion and non-fine pointers. */
 const SPRING = 0.19; // spring stiffness
 const DAMPING = 0.7; // damping ratio
-const SIGMA = 60; // gaussian influence radius (px)
-const MAX_GROW = 0.2; // max magnification (+20%)
-const MAX_LIFT = -6; // max lift (px); extra shadow drop is computed in CSS via --dock-lift
+const SIGMA = 48; // gaussian press radius (px)
+const MAX_TRAVEL = 3; // max key travel down (px)
 
 type ItemRefs = React.RefObject<Array<HTMLAnchorElement | null>>;
 
-export function useDockMagnification(
+export function useDockPress(
   dockRef: React.RefObject<HTMLDivElement | null>,
   listRef: React.RefObject<HTMLDivElement | null>,
   itemRefs: ItemRefs
@@ -33,8 +35,9 @@ export function useDockMagnification(
     let centers: number[] = [];
     let listLeft = 0;
 
-    // offsetLeft/offsetWidth ignore transforms, so they are stable base positions;
-    // the container offset is cached too (sticky keeps it fixed while hovered)
+    // offsetLeft/offsetWidth ignore transforms, so they are stable base
+    // positions; the container offset is cached too (sticky keeps it fixed
+    // while hovered)
     const measure = () => {
       centers = itemRefs.current.map((el) =>
         el ? el.offsetLeft + el.offsetWidth / 2 : 0
@@ -45,8 +48,6 @@ export function useDockMagnification(
     const wake = () => {
       if (!running) {
         running = true;
-        // Promote layers only while the motion loop is alive
-        list.dataset.dockMoving = "true";
         raf = requestAnimationFrame(tick);
       }
     };
@@ -71,20 +72,17 @@ export function useDockMagnification(
         }
         const s = sp.s;
         // Skip style writes when the quantized values are unchanged
-        const tf = `translateY(${(MAX_LIFT * s).toFixed(2)}px) scale(${(1 + MAX_GROW * s).toFixed(4)})`;
+        const tf = `translateY(${(MAX_TRAVEL * s).toFixed(2)}px)`;
         if (sp.tf !== tf) {
           sp.tf = tf;
           el.style.transform = tf;
-          el.style.setProperty("--dock-lift", s.toFixed(3));
+          el.style.setProperty("--dock-press", s.toFixed(3));
         }
-        const z = s > 0.02 ? String(10 + Math.round(s * 10)) : "";
-        if (el.style.zIndex !== z) el.style.zIndex = z;
       });
       if (active || pointerX !== null) {
         raf = requestAnimationFrame(tick);
       } else {
         running = false;
-        delete list.dataset.dockMoving;
       }
     };
 
@@ -103,7 +101,7 @@ export function useDockMagnification(
       pointerX = null;
       wake();
     };
-    // Keyboard focus magnifies the focused item (same spring channel as pointer)
+    // Keyboard focus presses the focused key (same spring channel)
     const onFocusIn = (e: FocusEvent) => {
       const idx = itemRefs.current.indexOf(e.target as HTMLAnchorElement);
       if (idx >= 0) {

@@ -74,7 +74,7 @@ npm run build  # next build --webpack — confirm 22 static routes generate
 | Concern | Location |
 |---|---|
 | Root layout / metadata / theme-init placeholder | [app/\[locale\]/layout.tsx](app/[locale]/layout.tsx) |
-| Animated Top Dock (nav) | [app/\[locale\]/components/Nav.tsx](app/[locale]/components/Nav.tsx) |
+| Morphing Slab nav (slab⇄capsule, press keys) | [app/\[locale\]/components/Nav.tsx](app/[locale]/components/Nav.tsx) |
 | Theme logic + `themeInitScript()` source | [app/lib/theme.ts](app/lib/theme.ts) |
 | All CSS variables + component classes + dock shell | [app/globals.css](app/globals.css) |
 | i18n locale routing + HTTP HTML script injection | [middleware.ts](middleware.ts) |
