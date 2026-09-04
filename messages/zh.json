@@ -33,8 +33,6 @@
     "description": "LuckyLab，独立开发者，专注于 Web 应用与自动化工具的全栈开发。Next.js、Python、Serverless 快速搭建解决实际问题的小工具。",
     "tagline": "用代码把想法变成产品。",
     "bio": "独立开发者，专注于 Web 应用与自动化工具的全栈开发。喜欢用 Next.js 和 Python 快速搭建解决实际问题的小工具，从节假日日历到 Serverless 函数平台都有涉猎。",
-    "viewProjects": "查看项目",
-    "learnMore": "了解更多",
     "heatmap": {
       "title": "GitHub 活跃度",
       "subtitle": "过去一年的代码贡献记录",

@@ -137,7 +137,7 @@ export default async function ProjectsPage({
 
       <section className="projects-outro">
         <h2>{t("outroTitle")}</h2>
-        <div className="hero-cta">
+        <div className="cta-row">
           <a
             className="btn btn--primary"
             href="https://github.com/ymslucky"

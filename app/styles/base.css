@@ -21,10 +21,34 @@ body {
   line-height: 1.7;
   color: var(--color-text);
   background-color: var(--color-bg);
-  background-image: radial-gradient(var(--color-dot) 2px, transparent 2px);
-  background-size: 32px 32px;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+/* Ambient dot-grid backdrop on its own fixed layer: drifts exactly one
+   tile per cycle via a compositor-friendly transform for a slow organic
+   pulse. The global prefers-reduced-motion block below neutralizes it. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: -64px;
+  z-index: -1;
+  pointer-events: none;
+  background-image: radial-gradient(var(--color-dot) 2px, transparent 2px);
+  background-size: 32px 32px;
+  animation: dot-drift 90s linear infinite;
+}
+
+@keyframes dot-drift {
+  to {
+    transform: translate3d(32px, 32px, 0);
+  }
+}
+
+/* Brand-flavored text selection */
+::selection {
+  background: var(--color-primary);
+  color: var(--color-on-primary);
 }
 
 a {
@@ -69,9 +93,12 @@ code {
 }
 
 /* ---- Layout utilities ---- */
-/* Fluid full-width container: no max-width cap — gutters scale with the
-   viewport so content adapts to any screen width. */
+/* Fluid container: full-width with clamp()-scaled gutters up to 1600px;
+   beyond that (2K/4K displays) it centers so content keeps generous side
+   margins instead of stretching edge to edge. */
 .container {
+  max-width: 100rem;
+  margin-inline: auto;
   padding-inline: clamp(var(--space-md), 4vw, var(--space-2xl));
 }
 
