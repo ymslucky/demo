@@ -69,10 +69,10 @@ code {
 }
 
 /* ---- Layout utilities ---- */
+/* Fluid full-width container: no max-width cap — gutters scale with the
+   viewport so content adapts to any screen width. */
 .container {
-  max-width: var(--container-max);
-  margin: 0 auto;
-  padding: 0 var(--space-md);
+  padding-inline: clamp(var(--space-md), 4vw, var(--space-2xl));
 }
 
 .page {

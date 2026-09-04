@@ -19,7 +19,6 @@
     "tagline": "Turning ideas into products with code"
   },
   "languageSwitcher": {
-    "label": "Switch language",
     "zhLabel": "中文",
     "enLabel": "EN",
     "switchToZh": "Switch to Chinese",
@@ -135,19 +134,11 @@
     "heading": "Blog",
     "subtitle": "Notes on development, algorithms, and architecture",
     "readMore": "Read more →",
+    "backToBlog": "← Back to Blog",
     "codeBlock": {
       "copy": "Copy",
       "copied": "Copied",
       "copyCode": "Copy code"
-    },
-    "items": {
-      "rateLimiter": {
-        "title": "A Formal Analysis of Local Rate Limiters",
-        "description": "Academic-style treatment of four classic local rate limiters — fixed window, sliding window log, leaky bucket (GCRA) and token bucket — with proofs, complexity analysis, an interactive simulation and 11 references.",
-        "date": "2023-12-29",
-        "tags": ["Paper", "Rate Limiting", "Network Calculus"],
-        "backToBlog": "← Back to Blog"
-      }
     }
   },
   "links": {

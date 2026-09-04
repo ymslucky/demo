@@ -179,10 +179,6 @@
 }
 
 /* Tool buttons inside the dock are tightened to align with 42px icon slots */
-.dock .lang-switch-btn {
-  padding: 6px 10px;
-}
-
 .dock .theme-toggle {
   width: 36px;
   height: 36px;
@@ -215,40 +211,31 @@ main:focus {
   outline: none;
 }
 
-/* ---- Language switch ---- */
-.lang-switch {
-  display: flex;
+/* ---- Language toggle (target-locale pattern: shows what you switch to) ---- */
+.lang-toggle {
+  display: inline-flex;
   align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
-  overflow: hidden;
-}
-
-.lang-switch-btn {
-  font-size: var(--fs-xs);
-  font-weight: 500;
-  color: var(--color-text-muted);
   background: transparent;
-  border: none;
-  padding: var(--space-xs) var(--space-sm);
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  letter-spacing: 0.02em;
   cursor: pointer;
   transition: var(--transition);
+  flex-shrink: 0;
 }
 
-.lang-switch-btn:hover {
+.lang-toggle:hover {
   color: var(--color-primary);
+  border-color: var(--color-primary-light);
   background: var(--color-tint);
-}
-
-.lang-switch-btn--active {
-  background: var(--color-btn-primary);
-  color: var(--color-on-primary);
-  font-weight: 600;
-}
-
-.lang-switch-btn--active:hover {
-  background: var(--color-btn-primary-hover);
-  color: var(--color-on-primary);
 }
 
 /* ---- Theme toggle button ---- */

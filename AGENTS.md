@@ -39,7 +39,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 ## 2. CSS Rules (Neo-Brutalism invariants)
 - Keep every surface under a single family of variables in [globals.css](app/globals.css): `--color-border`, `--color-surface`, `--shadow-sm/lg/primary`, `--radius-sm/md/lg`.
 - Blurred `box-shadow` is **disallowed** on UI elements. Depth is always a solid, displaced border-colored pixel block — `2px 2px 0 0 var(--color-border)` and its relatives. If you want lift, grow the *displacement* (the dock does this via `--dock-lift`).
-- Container widths must never exceed `var(--container-max)`. Breakpoints are `880px` (brand collapses → single-letter mark) and `640px` (dock becomes scrollable rail). Respect them when adding new navigation chrome.
+- Containers are **fluid full-width** (no max-width cap): `.container` / `.footer-container` use `padding-inline: clamp(var(--space-md), 4vw, var(--space-2xl))` — never re-introduce a fixed `max-width`. Breakpoints are `880px` (brand collapses → single-letter mark) and `640px` (dock becomes scrollable rail). Respect them when adding new navigation chrome.
 - Do **not** re-introduce Tailwind. The project intentionally ships 0 CSS-in-JS / utility-class runtime.
 
 ## 3. React 19 Script Injection — STANDARD WORKFLOW

@@ -103,7 +103,7 @@ async function main() {
         // --- criterion 3: nav controls aligned, no overlap ---
         const nav = await page.evaluate(() => {
           const tt = document.querySelector(".theme-toggle");
-          const ls = document.querySelector(".lang-switch");
+          const ls = document.querySelector(".lang-toggle");
           if (!tt || !ls) return { missing: true };
           const a = tt.getBoundingClientRect();
           const b = ls.getBoundingClientRect();
@@ -130,11 +130,15 @@ async function main() {
             return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
           };
           const cs = getComputedStyle(document.body);
-          const active = document.querySelector(".lang-switch-btn--active");
-          const acs = getComputedStyle(active);
+          const toggle = document.querySelector(".lang-toggle");
+          const tcs = getComputedStyle(toggle);
+          // transparent bg resolves to the body surface underneath
+          const tbg = tcs.backgroundColor.startsWith("rgba(0, 0, 0, 0")
+            ? cs.backgroundColor
+            : tcs.backgroundColor;
           return {
             body: ratio(cs.color, cs.backgroundColor).toFixed(2),
-            langBtn: ratio(acs.color, acs.backgroundColor).toFixed(2),
+            langBtn: ratio(tcs.color, tbg).toFixed(2),
           };
         });
         check(`[${combo.name} ${route || "/"}] body text contrast >= 4.5`,
@@ -145,18 +149,18 @@ async function main() {
         // --- criterion 3: aria labels present on interactive controls ---
         const aria = await page.evaluate(() => ({
           themeToggle: document.querySelector(".theme-toggle")?.getAttribute("aria-label") || null,
-          langGroup: document.querySelector(".lang-switch")?.getAttribute("aria-label") || null,
+          langToggle: document.querySelector(".lang-toggle")?.getAttribute("aria-label") || null,
           navAria: document.querySelector(".dock-nav")?.getAttribute("aria-label") || null,
-          langBtns: [...document.querySelectorAll(".lang-switch-btn")].map((b) => ({
-            pressed: b.getAttribute("aria-pressed"),
-          })),
+          langToggleText: document.querySelector(".lang-toggle")?.textContent || null,
         }));
         check(`[${combo.name} ${route || "/"}] theme toggle aria-label present`,
           !!aria.themeToggle && aria.themeToggle.length > 0);
-        check(`[${combo.name} ${route || "/"}] lang switcher aria-label present`,
-          !!aria.langGroup && !!aria.navAria);
-        check(`[${combo.name} ${route || "/"}] lang buttons aria-pressed set`,
-          aria.langBtns.length === 2 && aria.langBtns.every((b) => b.pressed === "true" || b.pressed === "false"));
+        check(`[${combo.name} ${route || "/"}] lang toggle aria-label present`,
+          !!aria.langToggle && !!aria.navAria);
+        // target-locale pattern: zh pages show "EN", en pages show "中文"
+        const wantLabel = combo.locale === "zh" ? "EN" : "中文";
+        check(`[${combo.name} ${route || "/"}] lang toggle shows target locale`,
+          aria.langToggleText === wantLabel, `${aria.langToggleText} (want ${wantLabel})`);
 
         // --- criterion 4: no console errors on this route ---
         const errs = consoleErrors.filter((e) => !e.includes("favicon"));
@@ -193,7 +197,7 @@ async function main() {
         afterToggle.theme === "dark" && afterToggle.stored === "dark", JSON.stringify(afterToggle));
 
       // Switch language (client-side) while dark
-      await page.click(".lang-switch-btn:last-child"); // EN
+      await page.click(".lang-toggle"); // target-locale button: switches to EN
       await sleep(600);
       const afterLang = await page.evaluate(() => ({
         url: location.pathname,
@@ -220,7 +224,7 @@ async function main() {
         JSON.stringify(afterReload));
 
       // Switch back to zh (client-side), theme must remain dark
-      await page.click(".lang-switch-btn:first-child");
+      await page.click(".lang-toggle");
       await sleep(600);
       const backZh = await page.evaluate(() => ({
         url: location.pathname,
@@ -263,7 +267,7 @@ async function main() {
         focusOrder.push(info);
       }
       const reachesToggle = focusOrder.some((f) => f.includes("theme-toggle"));
-      const reachesLang = focusOrder.some((f) => f.includes("lang-switch"));
+      const reachesLang = focusOrder.some((f) => f.includes("lang-toggle"));
       check("K1: keyboard Tab reaches theme toggle", reachesToggle, focusOrder.join(" -> "));
       check("K2: keyboard Tab reaches language switcher", reachesLang, focusOrder.join(" -> "));
 

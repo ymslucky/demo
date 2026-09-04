@@ -19,7 +19,6 @@
     "tagline": "用代码把想法变成产品"
   },
   "languageSwitcher": {
-    "label": "切换语言",
     "zhLabel": "中文",
     "enLabel": "EN",
     "switchToZh": "切换到中文",
@@ -135,19 +134,11 @@
     "heading": "博客",
     "subtitle": "关于开发、算法与架构的笔记",
     "readMore": "阅读全文 →",
+    "backToBlog": "← 返回博客",
     "codeBlock": {
       "copy": "复制",
       "copied": "已复制",
       "copyCode": "复制代码"
-    },
-    "items": {
-      "rateLimiter": {
-        "title": "本地限流器的形式化分析：从固定窗口到令牌桶",
-        "description": "以论文体例重构：在统一数学框架下分析固定窗口、滑动窗口日志、漏桶（GCRA）与令牌桶，含定理证明、复杂度对比表、交互仿真与 11 篇参考文献。",
-        "date": "2023-12-29",
-        "tags": ["论文", "限流", "网络演算"],
-        "backToBlog": "← 返回博客"
-      }
     }
   },
   "links": {

@@ -1,29 +1,30 @@
 import type { Metadata } from "next";
+import { notFound } from "next/navigation";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
+import { posts } from "../posts";
 import PostBody from "./PostBody";
+
+type PostParams = { params: Promise<{ locale: string }> };
+
+const post = posts.find((p) => p.id === "rateLimiter");
 
 export async function generateMetadata({
   params,
-}: {
-  params: Promise<{ locale: string }>;
-}): Promise<Metadata> {
-  const { locale } = await params;
-  const t = await getTranslations({ locale, namespace: "blog.items.rateLimiter" });
+}: PostParams): Promise<Metadata> {
+  await params;
+  // Article metadata is content, not UI copy — not part of i18n catalogs.
   return {
-    title: t("title"),
-    description: t("description"),
+    title: post?.title,
+    description: post?.description,
   };
 }
 
-export default async function RateLimiterPost({
-  params,
-}: {
-  params: Promise<{ locale: string }>;
-}) {
+export default async function RateLimiterPost({ params }: PostParams) {
   const { locale } = await params;
   setRequestLocale(locale);
-  const t = await getTranslations("blog.items.rateLimiter");
+  const t = await getTranslations("blog");
+  if (!post) notFound();
 
   return (
     <article className="blog-article">
@@ -32,14 +33,14 @@ export default async function RateLimiterPost({
       </Link>
 
       <header className="blog-header">
-        <h1 className="blog-title">
-          {t("title")}
-        </h1>
+        <h1 className="blog-title">{post.title}</h1>
         <div className="blog-meta">
-          <time>{t("date")}</time>
+          <time>{post.date}</time>
           <div className="tag-list">
-            {(t.raw("tags") as string[]).map((tag) => (
-              <span key={tag} className="tag">{tag}</span>
+            {post.tags.map((tag) => (
+              <span key={tag} className="tag">
+                {tag}
+              </span>
             ))}
           </div>
         </div>

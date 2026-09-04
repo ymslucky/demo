@@ -456,9 +456,8 @@
 }
 
 .footer-container {
-  max-width: var(--container-max);
-  margin: 0 auto;
-  padding: 0 var(--space-md);
+  padding-inline: clamp(var(--space-md), 4vw, var(--space-2xl));
+  padding-block: 0;
   display: flex;
   justify-content: space-between;
   align-items: center;

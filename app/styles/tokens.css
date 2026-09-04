@@ -72,9 +72,6 @@
   --radius-md: 16px;
   --radius-lg: 24px;
 
-  /* Container */
-  --container-max: 960px;
-
   /* Shadows (solid brutalist offsets, no blur) */
   --shadow-sm: 2px 2px 0px 0px var(--color-border);
   --shadow-md: 6px 6px 0px 0px var(--color-border);
@@ -168,14 +165,7 @@
 
 @media (min-width: 1280px) {
   :root {
-    --container-max: 1120px;
     --fs-3xl: 2.25rem;
     --fs-4xl: 3rem;
-  }
-}
-
-@media (min-width: 1536px) {
-  :root {
-    --container-max: 1280px;
   }
 }
