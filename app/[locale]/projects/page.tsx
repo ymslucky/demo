@@ -146,7 +146,7 @@ export default async function ProjectsPage({
             <Code2 size={20} strokeWidth={2.5} />
             {t("githubCta")}
           </a>
-          <Link className="btn btn--secondary" href="/contact">
+          <Link className="btn btn--secondary" href="/contact" prefetch={false}>
             {t("contactCta")}
           </Link>
         </div>

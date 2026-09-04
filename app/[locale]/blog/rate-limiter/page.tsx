@@ -28,7 +28,7 @@ export default async function RateLimiterPost({ params }: PostParams) {
 
   return (
     <article className="blog-article">
-      <Link href="/blog" className="blog-back">
+      <Link href="/blog" prefetch={false} className="blog-back">
         {t("backToBlog")}
       </Link>
 
