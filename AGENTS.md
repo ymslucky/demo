@@ -21,7 +21,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 ## 0. Stack & Style Contract
 - **Runtime**: Next.js **16.3.0** (App Router) · React **19.2.8** · TypeScript · next-intl · **no Tailwind** (plain hand-written CSS + CSS variables).
 - **UI flavour**: **Neo-Brutalism**. Hard 3px borders, solid offset `box-shadow` (2-4px displacement, NO blur drop-shadows anywhere on structural cards/buttons/dock), #ea580c orange accent, Inter for body, JetBrains Mono fallback for `<code>`-style labels.
-- **Nav UX**: macOS / ThreeUI-style **Animated Top Dock** implemented in [Nav.tsx](app/[locale]/components/Nav.tsx). Any refactor must preserve: gaussian proximity magnification (σ=60, +20% max), under-damped spring `k=0.19 ζ=0.70` running in a single `rAF` style-mutation loop (no React renders per pointer frame), keyboard focus channels through the same spring state, `prefers-reduced-motion` + non-fine pointers disable motion entirely.
+- **Nav UX**: **Morphing Slab** nav implemented in [Nav.tsx](app/[locale]/components/Nav.tsx). The header is a *constant* full-width plate (page-paper `--color-bg` + 3px bottom rule) in every scroll position — it never morphs into a floating capsule. Scrolling past 24px sets `header[data-scrolled]` (via [useDockMode.ts](app/[locale]/components/nav/useDockMode.ts)): the plate tightens (padding/brand shrink) and a `--scroll-progress` ink bar fills its bottom rule. Key press physics ([useDockPress.ts](app/[locale]/components/nav/useDockPress.ts)): gaussian proximity sink (σ=48, ≤3px translateY), under-damped spring `k=0.19 ζ=0.70` running in a single `rAF` style-mutation loop (no React renders per pointer frame), keyboard focus channels through the same spring state, `prefers-reduced-motion` + non-fine pointers disable motion entirely.
 - **Locale routing**: [middleware.ts](middleware.ts) wraps `next-intl/middleware`, default locale `zh` (unprefixed URLs `/`, `/about` …), alternate `en` lives under `/en/…`. `setRequestLocale(locale)` called in [layout.tsx](app/[locale]/layout.tsx) so every page stays static-renderable.
 
 ## 1. HARD CONSTRAINTS — do not violate
@@ -38,7 +38,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 ## 2. CSS Rules (Neo-Brutalism invariants)
 - Keep every surface under a single family of variables in [globals.css](app/globals.css): `--color-border`, `--color-surface`, `--shadow-sm/lg/primary`, `--radius-sm/md/lg`.
-- Blurred `box-shadow` is **disallowed** on UI elements. Depth is always a solid, displaced border-colored pixel block — `2px 2px 0 0 var(--color-border)` and its relatives. If you want lift, grow the *displacement* (the dock does this via `--dock-lift`).
+- Blurred `box-shadow` is **disallowed** on UI elements. Depth is always a solid, displaced border-colored pixel block — `2px 2px 0 0 var(--color-border)` and its relatives. If you want lift, grow the *displacement*.
 - Containers are fluid with clamp()-scaled gutters — `.container` / `.footer-container` use `padding-inline: clamp(var(--space-md), 4vw, var(--space-2xl))`. `.container` is additionally center-capped at `max-width: 100rem; margin-inline: auto` so ultra-wide (2K/4K) displays keep generous side margins; do not shrink that cap. Breakpoints are `880px` (brand collapses → single-letter mark) and `640px` (dock becomes scrollable rail). Respect them when adding new navigation chrome.
 - Do **not** re-introduce Tailwind. The project intentionally ships 0 CSS-in-JS / utility-class runtime.
 
@@ -74,7 +74,7 @@ npm run build  # next build --webpack — confirm 22 static routes generate
 | Concern | Location |
 |---|---|
 | Root layout / metadata / theme-init placeholder | [app/\[locale\]/layout.tsx](app/[locale]/layout.tsx) |
-| Morphing Slab nav (slab⇄capsule, press keys) | [app/\[locale\]/components/Nav.tsx](app/[locale]/components/Nav.tsx) |
+| Morphing Slab nav (constant slab, scroll-tighten, press keys) | [app/\[locale\]/components/Nav.tsx](app/[locale]/components/Nav.tsx) |
 | Theme logic + `themeInitScript()` source | [app/lib/theme.ts](app/lib/theme.ts) |
 | All CSS variables + component classes + dock shell | [app/globals.css](app/globals.css) |
 | i18n locale routing + HTTP HTML script injection | [middleware.ts](middleware.ts) |

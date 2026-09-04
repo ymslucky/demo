@@ -1,10 +1,11 @@
 import { useEffect } from "react";
 
-/* Morphing Slab scroll state machine: header[data-dock-mode] toggles
-   between "slab" (page top) and "capsule" (scrolled), and the reading
-   progress is exposed as --scroll-progress (0..1) on the header.
-   Both are plain style/attribute mutations - no React re-renders. */
-const CAPSULE_THRESHOLD = 24; // px scrolled before the slab collapses
+/* Constant-slab scroll state: the header keeps its full-width plate in
+   every scroll position. Past the threshold it only tightens (CSS reads
+   header[data-scrolled]) and the reading progress is exposed as
+   --scroll-progress (0..1). Both are plain attribute/style mutations -
+   no React re-renders. */
+const SCROLLED_THRESHOLD = 24; // px scrolled before the plate tightens
 
 export function useDockMode(
   headerRef: React.RefObject<HTMLElement | null>
@@ -13,17 +14,16 @@ export function useDockMode(
     const header = headerRef.current;
     if (!header) return;
     let raf = 0;
-    let mode = "";
+    let scrolled = false;
     const update = () => {
       raf = 0;
-      const y = window.scrollY;
-      const next = y > CAPSULE_THRESHOLD ? "capsule" : "slab";
-      if (next !== mode) {
-        mode = next;
-        header.setAttribute("data-dock-mode", next);
+      const next = window.scrollY > SCROLLED_THRESHOLD;
+      if (next !== scrolled) {
+        scrolled = next;
+        header.toggleAttribute("data-scrolled", next);
       }
       const max = document.documentElement.scrollHeight - window.innerHeight;
-      const progress = max > 0 ? Math.min(1, y / max) : 0;
+      const progress = max > 0 ? Math.min(1, window.scrollY / max) : 0;
       header.style.setProperty("--scroll-progress", progress.toFixed(4));
     };
     const schedule = () => {

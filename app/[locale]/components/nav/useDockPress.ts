@@ -2,11 +2,10 @@ import { useEffect, useRef } from "react";
 import { navItems } from "./NavIcons";
 
 /* Morphing Slab press-key physics: gaussian proximity "presses" the key
-   under the pointer (small translateY + solid shadow retraction exposed
-   as --dock-press), driven by an under-damped spring in a single
-   rAF style-mutation loop to avoid React re-renders. Keyboard focus
-   presses through the same spring channel. Disabled entirely by
-   prefers-reduced-motion and non-fine pointers. */
+   under the pointer (small translateY sink), driven by an under-damped
+   spring in a single rAF style-mutation loop to avoid React re-renders.
+   Keyboard focus presses through the same spring channel. Disabled
+   entirely by prefers-reduced-motion and non-fine pointers. */
 const SPRING = 0.19; // spring stiffness
 const DAMPING = 0.7; // damping ratio
 const SIGMA = 48; // gaussian press radius (px)
@@ -76,7 +75,6 @@ export function useDockPress(
         if (sp.tf !== tf) {
           sp.tf = tf;
           el.style.transform = tf;
-          el.style.setProperty("--dock-press", s.toFixed(3));
         }
       });
       if (active || pointerX !== null) {

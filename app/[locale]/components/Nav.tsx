@@ -24,7 +24,7 @@ export default function Nav() {
   // Press-key physics: pointer events span the whole dock so the sweep
   // pre-presses neighbouring keys across brand / divider / tools areas
   useDockPress(dockRef, listRef, itemRefs);
-  // Slab <-> capsule scroll state machine + reading-progress ink bar
+  // Constant-slab scroll state (data-scrolled tighten + progress ink bar)
   useDockMode(headerRef);
 
   // Auto-center the active item inside the mobile scroll rail
@@ -40,7 +40,7 @@ export default function Nav() {
   }, [activeIndex]);
 
   return (
-    <header className="dock-header" ref={headerRef} data-dock-mode="slab">
+    <header className="dock-header" ref={headerRef}>
       <div className="dock" ref={dockRef}>
         <span className="dock-progress" aria-hidden="true" />
         <div className="dock-inner">
