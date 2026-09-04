@@ -36,22 +36,15 @@ export default async function HomePage({
         <p className="hero-tagline">{t("tagline")}</p>
         <p className="hero-bio">{t("bio")}</p>
       </section>
-      <HeatmapSection title={t("heatmap.title")} subtitle={t("heatmap.subtitle")} />
+      <HeatmapSection title={t("heatmap.title")} />
     </>
   );
 }
 
-function HeatmapSection({
-  title,
-  subtitle,
-}: {
-  title: string;
-  subtitle: string;
-}) {
+function HeatmapSection({ title }: { title: string }) {
   return (
     <section className="heatmap-section">
       <h2 className="heatmap-title">{title}</h2>
-      <p className="heatmap-subtitle">{subtitle}</p>
       <ContributionHeatmap />
     </section>
   );

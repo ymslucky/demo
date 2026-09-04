@@ -20,19 +20,22 @@
   margin-bottom: var(--space-xs);
 }
 
-.heatmap-subtitle {
-  font-size: var(--fs-sm);
-  color: var(--color-text-muted);
-  text-align: center;
-  margin-bottom: var(--space-md);
+/* Bottom bar: summary on the left, level legend on the right — both
+   flush with the grid's edges via .heatmap's shrink-wrapped width. */
+.heatmap-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-xs) var(--space-md);
+  margin-top: var(--space-xs);
 }
 
 .heatmap-total {
   font-family: var(--font-mono);
   font-size: var(--fs-sm);
   color: var(--color-text-muted);
-  text-align: center;
-  margin-bottom: var(--space-sm);
+  margin: 0;
 }
 
 .heatmap-scroller {
@@ -40,11 +43,54 @@
   padding-bottom: var(--space-xs);
 }
 
+/* Shared layout for the date axes and the grid: the first column track
+   (weekday labels) is sized by content, so month ticks start exactly
+   where the grid does and every week column stays pixel-aligned. */
+.heatmap-gridwrap {
+  display: grid;
+  grid-template-columns: auto max-content;
+  grid-template-areas:
+    ".    months"
+    "axis grid";
+  column-gap: 6px;
+  width: max-content;
+}
+
+/* Month ticks: one 11px track per week (same cell size + gap as the
+   grid), labels anchored to their week column via grid-column-start. */
+.heatmap-months {
+  grid-area: months;
+  display: grid;
+  grid-template-columns: repeat(var(--heatmap-weeks), 11px);
+  gap: 3px;
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  line-height: 1;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+  margin-bottom: var(--space-xs);
+}
+
+/* Weekday ticks on rows 2/4/6 (Mon / Wed / Fri), right-aligned so they
+   hug the grid's left edge; row tracks mirror the cell rhythm. */
+.heatmap-weekdays {
+  grid-area: axis;
+  display: grid;
+  grid-template-rows: repeat(7, 11px);
+  gap: 3px;
+  align-items: center;
+  justify-items: end;
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  line-height: 1;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
 .heatmap-grid {
+  grid-area: grid;
   display: flex;
   gap: 3px;
-  width: max-content;
-  margin: 0 auto;
 }
 
 .heatmap-col {
@@ -88,7 +134,6 @@
   align-items: center;
   justify-content: flex-end;
   gap: 4px;
-  margin-top: var(--space-sm);
 }
 
 .heatmap-legend .heatmap-cell {
