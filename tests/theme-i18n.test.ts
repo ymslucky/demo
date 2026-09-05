@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { THEME_STORAGE_KEY } from "../app/lib/theme";
+import { stripComments } from "./strip-comments";
 
 /**
  * Cross-feature contract: i18n (zh/en) × theme (light/dark).
@@ -64,13 +65,14 @@ describe("theme × i18n integration", () => {
     // Both keys referenced dynamically via t(), no hardcoded label strings
     expect(src).toMatch(/t\("toggleToDark"\)/);
     expect(src).toMatch(/t\("toggleToLight"\)/);
-    // No CJK anywhere in the component source (i18n source-clean rule)
-    expect(/[\u4e00-\u9fff]/.test(src)).toBe(false);
+    // No CJK in code content — comments are stripped first since they may
+    // legitimately be written in Chinese; strings and JSX text may not.
+    expect(/[\u4e00-\u9fff]/.test(stripComments(src, "ThemeToggle.tsx"))).toBe(false);
   });
 
   it("theme lib source contains no user-facing hardcoded strings", () => {
     const src = read("lib/theme.ts");
-    expect(/[\u4e00-\u9fff]/.test(src)).toBe(false);
+    expect(/[\u4e00-\u9fff]/.test(stripComments(src, "theme.ts"))).toBe(false);
   });
 
   it("theme persistence key is independent of locale persistence", () => {
@@ -98,15 +100,15 @@ describe("theme × i18n integration", () => {
     expect(nav).toContain("<ThemeToggle />");
   });
 
-  it("locale layout injects the pre-paint theme init script", () => {
+  it("theme init is injected by middleware, never rendered as a React script", () => {
+    // The anti-FOUC script is spliced into the HTML <head> at the HTTP layer
+    const mw = readFileSync(join(process.cwd(), "middleware.ts"), "utf8");
+    expect(mw).toMatch(/<script>\$\{themeInitScript\(\)\}<\/script>/);
+    expect(mw).toContain("<head>");
+    // The layout suppresses the pre-hydration data-theme attribute mismatch...
     const layout = read("[locale]/layout.tsx");
-    expect(layout).toContain("themeInitScript()");
     expect(layout).toContain("suppressHydrationWarning");
-    // Script must be inside <body> so data-theme applies before first paint
-    const jsxUsage = layout.indexOf(
-      'dangerouslySetInnerHTML={{ __html: themeInitScript() }}',
-    );
-    expect(jsxUsage).toBeGreaterThan(-1);
-    expect(jsxUsage).toBeGreaterThan(layout.indexOf("<body>"));
+    // ...but must never render a <script> node (React 19 client-render warning)
+    expect(stripComments(layout, "layout.tsx")).not.toMatch(/<script/);
   });
 });

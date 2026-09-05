@@ -13,20 +13,20 @@ export default function RateLimiterDemo() {
   const [tokens, setTokens] = useState<Token[]>([]);
   const [requests, setRequests] = useState<{ id: number; status: "pending" | "success" | "rejected" }[]>([]);
   
-  // Interactive controls
+  // 交互控件
   const [capacity, setCapacity] = useState(8);
-  const [rate, setRate] = useState(2); // tokens per second
+  const [rate, setRate] = useState(2); // 令牌数/秒
   
   const nextTokenId = useRef(0);
   const nextReqId = useRef(0);
 
   const tokensRef = useRef<Token[]>([]);
 
-  // Token refill interval
+  // 令牌补充定时器
   useEffect(() => {
     const interval = setInterval(() => {
       if (tokensRef.current.length < capacity) {
-        // Generate random rotation outside render to keep render pure
+        // 在渲染之外生成随机旋转角，保持 render 纯净
         const newToken: Token = { id: nextTokenId.current++, rotate: Math.random() * 20 - 10 };
         tokensRef.current = [...tokensRef.current, newToken];
         setTokens([...tokensRef.current]);
@@ -35,7 +35,7 @@ export default function RateLimiterDemo() {
     return () => clearInterval(interval);
   }, [capacity, rate]);
 
-  // Process requests queue
+  // 处理请求队列
   useEffect(() => {
     const processQueue = () => {
       setRequests((prevReqs) => {
@@ -88,7 +88,7 @@ export default function RateLimiterDemo() {
         <h3 style={{ margin: 0 }}>交互式演示：令牌桶 (Token Bucket)</h3>
       </div>
       
-      {/* Controls */}
+      {/* 控制面板 */}
       <div className="flex flex-wrap gap-6 mb-8 bg-tint p-4 rounded-md border-2 border-border shadow-[2px_2px_0px_0px_var(--color-border)]">
         <div className="flex flex-col gap-2 flex-1 min-w-[200px]">
           <label className="text-sm font-bold flex justify-between">
@@ -119,7 +119,7 @@ export default function RateLimiterDemo() {
       </div>
 
       <div className="demo-layout">
-        {/* Bucket Visualization */}
+        {/* 令牌桶可视化 */}
         <div className="demo-col relative">
           <p className="font-bold mb-4 bg-surface px-4 py-1 border-2 border-border rounded-full shadow-[2px_2px_0px_0px_var(--color-border)] z-10">
             令牌桶
@@ -134,7 +134,7 @@ export default function RateLimiterDemo() {
               boxShadow: 'inset 0 -10px 20px rgba(0,0,0,0.05), 6px 6px 0px 0px var(--color-border)'
             }}
           >
-            {/* Fill Level Indicator */}
+            {/* 液位指示 */}
             <div className="absolute top-2 left-2 text-xs font-mono font-bold text-text-muted opacity-50">
               {tokens.length} / {capacity}
             </div>
@@ -149,7 +149,7 @@ export default function RateLimiterDemo() {
                   transition={{ type: "spring", bounce: 0.6, duration: 0.6 }}
                   className="w-full h-6 bg-primary rounded-sm border-2 border-border shadow-[1px_1px_0px_0px_rgba(0,0,0,0.3)] relative overflow-hidden flex items-center justify-center"
                 >
-                  {/* Token shine effect */}
+                  {/* 令牌高光效果 */}
                   <div className="absolute top-0 left-0 w-full h-1/2 bg-white opacity-20"></div>
                   <span className="text-[10px] font-mono text-white opacity-60">T-{token.id % 100}</span>
                 </motion.div>
@@ -171,7 +171,7 @@ export default function RateLimiterDemo() {
           </div>
         </div>
 
-        {/* Action & Requests Visualization */}
+        {/* 操作与请求可视化 */}
         <div className="demo-col flex-1">
           <div className="flex flex-wrap justify-center gap-3 mb-8 w-full">
             <button 

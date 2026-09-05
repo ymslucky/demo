@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
+import { stripComments } from "./strip-comments";
 import { routing } from "../i18n/routing";
 
 /** Flatten a nested message object into dotted leaf keys. */
@@ -273,18 +274,20 @@ describe("key usage coverage", () => {
   const enKeys = new Set(flatten(loadCatalog("en")));
   const haveKey = (key: string) => zhKeys.has(key) && enKeys.has(key);
 
-  it("has no hardcoded Chinese in user-facing source files", () => {
-    // Acceptance: all user-facing text goes through t(). Chinese characters
-    // are only allowed in CSS comments (globals.css), test fixtures, and
-    // blog articles (standalone Chinese content, not i18n UI copy).
+  it("keeps Chinese out of strings and JSX text (comments may use it)", () => {
+    // Acceptance: all user-facing text goes through t(). Comments ARE
+    // allowed in Chinese, so they are stripped with the TypeScript
+    // compiler before scanning — only real code content (string literals,
+    // JSX text, identifiers) must stay CJK-free. Blog articles remain
+    // exempt (standalone Chinese content, not i18n UI copy).
     const offenders: string[] = [];
     for (const file of collectSourceFiles(join(process.cwd(), "app"))) {
-      if (file.endsWith("globals.css")) continue;
       if (file.includes(join("app", "[locale]", "blog"))) continue;
-      const lines = readFileSync(file, "utf8").split("\n");
-      lines.forEach((line, idx) => {
+      const src = readFileSync(file, "utf8");
+      const stripped = stripComments(src, file);
+      stripped.split("\n").forEach((line) => {
         if (/[\u4e00-\u9fff]/.test(line)) {
-          offenders.push(`${file}:${idx + 1}: ${line.trim()}`);
+          offenders.push(`${file}: ${line.trim()}`);
         }
       });
     }

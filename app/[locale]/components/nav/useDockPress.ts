@@ -34,9 +34,9 @@ export function useDockPress(
     let centers: number[] = [];
     let listLeft = 0;
 
-    // offsetLeft/offsetWidth ignore transforms, so they are stable base
-    // positions; the container offset is cached too (sticky keeps it fixed
-    // while hovered)
+    // offsetLeft/offsetWidth 不受 transform 影响，因此是稳定的基准
+    // 位置；容器偏移同样被缓存（sticky 定位使容器在悬停期间
+    // 位置保持固定）
     const measure = () => {
       centers = itemRefs.current.map((el) =>
         el ? el.offsetLeft + el.offsetWidth / 2 : 0
@@ -99,7 +99,7 @@ export function useDockPress(
       pointerX = null;
       wake();
     };
-    // Keyboard focus presses the focused key (same spring channel)
+    // 键盘焦点会按下聚焦的按键（同一条 spring 通道）
     const onFocusIn = (e: FocusEvent) => {
       const idx = itemRefs.current.indexOf(e.target as HTMLAnchorElement);
       if (idx >= 0) {

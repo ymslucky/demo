@@ -1,14 +1,13 @@
 import { extractClientIp } from "@/app/[locale]/tools/http-check/utils";
 
 /**
- * JSON echo endpoint — the data source of the HTTP check tool.
+ * JSON echo 端点 — HTTP 检查工具的数据源。
  *
- * Returns everything the server saw: IP, method, URL, time and full headers.
- * Accepts GET / POST (and any other method) so the site doubles as a
- * debugging echo loop.
+ * 返回服务端看到的一切：IP、方法、URL、时间与完整请求头。
+ * 接受 GET / POST（以及任何其他方法），让站点同时充当调试回环。
  */
 
-/** Depends on request context, so it must run dynamically on every call. */
+/** 依赖请求上下文，因此每次调用都必须动态运行。 */
 export const dynamic = "force-dynamic";
 
 function echo(request: Request) {
@@ -28,7 +27,7 @@ function echo(request: Request) {
       receivedAt: new Date().toISOString(),
       clientIp: extractClientIp(headers),
       userAgent: headers["user-agent"] ?? null,
-      // Sort headers by name so they are easy to scan by eye.
+      // 按名称对 headers 排序，便于肉眼浏览。
       headers: Object.fromEntries(Object.entries(headers).sort(([a], [b]) => a.localeCompare(b))),
     },
     { headers: { "cache-control": "no-store" } }

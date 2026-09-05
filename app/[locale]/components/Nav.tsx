@@ -21,13 +21,13 @@ export default function Nav() {
     item.href === "/" ? currentPath === "/" : currentPath.startsWith(item.href)
   );
 
-  // Press-key physics: pointer events span the whole dock so the sweep
-  // pre-presses neighbouring keys across brand / divider / tools areas
+  // 按键物理效果：pointer 事件绑定在整个 dock 上，指针扫过时
+  // brand / divider / tools 区域两侧相邻的按键也会被预按下
   useDockPress(dockRef, listRef, itemRefs);
-  // Constant-slab scroll state (data-scrolled tighten + progress ink bar)
+  // 常驻平板（constant-slab）滚动状态（data-scrolled 收紧 + 进度墨条）
   useDockMode(headerRef);
 
-  // Auto-center the active item inside the mobile scroll rail
+  // 在移动端滚动轨道内自动居中当前激活项
   useEffect(() => {
     const el = itemRefs.current[activeIndex];
     if (!el) return;
@@ -44,9 +44,9 @@ export default function Nav() {
       <div className="dock" ref={dockRef}>
         <span className="dock-progress" aria-hidden="true" />
         <div className="dock-inner">
-          {/* prefetch={false}: every route on this site is a tiny static page;
-              prefetching all of them on every page load spams the network log
-              with background RSC requests for links users rarely click. */}
+          {/* prefetch={false}：本站每个路由都是很小的静态页面；
+              每次页面加载都预取全部路由，会用用户很少点击的链接产生的
+              后台 RSC 请求刷屏网络日志。 */}
           <Link href="/" className="dock-brand" prefetch={false}>
             <span className="dock-brand-mark" aria-hidden="true">
               L

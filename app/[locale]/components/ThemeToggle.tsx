@@ -14,9 +14,9 @@ import {
 } from "../../lib/theme";
 
 /**
- * Subscribes to theme changes: re-renders when the `data-theme` attribute is
- * modified (toggle click) or when the system preference changes (only while
- * the user has not manually overridden the theme).
+ * 订阅主题变化：当 `data-theme` 属性被修改（点击切换按钮）时，
+ * 或系统偏好发生变化时（仅当用户尚未手动覆盖主题的情况下），
+ * 触发重渲染。
  */
 function subscribeTheme(onChange: () => void): () => void {
   if (typeof window === "undefined") return () => {};
@@ -29,7 +29,7 @@ function subscribeTheme(onChange: () => void): () => void {
 
   const mq = window.matchMedia(SYSTEM_DARK_QUERY);
   const onSystemChange = (e: MediaQueryListEvent) => {
-    // Ignore system changes once the user has picked a theme manually.
+    // 用户手动选择过主题后，忽略系统变化。
     if (!shouldFollowSystem(getSavedTheme())) return;
     applyTheme(e.matches ? "dark" : "light");
     onChange();
@@ -46,15 +46,15 @@ function getThemeSnapshot(): Theme {
   return readCurrentTheme();
 }
 
-/** SSR phase: render as light when no attribute exists yet to avoid hydration mismatch. */
+/** SSR 阶段：属性尚不存在时按 light 渲染，以避免 hydration 不匹配。 */
 function getThemeServerSnapshot(): Theme {
   return "light";
 }
 
 export default function ThemeToggle() {
   const t = useTranslations("theme");
-  // The theme comes from the real DOM state (set by the pre-paint inline
-  // script); after a click, MutationObserver drives re-renders — no local copy.
+  // 主题来自真实的 DOM 状态（由 pre-paint 内联脚本设置）；点击后由
+  // MutationObserver 驱动重渲染 —— 不保存本地副本。
   const theme = useSyncExternalStore(
     subscribeTheme,
     getThemeSnapshot,
@@ -92,7 +92,7 @@ export default function ThemeToggle() {
         <circle cx="12" cy="12" r="4" />
         <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" />
       </svg>
-      {/* Moon icon (visible in dark mode) */}
+      {/* 月亮图标（深色模式下可见） */}
       <svg
         className="theme-toggle__icon theme-toggle__icon--moon"
         viewBox="0 0 24 24"

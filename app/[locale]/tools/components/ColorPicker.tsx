@@ -25,7 +25,7 @@ export default function ColorPicker() {
   })();
   const [colorHsl, setColorHsl] = useStickyState(initialHsl, "colorHsl");
 
-  // Sync ref with sticky state on mount
+  // 挂载时将 ref 与 sticky state 同步
   useEffect(() => {
     if (colorInputRef.current) {
       colorInputRef.current.value = colorHex;

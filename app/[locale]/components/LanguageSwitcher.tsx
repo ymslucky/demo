@@ -12,11 +12,11 @@ const LOCALE_META: Record<Locale, { labelKey: string; titleKey: string }> = {
 };
 
 /**
- * Language toggle — a single dock button showing the locale you would switch
- * TO (target-locale pattern): the English label on Chinese pages, the Chinese
- * label on English pages. Clicking cycles through routing.locales; the
- * navigation runs inside a transition so the button stays disabled until the
- * new locale has rendered.
+ * 语言切换 —— dock 上的单个按钮，显示你将切换到的目标语言
+ * （target-locale 模式）：中文页面显示英文标签，英文页面显示
+ * 中文标签。点击会在 routing.locales 中循环切换；导航在
+ * transition 内执行，因此在新的语言渲染完成之前，按钮会
+ * 一直保持禁用状态。
  */
 export default function LanguageSwitcher() {
   const t = useTranslations("languageSwitcher");

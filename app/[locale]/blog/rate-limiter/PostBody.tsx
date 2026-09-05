@@ -2,9 +2,9 @@ import RateLimiterDemo from "./RateLimiterDemo";
 import CodeBlock from "../components/CodeBlock";
 
 /**
- * Content layer of the rate-limiter post. Chinese article prose lives here
- * on purpose (standalone blog content, exempt from the app CJK rule); all
- * presentation concerns live in components.css (.blog-* classes).
+ * 限流器文章的内容层。中文正文有意存放在此处（独立成篇的博客内容，
+ * 豁免于 app 源码禁用 CJK 的规则）；所有展示层关注点都位于
+ * components.css（.blog-* 系列类名）中。
  */
 export default function PostBody() {
   return (

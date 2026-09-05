@@ -21,19 +21,14 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 ## 0. Stack & Style Contract
 - **Runtime**: Next.js **16.3.0** (App Router) · React **19.2.8** · TypeScript · next-intl · **no Tailwind** (plain hand-written CSS + CSS variables).
 - **UI flavour**: **Neo-Brutalism**. Hard 3px borders, solid offset `box-shadow` (2-4px displacement, NO blur drop-shadows anywhere on structural cards/buttons/dock), #ea580c orange accent, Inter for body, JetBrains Mono fallback for `<code>`-style labels.
-- **Nav UX**: **Morphing Slab** nav implemented in [Nav.tsx](app/[locale]/components/Nav.tsx). The header is a *constant* full-width plate (page-paper `--color-bg` + 3px bottom rule) in every scroll position — it never morphs into a floating capsule. Scrolling past 24px sets `header[data-scrolled]` (via [useDockMode.ts](app/[locale]/components/nav/useDockMode.ts)): the plate tightens (padding/brand shrink) and a `--scroll-progress` ink bar fills its bottom rule. Key press physics ([useDockPress.ts](app/[locale]/components/nav/useDockPress.ts)): gaussian proximity sink (σ=48, ≤3px translateY), under-damped spring `k=0.19 ζ=0.70` running in a single `rAF` style-mutation loop (no React renders per pointer frame), keyboard focus channels through the same spring state, `prefers-reduced-motion` + non-fine pointers disable motion entirely.
-- **Locale routing**: [middleware.ts](middleware.ts) wraps `next-intl/middleware`, default locale `zh` (unprefixed URLs `/`, `/about` …), alternate `en` lives under `/en/…`. `setRequestLocale(locale)` called in [layout.tsx](app/[locale]/layout.tsx) so every page stays static-renderable.
+- **Nav UX**: **Morphing Slab** nav ([Nav.tsx](app/[locale]/components/Nav.tsx)). Invariants: the header is a *constant* full-width plate in every scroll position — it never morphs into a floating capsule; scrolling past 24px only tightens it and fills a progress rule (`header[data-scrolled]`, via [useDockMode.ts](app/[locale]/components/nav/useDockMode.ts)). Press physics ([useDockPress.ts](app/[locale]/components/nav/useDockPress.ts)): every pointer frame mutates styles inside a single `rAF` loop (zero React renders per frame) and feeds an under-damped spring shared with keyboard focus; `prefers-reduced-motion` and non-fine pointers disable motion entirely. Exact tuning constants live in the source — treat them as the documented "feel", not as free parameters.
+- **Locale routing**: [middleware.ts](middleware.ts) wraps `next-intl/middleware`, default locale `zh` (unprefixed URLs `/`, `/about` …), alternate `en` under `/en/…`. `setRequestLocale(locale)` is called in [layout.tsx](app/[locale]/layout.tsx) so every page stays static-renderable.
 
 ## 1. HARD CONSTRAINTS — do not violate
-1. **Middleware filename must stay `middleware.ts`** (not `proxy.ts` or anything else); EdgeOne's deploy path mounts it explicitly. The deprecation warning in `next build` output is expected — *do not* run the suggested `middleware-to-proxy` codemod without re-reading the HTTP-layer script-injection logic in §3 first.
-2. **`app/**/*.ts(x)` must be free of any Chinese characters** — including comments, string literals, JSX text nodes. The only allowed locations for Chinese are:
-   - `globals.css` (CSS values & comments)
-   - `messages/zh.json` / `messages/*.json`
-   - E2E scripts like `e2e-cross-feature.cjs`
-   This is enforced by `tests/i18n.test.ts` — `noCjkInAppSourceRegex`.
+1. **Middleware filename must stay `middleware.ts`** (not `proxy.ts`); the EdgeOne Pages deploy path mounts it by this exact name. The `middleware` deprecation warning in `next build` output is expected — *do not* run the suggested `middleware-to-proxy` codemod. Re-evaluate this rule only when the EdgeOne adapter (`@edgeone/opennextjs-pages`) officially supports `proxy.ts`; if that day comes, move the exact HTML-splice transform per §3 and re-run all gates.
+2. **`app/**/*.ts(x)` keeps Chinese out of code** — string literals, JSX text nodes and identifiers must be CJK-free. Chinese **is allowed in comments** (`//`, `/* */`, JSDoc) for readability. Enforcement scope: `tests/i18n.test.ts` scans `app/` only and exempts `app/[locale]/blog/**` (standalone article content, not i18n UI copy). Outside `app/` there is no restriction (`messages/*.json`, `globals.css`, E2E scripts). Mechanism: comments are stripped via `ts.transpileModule({ removeComments: true })` (JSX preserved) before scanning, so only real code content is checked.
 3. **User-facing strings & ARIA labels always go through next-intl** (`useTranslations`, `getTranslations`). Literal `aria-label="…"` with human words in TSX → failing test. Exceptions: machine-only attributes (`aria-current="page"`, `data-*`, CSS class names).
-4. **Source-level grep contract for theme-init**:
-   `[locale]/layout.tsx` must contain the literal strings `"suppressHydrationWarning"`, `"themeInitScript()"`, and `dangerouslySetInnerHTML={{ __html: themeInitScript() }}`, and the 3rd one must appear textually *after* the opening `<body>` tag. `tests/theme-i18n.test.ts` scans the file as raw UTF-8 bytes (not AST) to enforce this — see §3 for *why* this JSX expression is guarded by `false && …`.
+4. **Theme init is HTTP-layer injected, never a React `<script>` node**: [middleware.ts](middleware.ts) splices `<script>${themeInitScript()}</script>` right after the `<head>` marker; [layout.tsx](app/[locale]/layout.tsx) keeps `suppressHydrationWarning` on `<html>` (the script sets `data-theme` before hydration) and must contain **no** `<script>` JSX at all. Enforced by `tests/theme-i18n.test.ts`; rationale in §3.
 5. **`@swc/helpers` pinned to `0.5.17`** via `package.json` → `"overrides"`. Bump only when you've verified both `next build --webpack` and `next dev --turbopack` still compile the App Router.
 
 ## 2. CSS Rules (Neo-Brutalism invariants)
@@ -43,27 +38,23 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 - Do **not** re-introduce Tailwind. The project intentionally ships 0 CSS-in-JS / utility-class runtime.
 
 ## 3. React 19 Script Injection — STANDARD WORKFLOW
-React 19 emits a console warning **every time** a client render produces a `<script>` VDOM node ("Encountered a script tag while rendering React component. Scripts inside React components are never executed when rendering on the client"). This fires on *every* client-side navigation (e.g. zh ⇄ en language toggle) because the root layout re-renders in the browser — independent of whether Next/SSR ever hoisted the tag server-side. **`next/script` + `strategy="beforeInteractive"` does NOT prevent the warning on client navigations**; the JSX still creates the VDOM node.
+React 19 emits a console warning **every time** a *client* render produces a `<script>` VDOM node ("Encountered a script tag while rendering React component. Scripts inside React components are never executed when rendering on the client"). It fires on *every* client-side navigation (e.g. zh ⇄ en language toggle) because the root layout re-renders in the browser — independent of whether Next/SSR ever hoisted the tag server-side. **`next/script` + `strategy="beforeInteractive"` does NOT prevent the warning**; the JSX still creates the VDOM node.
 
-### Approved pattern (used for `themeInitScript()` anti-FOUC):
-1. **Inject at HTTP layer, not in JSX**. [middleware.ts](middleware.ts) wraps the next-intl response, filters for `Content-Type: text/html`, reads the body with `await response.text()`, prepends `<script>${snippet}</script>` to the `<head>` marker via raw string splice, rebuilds content-length, returns a fresh `NextResponse`. React **never** sees the script element.
-2. **Preserve the test-contract placeholder in `layout.tsx`** exactly as:
-   ```tsx
-   {false && (
-     <script dangerouslySetInnerHTML={{ __html: themeInitScript() }} />
-   )}
-   ```
-   The `false && …` short-circuit means `_jsx('script', …)` is **never actually called at runtime**, so React 19's validation codepath is unreachable. The raw text of the three literal strings still exists in the `.tsx` file for `tests/theme-i18n.test.ts` to grep.
-3. If `middleware.ts` is ever migrated to the newer `proxy.ts` convention, move the *exact same* HTML-string-splice transform to the proxy's response hook — the invariant is "before React parses the HTML, not in the React tree".
-4. Ignore the warning's suggestion to use `<template>` — `<template>` contents are inert and inline JS inside one will NOT auto-run on parse; it is a generic hint, not a fix for this specific case.
+### Approved pattern (used for the `themeInitScript()` anti-FOUC script):
+1. **Inject at the HTTP layer, not in JSX.** [middleware.ts](middleware.ts) wraps the next-intl response, filters for `Content-Type: text/html`, reads the body, splices `<script>${themeInitScript()}</script>` right after the `<head>` marker (falls back to the start of `<body>`), rebuilds content-length and returns a fresh `NextResponse`. React **never** sees the script element.
+2. **Known limitation — streaming.** `await response.text()` buffers the entire HTML body, so HTML responses are delivered non-chunked. This is acceptable today because every HTML route is prerendered and small. If a route ever streams intentionally (Suspense boundaries with slow segments), this pipeline must be redesigned first — do not silently add streaming routes under this middleware.
+3. **Never render the script from a component.** There is no placeholder and no dead-code fallback: the layout renders zero `<script>` JSX, and `tests/theme-i18n.test.ts` fails if one reappears. The `suppressHydrationWarning` on `<html>` is *not* related to the script element itself — it suppresses the `data-theme` attribute mismatch caused by setting the attribute before hydration.
+4. Ignore the warning's suggestion to use `<template>` — template content is inert and inline JS inside one does NOT auto-run on parse; it is a generic hint, not a fix for this case.
+5. If `middleware.ts` is ever migrated to `proxy.ts`, move the *same* HTML-string-splice transform to the proxy's response hook — the invariant is "before React parses the HTML, not in the React tree".
 
 ## 4. Quality Gates (must all be green before any push)
 ```bash
-npm test     # vitest run — 5 files / 95 cases, < 2s
+npm test     # vitest run — grep contracts + unit tests
 npm run lint # eslint . via eslint.config.mjs — TS rules enabled
-npm run build  # next build --webpack — confirm 22 static routes generate
+npm run build  # next build --webpack
 ```
-- `e2e-cross-feature.cjs` is a cross-feature Playwright-esque matrix (i18n × theme). When you rename container CSS classes (e.g. `.nav-links` → `.dock-nav`), update the corresponding `document.querySelector(...)` lines in that script *in the same commit*.
+- **Render-mode guard**: the build's route table must not gain new Dynamic entries. The known dynamic set is exactly `/_not-found`, `/[locale]/tools/http-check` (reads `headers()`) and `/api/echo` (`force-dynamic`); everything else must remain Static/SSG. A new Dynamic route is a design decision, not an accident.
+- `e2e-cross-feature.cjs` is a cross-feature matrix (i18n × theme) run **manually** — it is not part of `npm test`. When you rename container CSS classes (e.g. `.nav-links` → `.dock-nav`), update its `document.querySelector(...)` lines in the same commit.
 - Any new tool-logic function added to `app/[locale]/tools/**/*.ts` must ship a sibling `*.test.ts` — `tests/tools.test.ts` is for shared helpers, not per-tool cases.
 
 ## 5. What to delete / not to create
@@ -73,12 +64,13 @@ npm run build  # next build --webpack — confirm 22 static routes generate
 ## 6. Quick-reference file map
 | Concern | Location |
 |---|---|
-| Root layout / metadata / theme-init placeholder | [app/\[locale\]/layout.tsx](app/[locale]/layout.tsx) |
+| Root layout / metadata / `suppressHydrationWarning` | [app/\[locale\]/layout.tsx](app/[locale]/layout.tsx) |
 | Morphing Slab nav (constant slab, scroll-tighten, press keys) | [app/\[locale\]/components/Nav.tsx](app/[locale]/components/Nav.tsx) |
 | Theme logic + `themeInitScript()` source | [app/lib/theme.ts](app/lib/theme.ts) |
+| HTML script injection (HTTP layer) | [middleware.ts](middleware.ts) |
 | All CSS variables + component classes + dock shell | [app/globals.css](app/globals.css) |
-| i18n locale routing + HTTP HTML script injection | [middleware.ts](middleware.ts) |
+| i18n locale routing | [middleware.ts](middleware.ts) + [i18n/routing.ts](i18n/routing.ts) |
 | i18n locale catalogues | [messages/zh.json](messages/zh.json) · [messages/en.json](messages/en.json) |
-| i18n routing / link primitives | [i18n/routing.ts](i18n/routing.ts) · [i18n/navigation.ts](i18n/navigation.ts) · [i18n/request.ts](i18n/request.ts) |
+| i18n link primitives / request config | [i18n/navigation.ts](i18n/navigation.ts) · [i18n/request.ts](i18n/request.ts) |
 | Test suite (grep contracts + unit) | [tests/](tests/) |
-| Cross-feature zh/en × light/dark E2E script | [e2e-cross-feature.cjs](e2e-cross-feature.cjs) |
+| Cross-feature zh/en × light/dark E2E script (manual) | [e2e-cross-feature.cjs](e2e-cross-feature.cjs) |

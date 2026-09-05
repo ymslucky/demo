@@ -1,11 +1,10 @@
 /**
- * GitHub contribution calendar for the homepage heatmap.
+ * 首页热力图使用的 GitHub 贡献日历。
  *
- * Lives on the server: the homepage RSC awaits `getContributions()` and the
- * page is regenerated at most hourly (ISR), so the browser never issues a
- * runtime request for this data. The upstream GraphQL call is cached for one
- * hour through the Next data cache; any failure degrades to `null` and the
- * caller renders an "unavailable" placeholder.
+ * 运行在服务端：首页 RSC 会 await `getContributions()`，并且页面最多
+ * 每小时重新生成一次（ISR），因此浏览器从不会在运行时为此数据发起
+ * 请求。上游 GraphQL 调用通过 Next 数据缓存缓存一小时；任何失败都会
+ * 降级为 `null`，由调用方渲染"不可用"占位内容。
  */
 
 const LOGIN = process.env.GITHUB_LOGIN ?? "ymslucky";
@@ -26,9 +25,9 @@ const QUERY = `query($login: String!) {
 }`;
 
 export interface DayCell {
-  /** contribution count */
+  /** 贡献次数 */
   c: number;
-  /** ISO date (YYYY-MM-DD) */
+  /** ISO 日期 (YYYY-MM-DD) */
   d: string;
 }
 

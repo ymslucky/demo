@@ -4,8 +4,8 @@ import { getPathname } from "@/i18n/navigation";
 import { getContributions, type ContributionsData } from "../lib/contributions";
 import ContributionHeatmap from "./components/ContributionHeatmap";
 
-// Contribution data refreshes hourly on the server; the browser never
-// requests it at runtime.
+// 贡献数据在服务端每小时刷新一次；浏览器从不在
+// 运行时请求它。
 export const revalidate = 3600;
 
 export async function generateMetadata({

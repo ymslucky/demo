@@ -1,18 +1,18 @@
 /**
- * Pure helpers for the HTTP check tool.
+ * HTTP 检查工具的纯辅助函数。
  *
- * Extracted from the page and API route so they can be unit tested and
- * reused. Output names (browser / OS etc.) stay in their canonical English
- * form and are not part of i18n.
+ * 从页面与 API 路由中抽取出来，便于单元测试和复用。
+ * 输出名称（browser / OS 等）保持其规范的英文
+ * 形式，不纳入 i18n。
  */
 
 // ---------------------------------------------------------------------------
-// Client IP extraction
+// 客户端 IP 提取
 // ---------------------------------------------------------------------------
 
 /**
- * Real-IP headers commonly injected by CDNs / reverse proxies.
- * EdgeOne uses EO-Connecting-IP; the rest are generic conventions.
+ * CDN / 反向代理常见注入的真实 IP 请求头。
+ * EdgeOne 使用 EO-Connecting-IP；其余为通用约定。
  */
 const IP_HEADER_PRIORITY = [
   "eo-connecting-ip",
@@ -38,12 +38,12 @@ function isUsableIp(value: string | undefined): value is string {
 export function extractClientIp(
   headers: Record<string, string>
 ): { ip: string; source: string } | null {
-  // Dedicated headers first.
+  // 先看专用请求头。
   for (const name of IP_HEADER_PRIORITY) {
     const value = headers[name];
     if (isUsableIp(value)) return { ip: value.trim(), source: name };
   }
-  // x-forwarded-for may be a chain "client, proxy1, proxy2" — take the leftmost entry.
+  // x-forwarded-for 可能是链式列表 "client, proxy1, proxy2" — 取最左侧的一项。
   const xff = headers["x-forwarded-for"];
   if (xff) {
     const first = xff.split(",")[0]?.trim();
@@ -53,7 +53,7 @@ export function extractClientIp(
 }
 
 // ---------------------------------------------------------------------------
-// User-Agent parsing
+// User-Agent 解析
 // ---------------------------------------------------------------------------
 
 export type DeviceKind = "mobile" | "tablet" | "desktop" | "bot";
@@ -88,9 +88,9 @@ interface BrowserRule {
 }
 
 /**
- * Browser detection rules, ordered by specificity: a wrong order would
- * classify Edge/Opera as Chrome. Safari must only match after Chrome has
- * been excluded, hence the fallback below.
+ * 浏览器识别规则，按特异性排序：顺序错误会把
+ * Edge/Opera 误判为 Chrome。Safari 必须在排除 Chrome 之后
+ * 才允许匹配，因此有下面的兜底逻辑。
  */
 const BROWSER_RULES: BrowserRule[] = [
   { test: /Edg(?:e|A|iOS)?\/([\d.]+)/, name: "Edge" },
@@ -101,7 +101,7 @@ const BROWSER_RULES: BrowserRule[] = [
   { test: /Chrome\/([\d.]+)/, name: "Chrome" },
 ];
 
-/** Maps Windows NT versions to marketing names (common ones only). */
+/** 把 Windows NT 版本号映射为商业名称（仅常见版本）。 */
 function windowsName(nt: string): string {
   if (nt.startsWith("10.")) return "Windows 10/11";
   if (nt === "6.3") return "Windows 8.1";
@@ -127,7 +127,7 @@ export function parseUserAgent(ua: string): UaInfo {
     return { browser: ua.trim().slice(0, 60), version: null, os: "-", device: "bot" };
   }
 
-  // --- Browser ---
+  // --- 浏览器 ---
   let browser = "Unknown";
   let version: string | null = null;
   for (const rule of BROWSER_RULES) {
@@ -138,7 +138,7 @@ export function parseUserAgent(ua: string): UaInfo {
       break;
     }
   }
-  // Safari fallback: Chrome engine excluded, Version/x ... Safari present.
+  // Safari 兜底：已排除 Chrome 内核，且存在 Version/x ... Safari。
   if (browser === "Unknown") {
     const m = ua.match(/Version\/([\d.]+).*Safari/);
     if (m && !ua.includes("Chrome")) {
@@ -160,7 +160,7 @@ export function parseUserAgent(ua: string): UaInfo {
   else if (macos) os = `macOS ${dots(macos[1])}`;
   else if (/Linux/.test(ua)) os = "Linux";
 
-  // --- Device kind ---
+  // --- 设备类型 ---
   let device: DeviceKind = "desktop";
   if (/iPad/.test(ua) || (/Android/.test(ua) && !/Mobile/.test(ua))) device = "tablet";
   else if (/Mobi|iPhone|iPod/.test(ua)) device = "mobile";

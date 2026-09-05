@@ -4,7 +4,7 @@ import type { CSSProperties } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import type { ContributionsData } from "../../lib/contributions";
 
-/** Contribution count → intensity level 0..4 (mirrors the legend). */
+/** 贡献数量 → 强度等级 0..4（与图例一致）。 */
 function level(count: number): number {
   if (count <= 0) return 0;
   if (count < 4) return 1;
@@ -13,10 +13,10 @@ function level(count: number): number {
   return 4;
 }
 
-/** Grid rows (Sunday-first) that get a weekday tick: Mon / Wed / Fri. */
+/** 获得星期刻度的网格行（一周从周日开始）：Mon / Wed / Fri。 */
 const WEEKDAY_ROWS = [1, 3, 5];
 
-/** Parses an ISO date (YYYY-MM-DD) as local midnight, avoiding UTC shifts. */
+/** 将 ISO 日期（YYYY-MM-DD）解析为本地零点，避免 UTC 偏移。 */
 function parseDay(iso: string): Date {
   return new Date(`${iso}T00:00:00`);
 }
@@ -24,7 +24,7 @@ function parseDay(iso: string): Date {
 export default function ContributionHeatmap({
   data,
 }: {
-  /** Server-fetched calendar (ISR); `null` renders the unavailable state. */
+  /** 服务端获取的日历（ISR）；`null` 时渲染不可用状态。 */
   data: ContributionsData | null;
 }) {
   const t = useTranslations("home.heatmap");
@@ -42,8 +42,8 @@ export default function ContributionHeatmap({
   const tooltipFmt = new Intl.DateTimeFormat(locale, { dateStyle: "medium" });
 
   /**
-   * Month ticks: the first week column whose Sunday starts a new month.
-   * The leading partial column is skipped, same as GitHub's own heatmap.
+   * 月份刻度：周日开启新月份的第一个周列。
+   * 开头不完整的列会被跳过，与 GitHub 自家热力图的处理一致。
    */
   const monthTicks: { col: number; label: string }[] = [];
   let lastMonth = -1;
@@ -59,7 +59,7 @@ export default function ContributionHeatmap({
     }
   });
 
-  /** Any complete week works as the source of weekday tick labels. */
+  /** 任意一个完整周都可作为星期刻度标签的来源。 */
   const midWeek = data.weeks[Math.floor(data.weeks.length / 2)];
 
   return (

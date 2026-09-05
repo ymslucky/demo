@@ -7,11 +7,10 @@ import "../globals.css";
 import Nav from "./components/Nav";
 import Footer from "./components/Footer";
 import ThemeSync from "./components/ThemeSync";
-import { themeInitScript } from "../lib/theme";
 
-// Omitting `weight` loads Inter's variable font file (one woff2 covering
-// 100-900) instead of four static per-weight files — fewer requests, and
-// font-weight values like 800/900 render with real glyphs, not faux bold.
+// 省略 `weight` 会加载 Inter 的可变字体文件（一个 woff2 覆盖
+// 100-900），而不是四个按字重拆分的静态文件 — 请求数更少，并且
+// 800/900 这类 font-weight 值会渲染出真实字形，而非伪粗体。
 const inter = Inter({
   subsets: ["latin"],
   variable: "--font-inter",
@@ -61,14 +60,14 @@ export default async function LocaleLayout({
   params: Promise<{ locale: string }>;
 }>) {
   const { locale } = await params;
-  // Enable static rendering of all configured locales.
+  // 为所有已配置的 locale 启用静态渲染。
   setRequestLocale(locale);
 
-  // Pass messages + locale explicitly so client hydration does not depend on the
-  // implicit server-side request-config cache (which breaks when a page calls
-  // `headers()` on this request before the provider reads it — the react cache
-  // scopes `headers()` reads differently across server components).
-  // See next-intl `getRequestConfig` docs about explicit messages prop.
+  // 显式传入 messages + locale，使客户端 hydration 不依赖隐式的服务端
+  // request-config 缓存（当某个页面在 provider 读取之前，先在本次请求上调用了
+  // `headers()` 时，该缓存会失效 —— react cache 对 `headers()` 读取的
+  // 作用域在不同 server components 之间并不相同）。
+  // 显式 messages prop 参见 next-intl `getRequestConfig` 文档。
   const messages = await getMessages();
   const t = await getTranslations("nav");
 
@@ -80,22 +79,11 @@ export default async function LocaleLayout({
       suppressHydrationWarning
     >
       <body>
-        {/* Pre-paint theme sync: the actual <script> is injected by middleware.ts
-            into the HTML response at the HTTP layer (inside <head>), completely
-            outside React's component tree — this is the ONLY way to prevent the
-            React 19 "Encountered a script tag while rendering React component"
-            warning from firing on every client-side navigation (e.g. zh <-> en).
-
-            The short-circuited expression below is NEVER rendered by React
-            (false && ...), but it preserves the source-file contract that the
-            i18n test suite verifies: the literal strings `themeInitScript()`
-            and `dangerouslySetInnerHTML={{ __html: themeInitScript() }}` must
-            appear in this layout after `<body>`. */}
-        {false && (
-          <script
-            dangerouslySetInnerHTML={{ __html: themeInitScript() }}
-          />
-        )}
+        {/* 绘制前的主题同步脚本由 middleware.ts 在 HTTP 层注入到 HTML 的
+            head 中，处于 React 组件树之外（原理与约束见 AGENTS.md §3），
+            此处刻意不渲染任何脚本节点 —— React 19 会对客户端渲染出的
+            script 节点告警。html 上的 suppressHydrationWarning 用于压掉
+            data-theme 在 hydration 前被提前设置导致的属性不匹配告警。 */}
         <NextIntlClientProvider messages={messages} locale={locale}>
           <ThemeSync />
           <div className="page">

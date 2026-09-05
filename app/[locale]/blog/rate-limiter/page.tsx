@@ -13,7 +13,7 @@ export async function generateMetadata({
   params,
 }: PostParams): Promise<Metadata> {
   await params;
-  // Article metadata is content, not UI copy — not part of i18n catalogs.
+  // 文章元数据属于内容而非 UI 文案——不属于 i18n 文案目录。
   return {
     title: post?.title,
     description: post?.description,

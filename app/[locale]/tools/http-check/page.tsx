@@ -45,11 +45,11 @@ export default async function HttpCheckPage({
 }) {
   const { locale } = await params;
   setRequestLocale(locale);
-  // Catalog metadata and page copy are both namespaced under `tools`.
+  // 目录元数据与页面文案都放在 `tools` 命名空间下。
   const t = await getTranslations("tools");
 
-  // Read every header of the incoming request on the server — the page
-  // therefore has to render dynamically.
+  // 在服务端读取传入请求的全部请求头 —— 因此该页面
+  // 必须动态渲染。
   const h = await headers();
   const all: Record<string, string> = {};
   h.forEach((value, key) => {
@@ -82,7 +82,7 @@ export default async function HttpCheckPage({
           marginBottom: 'var(--space-lg)',
         }}
       >
-        {/* ---- Source IP ---- */}
+        {/* ---- 来源 IP ---- */}
         <section style={cardStyle}>
           <h3 style={{ marginTop: 0 }}>{t("ipCard")}</h3>
           {clientIp ? (
@@ -140,7 +140,7 @@ export default async function HttpCheckPage({
           </dl>
         </section>
 
-        {/* ---- Geo clues ---- */}
+        {/* ---- 地理线索 ---- */}
         <section style={cardStyle}>
           <h3 style={{ marginTop: 0 }}>{t("geoCard")}</h3>
           {geoEntries.length > 0 ? (
@@ -200,7 +200,7 @@ export default async function HttpCheckPage({
         </p>
       </section>
 
-      {/* ---- JSON echo API ---- */}
+      {/* ---- JSON 回显 API ---- */}
       <section style={cardStyle}>
         <h3 style={{ marginTop: 0 }}>{t("apiCard")}</h3>
         <p>{t("apiDesc")}</p>

@@ -1,11 +1,11 @@
 import { useEffect } from "react";
 
-/* Constant-slab scroll state: the header keeps its full-width plate in
-   every scroll position. Past the threshold it only tightens (CSS reads
-   header[data-scrolled]) and the reading progress is exposed as
-   --scroll-progress (0..1). Both are plain attribute/style mutations -
-   no React re-renders. */
-const SCROLLED_THRESHOLD = 24; // px scrolled before the plate tightens
+/* 常驻平板（constant-slab）滚动状态：header 在任何滚动位置都保持
+   全宽的底板。超过阈值后只会收紧（CSS 读取
+   header[data-scrolled]），阅读进度以
+   --scroll-progress（0..1）暴露。两者都是纯 attribute/style 修改 ——
+   不触发 React 重渲染。 */
+const SCROLLED_THRESHOLD = 24; // 底板收紧前需要滚动的像素数
 
 export function useDockMode(
   headerRef: React.RefObject<HTMLElement | null>

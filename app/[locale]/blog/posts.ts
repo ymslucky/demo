@@ -1,8 +1,7 @@
 /**
- * Blog post catalogue — standalone Chinese content, deliberately NOT part of
- * the i18n message catalogs. Articles are written in Chinese regardless of
- * the UI locale; tests/i18n.test.ts exempts this directory from the
- * no-CJK-in-source contract for exactly this reason.
+ * 博客文章目录——独立成篇的中文内容，刻意不纳入 i18n 文案目录。
+ * 无论 UI 语言（locale）为何，文章一律以中文撰写；tests/i18n.test.ts
+ * 正是基于这一原因，将本目录豁免于源码禁用 CJK 的约定。
  */
 export type BlogPost = {
   id: string;

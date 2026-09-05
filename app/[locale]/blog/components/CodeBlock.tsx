@@ -28,7 +28,7 @@ export default function CodeBlock({ code, language = "java", title }: CodeBlockP
 
   return (
     <div className="blog-code-block">
-      {/* Header bar: mac-style dots + title + copy action */}
+      {/* 顶栏：mac 风格圆点 + 标题 + 复制操作 */}
       <div className="blog-code-block-bar">
         <div className="blog-code-block-left">
           <div className="blog-code-block-dots" aria-hidden="true">
@@ -56,7 +56,7 @@ export default function CodeBlock({ code, language = "java", title }: CodeBlockP
         </button>
       </div>
 
-      {/* Code area: line-number gutter + preformatted source */}
+      {/* 代码区：行号栏 + 预格式化源码 */}
       <div className="blog-code-block-body">
         <div className="blog-code-block-gutter" aria-hidden="true">
           {lines.map((_, i) => (
@@ -78,47 +78,47 @@ export default function CodeBlock({ code, language = "java", title }: CodeBlockP
 }
 
 /**
- * Lightweight custom syntax highlighter for basic Java/C-like snippets.
- * Returns an array of React nodes (spans with token classes) to keep it
- * safe from XSS. Token colors live in components.css (.tok-*).
+ * 轻量级自定义语法高亮器，用于基础的 Java/C 风格代码片段。
+ * 返回 React 节点数组（携带 token 类名的 span），以规避 XSS 风险。
+ * token 的配色定义在 components.css（.tok-*）中。
  */
 function highlightTokens(line: string) {
   if (!line.trim()) return " ";
 
-  // Handle single-line comments entirely
+  // 整行按单行注释处理
   if (line.trim().startsWith("//")) {
     return <span className="tok-comment">{line}</span>;
   }
 
-  // Common keywords in the provided snippets
+  // 所给代码片段中的常见关键字
   const keywords = new Set([
     'class', 'final', 'synchronized', 'boolean', 'long', 'int', 'double',
     'if', 'else', 'while', 'return', 'new', 'public', 'private', 'true', 'false'
   ]);
 
-  // Built-in classes / Objects
+  // 内置类 / 对象
   const builtIns = new Set([
     'System', 'Math', 'Queue', 'LinkedList', 'currentTimeMillis', 'min'
   ]);
 
-  // Tokenize by word boundaries, keeping symbols intact.
+  // 按单词边界分词，符号保持原样。
   const tokens = line.split(/(\b\w+\b|[^\w\s]|\s+)/g).filter(Boolean);
 
   return tokens.map((token, index) => {
-    // Keywords
+    // 关键字
     if (keywords.has(token)) {
       return <span key={index} className="tok-kw">{token}</span>;
     }
-    // Numbers
+    // 数字
     if (!isNaN(Number(token)) && token.trim() !== '') {
       return <span key={index} className="tok-num">{token}</span>;
     }
-    // Built-ins
+    // 内置类/对象
     if (builtIns.has(token)) {
       return <span key={index} className="tok-builtin">{token}</span>;
     }
 
-    // Default text
+    // 默认文本
     return <span key={index}>{token}</span>;
   });
 }

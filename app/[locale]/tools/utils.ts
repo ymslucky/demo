@@ -1,16 +1,16 @@
 /**
- * Pure utility functions for the tools page.
+ * 工具页所用的纯工具函数。
  *
- * Extracted from ToolsClient.tsx so they can be unit-tested in isolation
- * and reused without pulling in React.
+ * 从 ToolsClient.tsx 中抽取出来，便于独立做单元测试，
+ * 并在不引入 React 的前提下复用。
  *
- * `UnitDef.label` holds a translation key (e.g. "m", "km") that is resolved
- * against the `unit.<category>.<label>` message namespace at render time, so
- * the unit catalogue itself stays locale-independent.
+ * `UnitDef.label` 保存的是一个翻译键（如 "m"、"km"），渲染时会在
+ * `unit.<category>.<label>` 消息命名空间下解析，
+ * 因此单位目录本身与语言环境无关。
  */
 
 // ---------------------------------------------------------------------------
-// Unit conversion
+// 单位换算
 // ---------------------------------------------------------------------------
 
 export interface UnitDef {
@@ -43,18 +43,18 @@ export const unitData: Record<string, UnitDef[]> = {
   ],
 };
 
-/** Strip trailing zeros and unnecessary decimal point from a numeric string. */
+/** 去掉数字字符串末尾多余的 0 和不必要的小数点。 */
 function trimTrailingZeros(s: string): string {
   return s.replace(/\.?0+$/, "");
 }
 
 /**
- * Convert a value between two units within the same category.
+ * 在同一类别内的两个单位之间换算数值。
  *
- * For temperature, the formula `celsius = val * factor + offset` is used
- * (the data's offset/factor are designed for this form). The previous
- * implementation used `(val + offset) * factor`, which produced incorrect
- * results for Fahrenheit conversions.
+ * 温度采用公式 `celsius = val * factor + offset`
+ * （数据中的 offset/factor 即按此形式设计）。旧实现使用的是
+ * `(val + offset) * factor`，在华氏温度换算时会产生
+ * 错误结果。
  */
 export function convertUnit(
   category: string,
@@ -82,7 +82,7 @@ export function convertUnit(
 }
 
 // ---------------------------------------------------------------------------
-// Color helpers
+// 颜色辅助函数
 // ---------------------------------------------------------------------------
 
 export function hexToRgb(hex: string): [number, number, number] {
@@ -115,7 +115,7 @@ export interface ColorStrings {
   hsl: string;
 }
 
-/** Compute RGB and HSL display strings from a #RRGGBB hex value. */
+/** 由 #RRGGBB 十六进制值计算 RGB 与 HSL 显示字符串。 */
 export function getColorStrings(hex: string): ColorStrings {
   const [r, g, b] = hexToRgb(hex);
   const [h, s, l] = rgbToHsl(r, g, b);
@@ -126,7 +126,7 @@ export function getColorStrings(hex: string): ColorStrings {
 }
 
 // ---------------------------------------------------------------------------
-// Base64 (Unicode-safe — replaces deprecated escape/unescape)
+// Base64（Unicode 安全 — 替代已废弃的 escape/unescape）
 // ---------------------------------------------------------------------------
 
 export function encodeBase64(str: string): string {
@@ -161,7 +161,7 @@ export function formatTimezone(d: Date): string {
 }
 
 // ---------------------------------------------------------------------------
-// Case conversion
+// 大小写转换
 // ---------------------------------------------------------------------------
 
 export type CaseMode = "upper" | "lower" | "title" | "camel" | "snake";

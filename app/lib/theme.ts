@@ -1,17 +1,17 @@
 /**
- * Theme management — pure logic + thin DOM helpers.
+ * 主题管理 — 纯逻辑 + 轻量 DOM 辅助函数。
  *
- * Extracted so the decision logic (stored preference vs system preference)
- * can be unit-tested in isolation (node env), mirroring the app/tools/utils
- * pattern. All DOM access is defensive (SSR-safe).
+ * 抽取出来是为了让决策逻辑（存储的偏好 vs 系统偏好）可以
+ * 在隔离环境中做单元测试（node 环境），与 app/tools/utils 的
+ * 模式保持一致。所有 DOM 访问都是防御式的（SSR 安全）。
  *
- * Theme contract (from the CSS in globals.css):
- * - <html> no data-theme attr            -> follows system prefers-color-scheme
- * - <html data-theme="light">            -> forced light
- * - <html data-theme="dark">             -> forced dark
+ * 主题契约（来自 globals.css 中的 CSS）：
+ * - <html> 无 data-theme 属性            -> 跟随系统 prefers-color-scheme
+ * - <html data-theme="light">            -> 强制 light
+ * - <html data-theme="dark">             -> 强制 dark
  *
- * localStorage key "theme" holds the manual override ("light" | "dark").
- * Absence of the key means "follow system".
+ * localStorage 键 "theme" 保存手动覆盖值（"light" | "dark"）。
+ * 键不存在即表示"跟随系统"。
  */
 
 export const THEME_STORAGE_KEY = "theme";
@@ -27,26 +27,25 @@ export function isTheme(value: unknown): value is Theme {
 }
 
 /**
- * Resolve the effective theme from a stored preference (or null when the
- * user never chose manually) and the system preference.
- * A valid manual choice always wins; otherwise follow the system.
+ * 从存储的偏好（用户从未手动选择时为 null）与系统偏好中解析出
+ * 实际生效的主题。有效的手动选择始终优先；否则跟随系统。
  */
 export function resolveTheme(stored: string | null, systemPrefersDark: boolean): Theme {
   if (isTheme(stored)) return stored;
   return systemPrefersDark ? "dark" : "light";
 }
 
-/** Opposite theme (for the toggle button). */
+/** 相对主题（用于切换按钮）。 */
 export function nextTheme(current: Theme): Theme {
   return current === "dark" ? "light" : "dark";
 }
 
-/** True when the user has NOT manually overridden (i.e. we should follow the system). */
+/** 用户尚未手动覆盖时为 true（即应跟随系统）。 */
 export function shouldFollowSystem(stored: string | null): boolean {
   return !isTheme(stored);
 }
 
-/** Safe localStorage read; returns null when unavailable or not a valid theme. */
+/** 安全的 localStorage 读取；不可用或非有效主题时返回 null。 */
 export function getSavedTheme(): Theme | null {
   try {
     const stored = localStorage.getItem(THEME_STORAGE_KEY);
@@ -56,25 +55,25 @@ export function getSavedTheme(): Theme | null {
   }
 }
 
-/** Safe localStorage write of the manual override. */
+/** 安全地写入 localStorage 手动覆盖值。 */
 export function persistTheme(theme: Theme): void {
   try {
     localStorage.setItem(THEME_STORAGE_KEY, theme);
   } catch {
-    // storage unavailable (private mode, SSR) — theme still applies for this page
+    // storage 不可用（隐私模式、SSR）— 主题仍对本页生效
   }
 }
 
-/** Clear the manual override so the site follows the system again. */
+/** 清除手动覆盖，让站点重新跟随系统。 */
 export function clearSavedTheme(): void {
   try {
     localStorage.removeItem(THEME_STORAGE_KEY);
   } catch {
-    // ignore
+    // 忽略
   }
 }
 
-/** Current system preference for dark. SSR-safe (returns false). */
+/** 当前系统对 dark 的偏好。SSR 安全（返回 false）。 */
 export function systemPrefersDark(): boolean {
   try {
     return typeof window !== "undefined" && window.matchMedia(SYSTEM_DARK_QUERY).matches;
@@ -83,30 +82,30 @@ export function systemPrefersDark(): boolean {
   }
 }
 
-/** Current effective theme, reading the DOM attribute first, then the system. */
+/** 当前实际生效的主题，先读 DOM 属性，再读系统偏好。 */
 export function readCurrentTheme(): Theme {
   try {
     const attr = document.documentElement.getAttribute("data-theme");
     if (isTheme(attr)) return attr;
   } catch {
-    // document unavailable (SSR)
+    // document 不可用（SSR）
   }
   return systemPrefersDark() ? "dark" : "light";
 }
 
-/** Apply a theme to the document root. */
+/** 将主题应用到文档根节点。 */
 export function applyTheme(theme: Theme): void {
   try {
     document.documentElement.setAttribute("data-theme", theme);
   } catch {
-    // SSR — nothing to apply
+    // SSR — 无可应用对象
   }
 }
 
 /**
- * Inline <head>/early-body script that applies the theme BEFORE first paint,
- * preventing a flash of the wrong theme (FOUC). Self-contained ES5, no imports.
- * Same decision logic as resolveTheme: manual override wins, else system.
+ * 内联于 <head>/body 早期的脚本，在首次绘制之前应用主题，
+ * 防止错误主题闪烁（FOUC）。自包含 ES5，无 import。
+ * 与 resolveTheme 决策逻辑相同：手动覆盖优先，否则跟随系统。
  */
 export function themeInitScript(): string {
   return [

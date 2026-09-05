@@ -23,8 +23,8 @@ const COMPONENTS: Record<string, ComponentType | undefined> = {
   "case-converter": CaseConverter,
 };
 
-// http-check renders on the server (it needs request headers), so it only
-// gets a jump link here instead of an embedded component.
+// http-check 在服务端渲染（它需要请求头），因此这里只提供
+// 一个跳转链接，而不是内嵌组件。
 const tools = [
   { id: "json-formatter", icon: "json", key: "json" },
   { id: "base64", icon: "b64", key: "base64" },

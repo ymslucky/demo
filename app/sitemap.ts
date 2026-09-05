@@ -21,7 +21,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { path: "/contact", changeFrequency: "yearly", priority: 0.5 },
   ];
 
-  // The default locale (zh) is served unprefixed; other locales get a prefix.
+  // 默认 locale (zh) 不带前缀直接服务；其他 locale 附加前缀。
   return paths.flatMap(({ path, changeFrequency, priority }) =>
     routing.locales.map((locale) => ({
       url: `${baseUrl}${locale === routing.defaultLocale ? "" : `/${locale}`}${path}`,
