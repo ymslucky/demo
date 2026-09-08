@@ -1,0 +1,175 @@
+/* ============================================
+   Clerk auth components — Neo-Brutalism reskin
+   Restyles the built-in SignIn / SignUp / UserButton
+   surfaces to match the project design tokens.
+
+   Wiring (two halves, keep both in sync conceptually):
+   1. <ClerkProvider appearance.variables> in layout.tsx
+      maps Clerk's internal color/radius/font variables to
+      project tokens via var() indirection, so light/dark
+      theme flips apply automatically.
+   2. appearance.elements attaches the "auth-*" classes
+      that THIS file styles (hard borders, solid offset
+      shadows, zero blur — see AGENTS.md §2).
+   ============================================ */
+
+/* ---- Modal shell ---- */
+
+/* Kill the default frosted-glass backdrop; solid dim instead */
+.auth-backdrop {
+  background: rgba(0, 0, 0, 0.55) !important;
+  backdrop-filter: none !important;
+}
+
+/* The dialog plate: same treatment as .card in components.css */
+.auth-modal {
+  background: var(--color-surface) !important;
+  border: 3px solid var(--color-border) !important;
+  border-radius: var(--radius-md) !important;
+  box-shadow: var(--shadow-primary) !important;
+  overflow: hidden;
+}
+
+/* The inner card must not draw its own frame inside the modal */
+.auth-modal .auth-card {
+  background: transparent !important;
+  box-shadow: none !important;
+  border: 0 !important;
+}
+
+/* ---- Typography ---- */
+
+.auth-title {
+  color: var(--color-text) !important;
+  font-weight: 800 !important;
+}
+
+.auth-subtitle {
+  color: var(--color-text-muted) !important;
+}
+
+.auth-label {
+  color: var(--color-text-muted) !important;
+  font-size: var(--fs-xs) !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.auth-divider-text {
+  color: var(--color-text-muted) !important;
+  font-size: var(--fs-xs) !important;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.auth-divider-line {
+  background: var(--color-border) !important;
+  opacity: 0.2;
+}
+
+/* ---- Inputs ---- */
+
+.auth-input {
+  background: var(--color-bg) !important;
+  border: 1px solid var(--color-border) !important;
+  border-radius: var(--radius-sm) !important;
+  box-shadow: none !important;
+  color: var(--color-text) !important;
+  transition: var(--transition);
+}
+
+.auth-input:hover {
+  border-color: var(--color-primary-light) !important;
+}
+
+.auth-input:focus {
+  border-color: var(--color-primary) !important;
+  box-shadow: var(--focus-ring) !important;
+}
+
+/* OTP / verification-code boxes share the input treatment */
+.auth-otp {
+  border: 1px solid var(--color-border) !important;
+  border-radius: var(--radius-sm) !important;
+  background: var(--color-bg) !important;
+  color: var(--color-text) !important;
+}
+
+/* ---- Buttons ---- */
+
+/* Primary submit: the signature accent plate with hard offset shadow */
+.auth-submit {
+  background: var(--color-btn-primary) !important;
+  color: var(--color-on-primary) !important;
+  border: 2px solid var(--color-border) !important;
+  border-radius: var(--radius-sm) !important;
+  box-shadow: var(--shadow-sm) !important;
+  font-weight: 700 !important;
+  transition: var(--transition);
+}
+
+.auth-submit:hover {
+  transform: translate(-1px, -1px);
+  box-shadow: 3px 3px 0 0 var(--color-border) !important;
+}
+
+.auth-submit:active {
+  transform: translate(1px, 1px);
+  box-shadow: none !important;
+}
+
+/* OAuth provider buttons: ghost style, mirrors .dock-auth-btn */
+.auth-oauth-btn {
+  background: transparent !important;
+  border: 1px solid var(--color-border) !important;
+  border-radius: var(--radius-sm) !important;
+  box-shadow: none !important;
+  color: var(--color-text) !important;
+  font-weight: 600 !important;
+  transition: var(--transition);
+}
+
+.auth-oauth-btn:hover {
+  background: var(--color-tint) !important;
+  border-color: var(--color-primary-light) !important;
+  color: var(--color-primary) !important;
+}
+
+/* Secondary/reset actions ("Use another method", etc.) */
+.auth-ghost {
+  background: transparent !important;
+  box-shadow: none !important;
+  color: var(--color-text-muted) !important;
+  font-weight: 600 !important;
+  transition: var(--transition);
+}
+
+.auth-ghost:hover {
+  background: var(--color-tint) !important;
+  color: var(--color-primary) !important;
+}
+
+/* ---- Links & feedback ---- */
+
+.auth-link {
+  color: var(--color-primary) !important;
+  font-weight: 600;
+  text-decoration: underline;
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 3px;
+  transition: var(--transition);
+}
+
+.auth-link:hover {
+  color: var(--color-primary-dark) !important;
+}
+
+/* ---- UserButton popover ---- */
+
+.auth-popover {
+  background: var(--color-surface) !important;
+  border: 3px solid var(--color-border) !important;
+  border-radius: var(--radius-md) !important;
+  box-shadow: var(--shadow-sm) !important;
+}

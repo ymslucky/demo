@@ -6,6 +6,8 @@
    3. dock       — top dock navigation, skip link, lang/theme toggles
    4. components — page sections and UI building blocks
    5. ui         — primitives for components/ui/* (Alert)
+   6. heatmap    — contribution heatmap colors
+   7. clerk      — Clerk auth components re-skinned to Neo-Brutalism
    ============================================ */
 
 @import "./styles/tokens.css";
@@ -14,3 +16,4 @@
 @import "./styles/components.css";
 @import "./styles/ui.css";
 @import "./styles/heatmap.css";
+@import "./styles/clerk.css";

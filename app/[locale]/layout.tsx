@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { ClerkProvider } from "@clerk/nextjs";
+import { zhCN, enUS } from "@clerk/localizations";
 import { NextIntlClientProvider } from "next-intl";
 import { getMessages, getTranslations, setRequestLocale } from "next-intl/server";
 import { routing } from "@/i18n/routing";
@@ -9,6 +10,44 @@ import "../globals.css";
 import Nav from "./components/Nav";
 import Footer from "./components/Footer";
 import ThemeSync from "./components/ThemeSync";
+
+// Clerk 内置组件的 Neo-Brutalism 主题化：
+// - variables 用 "var(--token)" 间接引用项目 CSS 变量，明暗主题切换自动跟随；
+// - elements 给 Clerk 内部部件挂 auth-* class，样式本体在 app/styles/clerk.css
+//   （覆写 Clerk 运行时注入样式，故全部带 !important）。
+const clerkAppearance = {
+  variables: {
+    colorPrimary: "var(--color-btn-primary)",
+    colorBackground: "var(--color-surface)",
+    colorInputBackground: "var(--color-bg)",
+    colorInputText: "var(--color-text)",
+    colorText: "var(--color-text)",
+    colorTextSecondary: "var(--color-text-muted)",
+    colorSuccess: "var(--color-accent)",
+    colorDanger: "var(--color-err-text)",
+    colorWarning: "var(--color-primary-light)",
+    colorNeutral: "var(--color-text-muted)",
+    borderRadius: "var(--radius-sm)",
+    fontFamily: "var(--font-body)",
+  },
+  elements: {
+    modalBackdrop: "auth-backdrop",
+    modalContent: "auth-modal",
+    card: "auth-card",
+    headerTitle: "auth-title",
+    headerSubtitle: "auth-subtitle",
+    socialButtonsBlockButton: "auth-oauth-btn",
+    dividerLine: "auth-divider-line",
+    dividerText: "auth-divider-text",
+    formFieldLabel: "auth-label",
+    formFieldInput: "auth-input",
+    formButtonPrimary: "auth-submit",
+    formButtonReset: "auth-ghost",
+    footerActionLink: "auth-link",
+    otpCodeFieldInput: "auth-otp",
+    userButtonPopoverCard: "auth-popover",
+  },
+} as const;
 
 // 省略 `weight` 会加载 Inter 的可变字体文件（一个 woff2 覆盖
 // 100-900），而不是四个按字重拆分的静态文件 — 请求数更少，并且
@@ -92,7 +131,10 @@ export default async function LocaleLayout({
       <body>
         {/* ClerkProvider 必须位于 <body> 内（不得包裹 <html>），
             详见 Clerk Next.js quickstart 的关键规则。 */}
-        <ClerkProvider>
+        <ClerkProvider
+          appearance={clerkAppearance}
+          localization={locale === "zh" ? zhCN : enUS}
+        >
           <NextIntlClientProvider messages={messages} locale={locale}>
             <ThemeSync />
             <div className="page">

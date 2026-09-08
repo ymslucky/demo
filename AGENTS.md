@@ -90,6 +90,7 @@ npm run build  # next build --webpack
 | i18n locale catalogues | [messages/zh.json](messages/zh.json) · [messages/en.json](messages/en.json) |
 | i18n link primitives / request config | [i18n/navigation.ts](i18n/navigation.ts) · [i18n/request.ts](i18n/request.ts) |
 | Clerk keys (never commit) | `.env.local` |
+| Clerk component theming (`clerkAppearance` + `auth-*` classes) | `app/[locale]/layout.tsx` + [app/styles/clerk.css](app/styles/clerk.css) |
 | Presence heartbeat (online count, KV) | [functions/api/presence.js](functions/api/presence.js) + [Presence.tsx](app/[locale]/components/Presence.tsx) |
 | GitHub stars proxy + KV cache + card | [functions/api/github/stars.js](functions/api/github/stars.js) + [GithubStarsCard.tsx](app/[locale]/components/GithubStarsCard.tsx) |
 | http-check debug endpoints | [functions/api/echo.js](functions/api/echo.js) · [functions/api/headers.js](functions/api/headers.js) |
