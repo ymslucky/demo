@@ -7,6 +7,7 @@ import {
   parseTokenPayload,
   readSessionToken,
   sumCounts,
+  verifyRs256,
   verifySessionToken,
   verifyTokenDetailed,
 } from "../functions/api/counter.js";
@@ -374,6 +375,68 @@ describe("counter session token helpers", () => {
     await expect(
       verifySessionToken(mismatched, { jwks: [jwk], allowedIssuers: [ISS] }),
     ).resolves.toBeNull();
+  });
+
+  it("verifyRs256 validates RSA signatures with pure BigInt math (no subtle.verify)", async () => {
+    const { privateKey, jwk } = await makeRsaKey("rsa-key");
+    const signingInput = `${b64urlJson({ alg: "RS256", kid: "rsa-key" })}.${b64urlJson({
+      sub: "u",
+      exp: 1_900_000_000,
+    })}`;
+    const signature = new Uint8Array(
+      await crypto.subtle.sign(
+        { name: "RSASSA-PKCS1-v1_5" },
+        privateKey,
+        encoder.encode(signingInput),
+      ),
+    );
+
+    await expect(verifyRs256(jwk, signingInput, signature, crypto)).resolves.toBe(true);
+
+    const flipped = signature.slice();
+    flipped[0] ^= 0xff;
+    await expect(verifyRs256(jwk, signingInput, flipped, crypto)).resolves.toBe(false);
+
+    // Malformed inputs degrade to false instead of throwing.
+    await expect(
+      verifyRs256({ ...jwk, n: "!!!" }, signingInput, signature, crypto),
+    ).resolves.toBe(false);
+    await expect(verifyRs256(jwk, signingInput, signature.slice(1), crypto)).resolves.toBe(false);
+  });
+
+  it("verifyTokenDetailed verifies RS256 without RSA support in crypto.subtle (edge regression)", async () => {
+    const { privateKey, jwk } = await makeRsaKey("rsa-key");
+    const exp = Math.floor(Date.now() / 1000) + 600;
+    const token = await buildToken(
+      privateKey,
+      { alg: "RS256", kid: "rsa-key", typ: "JWT" },
+      { sub: "user_edge", iss: ISS, azp: AZP, exp },
+    );
+
+    // EdgeOne's runtime throws on RSA importKey/verify while digest() works;
+    // RS256 must still verify through the pure-JS path instead of surfacing
+    // the reason "crypto" like the production incident did.
+    const edgeCrypto = {
+      subtle: {
+        digest: (alg: AlgorithmIdentifier, data: BufferSource) =>
+          crypto.subtle.digest(alg, data),
+        importKey: () => {
+          throw new Error("RSASSA-PKCS1-v1_5 unsupported");
+        },
+        verify: async () => {
+          throw new Error("RSASSA-PKCS1-v1_5 unsupported");
+        },
+      },
+    } as unknown as Crypto;
+
+    await expect(
+      verifyTokenDetailed(token, {
+        jwks: [jwk],
+        allowedIssuers: [ISS],
+        allowedAzp: [AZP],
+        crypto: edgeCrypto,
+      }),
+    ).resolves.toMatchObject({ ok: true, payload: { sub: "user_edge" } });
   });
 
   it("verifyTokenDetailed pins the issuer and rejects unknown iss / mismatched azp", async () => {

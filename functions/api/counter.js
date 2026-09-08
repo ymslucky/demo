@@ -8,10 +8,12 @@
  * - KV 无原子 INCR，"+1" 通过 get → +1 → put 的读改写实现；
  * - KV 为最终一致（约 60s 全球同步），总数是近似值而非精确快照。
  *
- * 登录验证（Clerk 会话，边缘运行时 Web Crypto，对齐官方手动验签清单）：
+ * 登录验证（Clerk 会话，对齐官方手动验签清单）：
  * - 读取 __session cookie 中的 Clerk 会话 JWT，按 header.alg 分派验签：
- *   ES256 = ECDSA P-256 + SHA-256；RS256 = RSASSA-PKCS1-v1_5 + SHA-256
- *   （生产实例 JWKS 实测密钥型为 RSA/RS256）；其余算法直接拒绝；
+ *   ES256 = ECDSA P-256 + SHA-256（Web Crypto）；RS256 = RSASSA-PKCS1-v1_5
+ *   + SHA-256（纯 JS BigInt 实现——生产实例密钥型为 RSA，而边缘运行时
+ *   crypto.subtle 不支持 RSA，实测 importKey/verify 抛异常，见 verifyRs256）；
+ *   其余算法直接拒绝；
  * - 钉死 issuer：payload.iss 必须命中 ALLOWED_ISSUERS 白名单，JWKS 只从
  *   白名单实例回源——绝不信任 token 内任意 iss（否则攻击者可自造 JWKS
  *   伪造任意身份，构成认证绕过）；
@@ -22,8 +24,8 @@
  * - JWKS 按 <iss>/.well-known/jwks.json 回源（模块级缓存 1h），按
  *   header.kid 选取公钥；kid 未命中时强制刷新 JWKS 重试一次（自愈密钥
  *   轮换与陈旧缓存），仍无则拒绝；
- * - crypto.subtle.importKey("jwk", …) + verify 验签；验证通过即视为登录，
- *   uid 取 payload.sub。
+ * - ES256 经 crypto.subtle.importKey("jwk", …) + verify 验签；验证通过
+ *   即视为登录，uid 取 payload.sub。
  *
  * 错误语义：401 unauthorized（未登录/会话过期/验签失败，响应附
  * x-auth-fail 诊断头说明失败环节）、400 invalid-json、
@@ -180,6 +182,109 @@ export function isTokenFresh(payload, now = Date.now()) {
   return !Number.isFinite(nbf) || now / 1000 >= nbf - CLOCK_SKEW_S;
 }
 
+// ---------------------------------------------------------------------------
+// RS256 纯 JS 验签（BigInt RSA 公钥运算）
+//
+// 线上实测：EdgeOne 边缘运行时的 crypto.subtle 不支持 RSASSA-PKCS1-v1_5
+// （生产 Clerk 实例签发 RS256，importKey/verify 抛异常 → 401 且诊断头
+// x-auth-fail: crypto；同一 token 在本地 Node 环境验签通过）。因此 RS256
+// 不走 Web Crypto，改为纯 JS 实现 RFC 8017 RSASSA-PKCS1-v1_5 验签：
+// - 公钥运算 s^e mod n 用 BigInt 平方-乘法；公开指数 e=65537 仅 17 位，
+//   2048 位模长约 17 次模平方 + 1 次模乘，亚毫秒级，无性能担忧；
+// - SHA-256 摘要仍用 crypto.subtle.digest（最基础操作，边缘必支持）；
+// - 填充比对采用 EMSA-PKCS1-v1_5（RFC 8017 §9.2）：
+//   em = 00 01 FF..FF 00 || DigestInfo(SHA-256) || H(signingInput)。
+// ---------------------------------------------------------------------------
+
+/** SHA-256 的 DER DigestInfo 前缀（RFC 8017 §9.2 注 1），共 19 字节。 */
+const SHA256_DIGEST_INFO = Uint8Array.from([
+  0x30, 0x31, 0x30, 0x0d, 0x06, 0x09, 0x60, 0x86, 0x48, 0x01,
+  0x65, 0x03, 0x04, 0x02, 0x01, 0x05, 0x00, 0x04, 0x20,
+]);
+
+/** 字节序列 → BigInt（大端序）。 */
+function bytesToBigInt(bytes) {
+  let value = 0n;
+  for (const byte of bytes) value = (value << 8n) | BigInt(byte);
+  return value;
+}
+
+/** BigInt → 定长 k 字节大端字节序列（调用方保证 value < 2^(8k)，不截断）。 */
+function bigIntToBytes(value, length) {
+  const bytes = new Uint8Array(length);
+  for (let i = length - 1; i >= 0; i -= 1) {
+    bytes[i] = Number(value & 0xffn);
+    value >>= 8n;
+  }
+  return bytes;
+}
+
+/** BigInt 模幂（平方-乘法）：base^exponent mod modulus。 */
+function modPow(base, exponent, modulus) {
+  let result = 1n;
+  let b = base % modulus;
+  let e = exponent;
+  while (e > 0n) {
+    if (e & 1n) result = (result * b) % modulus;
+    b = (b * b) % modulus;
+    e >>= 1n;
+  }
+  return result;
+}
+
+/**
+ * RS256（RSASSA-PKCS1-v1_5 + SHA-256）纯 JS 验签：签名有效返回 true。
+ * jwk 为 RSA 公钥（kty "RSA"，n/e 为 base64url）；cryptoObj 仅用于
+ * subtle.digest。任何非法输入（解码失败/长度不符/填充错误）一律 false。
+ * 导出仅供测试。
+ *
+ * @param {Record<string, unknown>} jwk
+ * @param {string} signingInput
+ * @param {Uint8Array} signature
+ * @param {Crypto} cryptoObj
+ * @returns {Promise<boolean>}
+ */
+export async function verifyRs256(jwk, signingInput, signature, cryptoObj) {
+  try {
+    // 标准 RSA JWK 的 n 按"去前导零"序列化，解码后恰为模长 k 字节。
+    const nBytes = base64UrlDecode(jwk.n);
+    const k = nBytes.length;
+    if (k < 20 || signature.length !== k) return false;
+    const n = bytesToBigInt(nBytes);
+    const s = bytesToBigInt(signature);
+    // RFC 8017 §5.2.2 步骤 2b：s 不在 [0, n-1] 内即无效。
+    if (s >= n) return false;
+
+    // RSA 公钥运算：em = s^e mod n。
+    const e = bytesToBigInt(base64UrlDecode(jwk.e));
+    const em = bigIntToBytes(modPow(s, e, n), k);
+
+    // EMSA-PKCS1-v1_5 编码比对：00 01 FF..FF 00 || DigestInfo || H(m)。
+    const hash = new Uint8Array(
+      await cryptoObj.subtle.digest("SHA-256", new TextEncoder().encode(signingInput)),
+    );
+    const t = SHA256_DIGEST_INFO.length + hash.length;
+    if (k < t + 11 || em[0] !== 0x00 || em[1] !== 0x01) return false;
+    let idx = 2;
+    while (idx < k - t - 1) {
+      if (em[idx] !== 0xff) return false;
+      idx += 1;
+    }
+    if (em[idx] !== 0x00) return false;
+    idx += 1;
+    for (let i = 0; i < SHA256_DIGEST_INFO.length; i += 1) {
+      if (em[idx + i] !== SHA256_DIGEST_INFO[i]) return false;
+    }
+    idx += SHA256_DIGEST_INFO.length;
+    for (let i = 0; i < hash.length; i += 1) {
+      if (em[idx + i] !== hash[i]) return false;
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 // 模块级 JWKS 缓存：iss → { keys, expiresAt }，避免每次请求都回源。
 const jwksCache = new Map();
 
@@ -293,20 +398,19 @@ export async function verifyTokenDetailed(
   }
   if (!jwk) return { ok: false, reason: "kid" };
 
-  // RS256 的 hash 在 importKey 时绑定进密钥；ECDSA 在 verify 时指定。
-  const importParams = alg === "RS256"
-    ? { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" }
-    : { name: "ECDSA", namedCurve: "P-256" };
-  const verifyParams = alg === "RS256"
-    ? { name: "RSASSA-PKCS1-v1_5" }
-    : { name: "ECDSA", hash: "SHA-256" };
-
+  // 验签分派：RS256 走上方纯 JS 实现（边缘 subtle 不支持 RSA，背景见
+  // verifyRs256 注释），单一确定性路径；ES256 走 Web Crypto（ECDSA
+  // P-256 边缘支持良好，hash 在 verify 时指定）。
+  if (alg === "RS256") {
+    const ok = await verifyRs256(jwk, parsed.signingInput, parsed.signature, cryptoObj);
+    return ok ? { ok: true, payload } : { ok: false, reason: "sig" };
+  }
   try {
     const key = await cryptoObj.subtle.importKey(
-      "jwk", jwk, importParams, false, ["verify"],
+      "jwk", jwk, { name: "ECDSA", namedCurve: "P-256" }, false, ["verify"],
     );
     const ok = await cryptoObj.subtle.verify(
-      verifyParams,
+      { name: "ECDSA", hash: "SHA-256" },
       key,
       parsed.signature,
       new TextEncoder().encode(parsed.signingInput),
