@@ -21,8 +21,12 @@
   backdrop-filter: none !important;
 }
 
-/* The dialog plate: same treatment as .card in components.css */
+/* The dialog plate: same treatment as .card in components.css.
+   Clerk anchors the modal to the top (backdrop flex-start + 64px top
+   margin); margin:auto centers it vertically in the flex backdrop and
+   degrades to scrollable when the viewport is shorter than the card. */
 .auth-modal {
+  margin: auto !important;
   background: var(--color-surface) !important;
   border: 3px solid var(--color-border) !important;
   border-radius: var(--radius-md) !important;
