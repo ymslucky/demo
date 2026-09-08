@@ -32,7 +32,7 @@ function fakeKv(entries: Array<[string, string]> = []) {
       const keys = [...store.keys()]
         .filter((key) => key.startsWith(prefix ?? ""))
         .slice(0, limit ?? 256)
-        .map((key) => ({ name: key })); // official ListResult shape: { name }
+        .map((key) => ({ key })); // official ListResult shape: ListKey { key }
       return { complete: true, cursor: "", keys };
     },
     async get(key: string) {
@@ -85,7 +85,7 @@ describe("presence countOnline", () => {
     expect(kv.store.has("presence_fresh")).toBe(true);
   });
 
-  it("accepts list entries as strings or { name } objects", async () => {
+  it("accepts list entries as strings or { key } objects", async () => {
     const store = new Map([
       ["presence_a", String(NOW)],
       ["presence_b", String(NOW)],
@@ -95,8 +95,8 @@ describe("presence countOnline", () => {
       list: async () => ({
         complete: true,
         cursor: "",
-        keys: ["presence_a", { name: "presence_b" }] as Array<
-          string | { name: string }
+        keys: ["presence_a", { key: "presence_b" }] as Array<
+          string | { key: string }
         >,
       }),
       get: async (key: string) => store.get(key) ?? null,

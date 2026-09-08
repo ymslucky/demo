@@ -29,8 +29,11 @@ export function sessionKey(sessionId) {
 }
 
 function getKv() {
-  // 官方语义：绑定命名空间按控制台设置的变量名（DICTIONARY）注入为
-  // 全局变量，而非 context.env 属性 —— 只探测 globalThis，未绑定返回 null。
+  // 官方语义（同官方模板的裸标识符用法）：绑定命名空间按控制台设置的
+  // 变量名（DICTIONARY）注入为全局变量，而非 context.env 属性。
+  // 裸标识符配 typeof 守卫（未绑定时 typeof 不抛 ReferenceError），
+  // 再退回 globalThis 属性探测；两者皆无视为未绑定，返回 null。
+  if (typeof DICTIONARY !== "undefined") return DICTIONARY;
   return globalThis?.[KV_BINDING] ?? null;
 }
 
@@ -55,9 +58,9 @@ export async function countOnline(kv, { now = Date.now(), sweep = false } = {}) 
   const result = await kv.list({ prefix: KEY_PREFIX, limit: LIST_PAGE_SIZE });
   const entries = Array.isArray(result?.keys) ? result.keys : [];
 
-  // 官方 ListResult 的键条目字段名为 name。
+  // 官方 ListResult 的键条目为 ListKey 对象，键名字段是 key。
   const names = entries
-    .map((entry) => (typeof entry === "string" ? entry : entry?.name))
+    .map((entry) => (typeof entry === "string" ? entry : entry?.key))
     .filter((name) => typeof name === "string");
 
   // 官方最佳实践：list 后用 Promise.all 批量读取，而非逐 key 串行等待。
