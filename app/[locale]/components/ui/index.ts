@@ -11,5 +11,3 @@ export { Textarea } from "./Textarea";
 export type { TextareaProps } from "./Textarea";
 export { Alert } from "./Alert";
 export type { AlertProps, AlertVariant } from "./Alert";
-export { Table } from "./Table";
-export type { TableProps } from "./Table";

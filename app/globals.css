@@ -5,7 +5,7 @@
    2. base       — reset, element defaults, layout, a11y utilities
    3. dock       — top dock navigation, skip link, lang/theme toggles
    4. components — page sections and UI building blocks
-   5. ui         — primitives for components/ui/* (Alert, Table)
+   5. ui         — primitives for components/ui/* (Alert)
    ============================================ */
 
 @import "./styles/tokens.css";
