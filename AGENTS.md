@@ -10,93 +10,85 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 ---
 
-# AGENTS.md — LuckyLab Demo Workspace Rules
+# AGENTS.md — LuckyLab 演示项目工作区规则
+
 <!--
-  This file is intentionally free-form. The workspace rules mechanism loads it
-  as the project-level contract for *any* AI agent editing this repo. Keep it
-  authoritative, short, and cross-referenced to actual source files so the
-  agent can verify every rule against reality.
+  本文件是项目契约的*索引*：技术栈事实、硬性不变量、质量门禁，以及详细
+  知识库的导航图。它刻意保持精简——领域细节契约放在 `skills/` 下的各 skill 中。
+  每条规则都与实际源文件交叉引用，agent 可对照源码验证。
 -->
 
-## 0. Stack & Style Contract
-- **Runtime**: Next.js **16.3.0** (App Router) in **SSR mode** — deployed to EdgeOne Pages via its Next.js framework adapter ([edgeone.json](edgeone.json): `outputDirectory: ".next"`). The Next.js server runs at the edge, so `proxy.ts`, server components, and prerendered routes are all available. React **19.2.8** · TypeScript · next-intl · **Clerk auth** (`@clerk/nextjs`, keys in `.env.local`) · **no Tailwind** (plain hand-written CSS + CSS variables).
-- **Two server layers**: (a) the **Next.js layer** ([proxy.ts](proxy.ts) + server components) owns routing, auth session refresh, locale negotiation, and page rendering; (b) **EdgeOne Pages Edge Functions** under [functions/](functions/) own the KV-backed HTTP APIs (`/api/presence`, `/api/counter`, `/api/echo`, `/api/headers`). Do not move KV logic into `app/api/**` Route Handlers — the edge functions are the KV integration point (§5).
-- **UI flavour**: **Neo-Brutalism**. Hard 3px borders, solid offset `box-shadow` (2-4px displacement, NO blur drop-shadows anywhere on structural cards/buttons/dock), #ea580c orange accent, Inter for body, JetBrains Mono fallback for `<code>`-style labels.
-- **Nav UX**: **Morphing Slab** nav ([Nav.tsx](app/[locale]/components/Nav.tsx)). Invariants: the header is a *constant* full-width plate in every scroll position — it never morphs into a floating capsule; scrolling past 24px only tightens it and fills a progress rule (`header[data-scrolled]`, via [useDockMode.ts](app/[locale]/components/nav/useDockMode.ts)). Press physics ([useDockPress.ts](app/[locale]/components/nav/useDockPress.ts)): every pointer frame mutates styles inside a single `rAF` loop (zero React renders per frame) and feeds an under-damped spring shared with keyboard focus; `prefers-reduced-motion` and non-fine pointers disable motion entirely. Exact tuning constants live in the source — treat them as the documented "feel", not as free parameters. Auth controls in the dock ([Nav.tsx](app/[locale]/components/Nav.tsx)): `<Show when="signed-out">` renders `SignInButton`/`SignUpButton` (modal mode), `<Show when="signed-in">` renders `UserButton` — Clerk v7 removed `SignedIn`/`SignedOut`; use `Show`.
-- **Locale routing**: [i18n/routing.ts](i18n/routing.ts) uses `localePrefix: "always"` — every URL is `/zh/…` or `/en/…` with a trailing slash. Unprefixed paths are locale-negotiated by `intlMiddleware` inside [proxy.ts](proxy.ts): `NEXT_LOCALE` cookie → `Accept-Language` weights → default `zh`, answered with a redirect (never cached). **Exception — the bare root `/`**: on EdgeOne Pages the adapter's static layer handles `/` before the Next.js server (no static file → 404), so proxy.ts never runs there; [app/route.ts](app/route.ts) is a dynamic fallback handler that performs the same negotiation server-side (`NEXT_LOCALE` cookie → `Accept-Language` weights → default `zh`) and answers a temporary redirect to `/<locale>/`. Keep both paths in sync when touching locale negotiation.
-- **Zero-runtime motion & icons**: no framer-motion / lucide-react or similar runtime dependencies — animations are hand-written CSS keyframes, icons are inline SVGs (24-grid, `stroke="currentColor"`, `aria-hidden`). Bundle weight is a design constraint: check the `npm run build` chunk table when touching client components.
+## 0. 技术栈与双层架构
 
-## 1. HARD CONSTRAINTS — do not violate
-1. **Hybrid architecture — keep the layers separate.** `proxy.ts` is the single composition point for request-time middleware: `clerkMiddleware` wraps `intlMiddleware` (in that order), and its `config.matcher` must keep all three segments — the static-file exclusion regex, `"/(api|trpc)(.*)"`, and `'/__clerk/:path*'` (Clerk auto-proxy, always last). **KV-backed API endpoints live in `functions/` (§5), not `app/api/**`** — do not recreate them as Route Handlers. `dynamic = "force-dynamic"` is allowed only where genuinely required (auth-dependent pages render via `<Show>` on the client instead; prefer static/prerendered output whenever possible).
-2. **`app/**/*.ts(x)` keeps Chinese out of code** — string literals, JSX text nodes and identifiers must be CJK-free. Chinese **is allowed in comments** (`//`, `/* */`, JSDoc) for readability. Enforcement scope: `tests/i18n.test.ts` scans `app/` only and exempts `app/[locale]/blog/**` (standalone article content, not i18n UI copy). Outside `app/` there is no restriction (`messages/*.json`, `app/styles/*.css`, `functions/`, E2E scripts). Mechanism: comments are stripped via `ts.transpileModule({ removeComments: true })` (JSX preserved) before scanning, so only real code content is checked.
-3. **User-facing strings & ARIA labels always go through next-intl** (`useTranslations`, `getTranslations`). Literal `aria-label="…"` with human words in TSX → failing test. Exceptions: machine-only attributes (`aria-current="page"`, `data-*`, CSS class names).
-4. **Theme init script is server-rendered by the root layout — and nowhere else.** [layout.tsx](app/[locale]/layout.tsx) renders `<script dangerouslySetInnerHTML={{ __html: themeInitScript() }} />` inside `<head>` (Next.js official preventing-flash-before-hydration pattern; source of the string: [app/lib/theme.ts](app/lib/theme.ts)). The layout is the **only** component in `app/` allowed to render a `<script>` node — any other occurrence fails `tests/theme-i18n.test.ts`. `<html>` keeps `suppressHydrationWarning` because the script sets `data-theme` before hydration. React never warns about it: the warning only fires for script nodes produced by *client* renders, and the layout is a server component.
-5. **`@swc/helpers` pinned to `0.5.17`** via `package.json` → `"overrides"`. Bump only when you've verified both `next build --webpack` and `next dev --turbopack` still compile the App Router.
+- **运行时**：Next.js **16.3.0**（App Router，SSR 模式），经其框架适配器部署到 EdgeOne Pages（[edgeone.json](edgeone.json)：`outputDirectory: ".next"`）——Next.js 服务器直接跑在边缘。React **19.2.8** · TypeScript · next-intl · **Clerk 认证**（`@clerk/nextjs`，密钥在 `.env.local`）· **不用 Tailwind**（纯手写 CSS + CSS 变量）。
+- **两层服务端**（保持分离）：
+  - **Next.js 层**（[proxy.ts](proxy.ts) + 服务端组件）负责路由、认证中间件组合、区域协商与页面渲染；
+  - **EdgeOne Pages 边缘函数**（[functions/](functions/)）承载 KV 支撑的 HTTP API（`/api/presence`、`/api/counter`、`/api/echo`、`/api/headers`）。
+  - **不要**把 KV 逻辑挪进 `app/api/**` Route Handlers——边缘函数才是 KV 集成点。
+- **UI 风格**：Neo-Brutalism（完整契约见 `neo-brutalism-ui` skill）。
 
-## 2. CSS Rules (Neo-Brutalism invariants)
-- Keep every surface under a single family of variables in [globals.css](app/globals.css) / [tokens.css](app/styles/tokens.css): `--color-border`, `--color-surface`, `--shadow-sm/lg/primary`, `--radius-sm/md/lg`.
-- Blurred `box-shadow` is **disallowed** on UI elements. Depth is always a solid, displaced border-colored pixel block — `2px 2px 0 0 var(--color-border)` and its relatives. If you want lift, grow the *displacement*.
-- Containers are fluid with clamp()-scaled gutters — `.container` / `.footer-container` use `padding-inline: clamp(var(--space-md), 4vw, var(--space-2xl))`. `.container` is additionally center-capped at `max-width: 100rem; margin-inline: auto` so ultra-wide (2K/4K) displays keep generous side margins; do not shrink that cap. Breakpoints are `880px` (brand collapses → single-letter mark) and `640px` (dock becomes scrollable rail). Respect them when adding new navigation chrome.
-- Do **not** re-introduce Tailwind. The project intentionally ships 0 CSS-in-JS / utility-class runtime.
+## 1. Skills —— 详细知识库
 
-## 3. Anti-FOUC Theme Script — SSR CONTRACT
-The theme init script must execute during HTML parsing, **before first paint**, to set `data-theme` and avoid a light/dark flash. The approved mechanism changed with the SSR migration:
+领域契约位于 `skills/<name>/SKILL.md`（中文撰写）。**动手改某领域前先读对应
+skill**；本文件只保留不变量。
 
-1. **Single source of truth**: `themeInitScript()` lives in [app/lib/theme.ts](app/lib/theme.ts) (self-contained ES5 string, no imports).
-2. **Server-rendered inline in `<head>`**: the root layout is a server component; its `<script dangerouslySetInnerHTML>` output executes synchronously during HTML parse and never enters the client React tree. Do **not** switch to `next/script` (`strategy="beforeInteractive"` still creates a client-side VDOM script node and triggers the React 19 warning on client navigations) and do **not** use `<template>` (inert content does not auto-run).
-3. **The layout is the only `<script>` renderer** in `app/` — enforced by `tests/theme-i18n.test.ts`, which also fails if the build-time injector ([scripts/inject-theme.mjs](scripts/inject-theme.mjs), retired with the static export) ever reappears.
-4. `suppressHydrationWarning` on `<html>` exists solely to swallow the `data-theme` attribute mismatch caused by the pre-hydration script; it is unrelated to script elements.
+| Skill | 触发场景 |
+|---|---|
+| [`clerk-edge-auth`](skills/clerk-edge-auth/SKILL.md) | 认证、Clerk 组件、`__session`、登录门控、`proxy.ts` 中间件、会话 JWT 验签（含纯 JS RS256 强制要求与 `x-auth-fail` 诊断） |
+| [`edgeone-functions-kv`](skills/edgeone-functions-kv/SKILL.md) | `functions/`、KV 存储、`/api/*` 端点、`edgeone.json`、缓存规则、运行时约束 |
+| [`neo-brutalism-ui`](skills/neo-brutalism-ui/SKILL.md) | CSS/token、阴影、容器与断点、Nav/dock、动效、图标、主题初始化脚本 |
+| [`i18n-locale-routing`](skills/i18n-locale-routing/SKILL.md) | 区域路由与协商、尾斜杠 URL 契约、`app/route.ts` 根路径兜底、`messages/*.json`、CJK-free 规则细节 |
 
-## 4. Quality Gates (must all be green before any push)
+## 2. 硬性约束 —— 不得违反
+
+1. **`proxy.ts` 是唯一的请求时组合点**：`clerkMiddleware` 包裹 `intlMiddleware`（保持此顺序）；`config.matcher` 必须保留全部三段——静态文件排除正则、`"/(api|trpc)(.*)"`、`'/__clerk/:path*'`（永远最后）。
+2. **KV 支撑的 API 端点放在 `functions/`，不放 `app/api/**`**（§0）。`dynamic = "force-dynamic"` 只用在真正必需处——依赖认证状态的页面用客户端 `<Show>` 渲染；优先静态/预渲染输出。
+3. **`app/**/*.ts(x)` 代码 CJK-free**（字符串字面量、JSX 文本、标识符不得含中日韩字符）；注释中允许中文。由 `tests/i18n.test.ts` 强制——完整范围与机制见 `i18n-locale-routing` skill。
+4. **用户可见文案与 ARIA 标签一律走 next-intl**（`useTranslations` / `getTranslations`）。TSX 中硬编码含人类语言词的 `aria-label` 会让测试失败；机器专用属性豁免。
+5. **根布局是 `app/` 中唯一的 `<script>` 渲染者**——防 FOUC 主题脚本契约见 `neo-brutalism-ui` skill；由 `tests/theme-i18n.test.ts` 强制执行。
+6. **边缘函数中 RS256 绝不使用 Web Crypto**（边缘运行时缺 RSA——改用纯 JS `verifyRs256`）。完整验签清单见 `clerk-edge-auth` skill。
+7. **禁止 HTML 边缘缓存**（页面含认证状态 UI → 跨用户缓存泄漏）。缓存规则见 `edgeone-functions-kv` skill。
+8. **`@swc/helpers` 固定在 `0.5.17`**，通过 `package.json` → `"overrides"`。只有验证 `next build --webpack` 与 `next dev --turbopack` 都能编译 App Router 之后才可升级。
+
+## 3. 质量门禁（推送前必须全绿）
+
 ```bash
-npm test     # vitest run — grep contracts + unit tests (incl. tests/functions.test.ts)
-npm run lint # eslint . via eslint.config.mjs — TS rules enabled
+npm test     # vitest run —— grep 契约 + 单元测试（含 tests/functions.test.ts）
+npm run lint # eslint . via eslint.config.mjs —— TS 规则已启用
 npm run build  # next build --webpack
 ```
-- **Build guard**: the build must complete and register the proxy (`ƒ Proxy (Middleware)` in the route table). `.env.local` (Clerk keys) is loaded automatically in dev/build — never commit it.
-- **Edge-function contract**: pure logic in `functions/*.js` is exported and pinned by `tests/functions.test.ts` (`sessionKey`/`countOnline`, `isFresh`/`buildStarsPayload`, `extractClientIp`). Changing an exported signature requires updating that test in the same commit. Each function file stays **self-contained** (no cross-imports between functions) — a shared module would be a design decision.
-- `e2e-cross-feature.cjs` is a cross-feature matrix (i18n × theme) run **manually** against a dev/preview server — it is not part of `npm test`. All URLs use the `/zh/` + `/en/` prefixed, trailing-slash form. When you rename container CSS classes (e.g. `.nav-links` → `.dock-nav`), update its `document.querySelector(...)` lines in the same commit.
-- Any new tool-logic function added to `app/[locale]/tools/**/*.ts` must ship a sibling `*.test.ts` — `tests/tools.test.ts` is for shared helpers, not per-tool cases.
 
-## 5. Edge Functions & Storage (EdgeOne Pages) — BEST PRACTICES
-- **Deploy model**: [edgeone.json](edgeone.json) sets `buildCommand`/`outputDirectory` for the Next.js SSR adapter; the `functions/` directory deploys alongside the app. On EdgeOne Pages a request **matches edge-function routes first**, then falls back to the Next.js server — so `/api/presence` and friends are served by edge functions, while every page route goes through `proxy.ts` and SSR/prerendered rendering.
-- **Runtime is the edge JS runtime, not Node**: Web-standard APIs only (`fetch`, `Request`/`Response`, `URL`, `crypto`); no Node built-ins, no filesystem, no `/tmp` persistence. Keep handlers thin; export the pure logic for `tests/functions.test.ts`.
-- **The functions**:
-  - [functions/api/presence.js](functions/api/presence.js) → real-time online count (KV). POST = heartbeat + lazy sweep, GET = read-only snapshot.
-  - [functions/api/counter.js](functions/api/counter.js) → sign-in-only real-time counter (KV). Per-user key `counter_user_<uid>`; GET = read-only snapshot `{ total, users, mine }`, POST = verify Clerk session → read-modify-write +1. Both verbs reject unauthenticated calls with 401. Session JWTs are verified against the instance JWKS (`<iss>/.well-known/jwks.json`) dispatching on `header.alg` — **ES256 (ECDSA P-256) and RS256 (RSASSA-PKCS1-v1_5), both SHA-256**; Clerk instances are not uniform (dev/test instances sign ES256, production instances sign RS256 — verified live against `clerk.rdom.cn`), so never pin a single algorithm. **RS256 must NOT use Web Crypto**: the EdgeOne edge runtime's `crypto.subtle` lacks RSA support (production incident — every RS256 verification threw, surfacing `x-auth-fail: crypto`), so `verifyRs256` performs RFC 8017 RSASSA-PKCS1-v1_5 verification in pure JS (BigInt `modPow` for `s^e mod n`, EMSA-PKCS1-v1_5 padding compare, SHA-256 via `subtle.digest` which the edge does support); ES256 keeps the `importKey`/`verify` path. Do not "simplify" RS256 back onto `crypto.subtle.verify`. Per the Clerk manual-verification checklist, `verifyTokenDetailed` additionally: **pins the issuer** to `ALLOWED_ISSUERS = ["https://clerk.rdom.cn"]` (JWKS is only ever fetched from the allowlisted instance — a token-controlled `iss` would enable a fake-JWKS auth bypass), checks `azp` against `ALLOWED_AZP = ["https://rdom.cn"]` when present (subdomain cookie-leak defense; absent azp is allowed), applies `exp`/`nbf` with a 5s skew (`CLOCK_SKEW_S`, matching Clerk SDK `clockSkewInMs` default), rejects `sts` ≠ `"active"` when present, and **force-refreshes the cached JWKS once on a kid miss** (self-heals key rotation and stale cache). 401 responses carry an `x-auth-fail` diagnostic header with the `verifyTokenDetailed` reason code (`parse/alg:<x>/iss/azp/nbf/exp/sts/kid/sig/crypto/no-cookie/sub`).
-  - [functions/api/echo.js](functions/api/echo.js) · [functions/api/headers.js](functions/api/headers.js) → debug endpoints for the http-check tool (never cached).
-  - There is **no** `functions/index.js`: root-path locale negotiation moved into `proxy.ts` (`intlMiddleware`). Do not re-add a `/` edge function — it would shadow the Next.js layer.
-- **KV best practices** (the namespace is bound in the EdgeOne console with the variable name `DICTIONARY`; per the official semantics (docs + `functions-kv` template) it is injected as a **bare edge-function global identifier**, NOT on `context.env` — `getKv()` reads it via a `typeof`-guarded bare identifier with a `globalThis` fallback):
-  - Keys accept **only `[A-Za-z0-9_]`** (≤512B) — normalize all user-derived input (see `sessionKey()`). Values are strings ≤25MB.
-  - **No TTL and no atomic INCR**: expiry is decided at the application layer (presence: 45s heartbeat window), and counters are computed via `list({ prefix })` + per-key `get` (see `countOnline`) — inherently approximate. KV is **eventually consistent (~60s global propagation)**: UI copy must not promise exactness.
-  - `list()` is the only key-discovery API and caps at 256 keys per page (`cursor` for more; each `keys` entry is a `ListKey` object whose field is **`key`** — `class ListKey { key: String }`, NOT `name`). Deletes of stale keys piggyback on write-path requests (lazy sweep) — there is no background job.
-  - KV is callable **only from Edge Functions**. Unbound/unavailable KV must degrade gracefully: presence and counter both answer `503 {error:"kv-not-configured"|"kv-unavailable"}` (the counter UI keeps its last reading / offers a retry instead of crashing).
-- **Caching**: every API/function response is `cache-control: no-store`. **No HTML edge caching**: pages now contain auth-state UI, so per-route `s-maxage` headers and unprefixed `redirects` were removed from [edgeone.json](edgeone.json) — do not re-add them (cross-user cache leak). Only two headers remain: `/_next/static/*` → immutable, `/feed.xml` → `s-maxage=3600`.
-- The blog like/reactions feature was **removed by design** — do not resurrect `/api/reactions`, `reaction-store`, or `PostReactions`.
+- **构建守卫**：构建必须完成并注册 proxy（路由表中出现 `ƒ Proxy (Middleware)`）。`.env.local`（Clerk 密钥）在 dev/build 中自动加载——绝不提交。
+- **边缘函数契约**：`functions/*.js` 中的纯逻辑必须导出并由 `tests/functions.test.ts` 固定。修改导出签名必须在同一提交中更新该测试。每个函数文件保持**自包含**（函数间禁止互相 import）。
+- `scripts/e2e-cross-feature.cjs` 是手动跨特性矩阵（i18n × 主题），不属于 `npm test`。重命名容器 CSS 类时，须在同一提交中更新其 `document.querySelector(...)` 行。
+- `app/[locale]/tools/**/*.ts` 中新增的任何工具逻辑函数必须附带同级 `*.test.ts`——`tests/tools.test.ts` 只覆盖共享助手。
 
-## 6. What to delete / not to create
-- **Never commit per-session AI scratch pads**: `BRANDING.md`, `CLAUDE.md`, `DIAGNOSTIC_REPORT.md`, `QA_REPORT.md` and similar one-off audit docs must not live in the repo root. They were snapshots of specific sessions. Preserve *rules* in this file (`AGENTS.md`), preserve *tests* in `tests/`, and drop everything else.
-- **Do not proactively create `*.md` docs** unless the user requests them. The only hand-maintained project-level doc that must exist is this file plus `README.md` (for humans cloning the repo). Everything else is source or tests.
+## 4. 删除什么 / 不要创建什么
 
-## 7. Quick-reference file map
-| Concern | Location |
+- **绝不提交会话级 AI 草稿**：`BRANDING.md`、`CLAUDE.md`、`DIAGNOSTIC_REPORT.md`、`QA_REPORT.md` 及类似一次性审计文档不得留在仓库根目录。规则保留在本文件，测试保留在 `tests/`，其余删除。
+- **未经要求不要主动创建 `*.md` 文档**。手工维护的项目级文档只有本文件与 `README.md`（`skills/` 下的 skill 文件是第三例外——它们是成体系的知识，不是会话笔记）。
+
+## 5. 速查文件地图
+
+| 关注点 | 位置 |
 |---|---|
-| Root layout / metadata / ClerkProvider / theme script in `<head>` | [app/[locale]/layout.tsx](app/[locale]/layout.tsx) |
-| Proxy (clerkMiddleware × intlMiddleware composition + matcher) | [proxy.ts](proxy.ts) |
-| Root path `/` fallback (server-side locale redirect; EdgeOne static layer bypasses proxy.ts) | [app/route.ts](app/route.ts) |
-| Morphing Slab nav + auth controls (`Show`, SignIn/SignUp/UserButton) | [app/[locale]/components/Nav.tsx](app/[locale]/components/Nav.tsx) |
-| Theme runtime helpers (apply/persist/resolve) + `themeInitScript()` | [app/lib/theme.ts](app/lib/theme.ts) |
-| CSS variables + component classes + dock shell (incl. `.dock-auth-btn`) | [app/globals.css](app/globals.css) + [app/styles/](app/styles/) |
-| i18n locale routing (`localePrefix: "always"`) | [i18n/routing.ts](i18n/routing.ts) |
-| i18n locale catalogues | [messages/zh.json](messages/zh.json) · [messages/en.json](messages/en.json) |
-| i18n link primitives / request config | [i18n/navigation.ts](i18n/navigation.ts) · [i18n/request.ts](i18n/request.ts) |
-| Clerk keys (never commit) | `.env.local` |
-| Clerk component theming (`clerkAppearance` + `auth-*` classes) | `app/[locale]/layout.tsx` + [app/styles/clerk.css](app/styles/clerk.css) |
-| Presence heartbeat (online count, KV) | [functions/api/presence.js](functions/api/presence.js) + [Presence.tsx](app/[locale]/components/Presence.tsx) |
-| Real-time counter (sign-in-gated, KV) | [functions/api/counter.js](functions/api/counter.js) + [CounterClient.tsx](app/[locale]/tools/counter/CounterClient.tsx) |
-| http-check debug endpoints | [functions/api/echo.js](functions/api/echo.js) · [functions/api/headers.js](functions/api/headers.js) |
-| Edge-function unit tests (fake KV, pure logic) | [tests/functions.test.ts](tests/functions.test.ts) |
-| RSS feed route | [app/feed.xml/route.ts](app/feed.xml/route.ts) |
-| EdgeOne deploy config (SSR output dir, static-cache headers) | [edgeone.json](edgeone.json) |
-| Test suite (grep contracts + unit) | [tests/](tests/) |
-| Cross-feature zh/en × light/dark E2E script (manual) | [scripts/e2e-cross-feature.cjs](scripts/e2e-cross-feature.cjs) |
+| 根布局 / metadata / ClerkProvider / `<head>` 中的主题脚本 | [app/[locale]/layout.tsx](app/[locale]/layout.tsx) |
+| Proxy（clerkMiddleware × intlMiddleware 组合 + matcher） | [proxy.ts](proxy.ts) |
+| 根路径 `/` 兜底（服务端区域重定向；EdgeOne 静态层绕过 proxy.ts） | [app/route.ts](app/route.ts) |
+| Morphing Slab 导航 + 认证控件（`Show`、SignIn/SignUp/UserButton） | [app/[locale]/components/Nav.tsx](app/[locale]/components/Nav.tsx) |
+| 主题运行时助手（apply/persist/resolve）+ `themeInitScript()` | [app/lib/theme.ts](app/lib/theme.ts) |
+| CSS 变量 + 组件类 + dock 外壳（含 `.dock-auth-btn`） | [app/globals.css](app/globals.css) + [app/styles/](app/styles/) |
+| i18n 区域路由（`localePrefix: "always"`） | [i18n/routing.ts](i18n/routing.ts) |
+| i18n 词表 | [messages/zh.json](messages/zh.json) · [messages/en.json](messages/en.json) |
+| i18n 链接原语 / 请求配置 | [i18n/navigation.ts](i18n/navigation.ts) · [i18n/request.ts](i18n/request.ts) |
+| Clerk 密钥（绝不提交） | `.env.local` |
+| Clerk 组件主题化（`clerkAppearance` + `auth-*` 类） | `app/[locale]/layout.tsx` + [app/styles/clerk.css](app/styles/clerk.css) |
+| Presence 心跳（在线人数，KV） | [functions/api/presence.js](functions/api/presence.js) + [Presence.tsx](app/[locale]/components/Presence.tsx) |
+| 实时计数器（登录门控，KV；手动 JWT 验签） | [functions/api/counter.js](functions/api/counter.js) + [CounterClient.tsx](app/[locale]/tools/counter/CounterClient.tsx) |
+| http-check 调试端点 | [functions/api/echo.js](functions/api/echo.js) · [functions/api/headers.js](functions/api/headers.js) |
+| 边缘函数单元测试（假 KV、纯逻辑） | [tests/functions.test.ts](tests/functions.test.ts) |
+| RSS 订阅路由 | [app/feed.xml/route.ts](app/feed.xml/route.ts) |
+| EdgeOne 部署配置（SSR 输出目录、静态缓存头） | [edgeone.json](edgeone.json) |
+| 测试套件（grep 契约 + 单元） | [tests/](tests/) |
+| 跨特性 zh/en × 亮暗 E2E 脚本（手动） | [scripts/e2e-cross-feature.cjs](scripts/e2e-cross-feature.cjs) |
+| 详细领域契约（auth / KV / UI / i18n） | [skills/](skills/) |
