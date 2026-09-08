@@ -311,9 +311,9 @@
         "name": "HTTP Request Health Check",
         "description": "See each visit the way the server does: your IP, geo hints, device fingerprint and full request headers — rendered live on the server."
       },
-      "counter": {
-        "name": "Real-time Counter",
-        "description": "A sign-in-only global counter: each +1 tap is written to cloud KV and summarized across devices in near real time."
+      "todo": {
+        "name": "TODO List",
+        "description": "A sign-in-only personal todo list: items persist to cloud KV, isolated per account and synced across devices."
       }
     },
     "actions": {
@@ -352,19 +352,20 @@
       "apiDesc": "The same data is also available as JSON — send any request to /api/echo for debugging.",
       "openApi": "View JSON output"
     },
-    "counter": {
+    "todo": {
       "gateTitle": "Signed-in users only",
-      "gateDesc": "The real-time counter records every tap against your signed-in identity — please sign in first.",
+      "gateDesc": "TODO List stores your items in cloud KV under your signed-in identity, fully isolated per account.",
       "gateSignIn": "Sign in / Sign up",
-      "loading": "Loading counter…",
-      "loadError": "Failed to load the counter — please try again later.",
+      "loading": "Loading todos…",
+      "loadError": "Failed to load your todos — please try again later.",
       "retry": "Retry",
       "sessionExpired": "Your session has expired — please sign in again.",
-      "totalLabel": "Global total",
-      "mineLabel": "My taps",
-      "usersLabel": "{count} contributors",
-      "plusOne": "+1",
-      "approxHint": "Counts live in cloud KV and are eventually consistent (sync can lag by ~1 minute); this page refreshes every 5 seconds."
+      "inputPlaceholder": "Add a todo…",
+      "add": "Add",
+      "empty": "No todos yet — add your first one.",
+      "deleteItem": "Delete “{title}”",
+      "itemCount": "{count} items",
+      "kvHint": "Todos live in cloud KV tied to your account — sign in on any device to see the same list."
     },
     "labels": {
       "jsonInput": "JSON input",

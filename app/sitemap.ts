@@ -24,7 +24,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { path: "/tools/color-picker", changeFrequency: "monthly", priority: 0.6 },
     { path: "/tools/case-converter", changeFrequency: "monthly", priority: 0.6 },
     { path: "/tools/http-check", changeFrequency: "monthly", priority: 0.6 },
-    { path: "/tools/counter", changeFrequency: "monthly", priority: 0.6 },
+    { path: "/tools/todo-list", changeFrequency: "monthly", priority: 0.6 },
     { path: "/links", changeFrequency: "monthly", priority: 0.5 },
     { path: "/contact", changeFrequency: "yearly", priority: 0.5 },
   ];

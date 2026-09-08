@@ -1,6 +1,6 @@
 ---
 name: "edgeone-functions-kv"
-description: "EdgeOne Pages 边缘函数与 KV 存储知识：部署模型、Web 标准运行时约束、KV 语义、presence/counter 存储模型、缓存规则。凡涉及 functions/、KV、/api 端点或 edgeone.json 时调用。"
+description: "EdgeOne Pages 边缘函数与 KV 存储知识：部署模型、Web 标准运行时约束、KV 语义、presence/todo 存储模型、缓存规则。凡涉及 functions/、KV、/api 端点或 edgeone.json 时调用。"
 ---
 
 # EdgeOne 边缘函数与 KV 存储
@@ -30,9 +30,9 @@ SSR/预渲染。
 
 - [functions/api/presence.js](../../functions/api/presence.js) → 实时在线人数。
   POST = 心跳 + 惰性清扫，GET = 只读快照。
-- [functions/api/counter.js](../../functions/api/counter.js) → 仅登录可用的计数器。
-  每用户键 `counter_user_<uid>`；GET = 只读快照 `{ total, users, mine }`，
-  POST = 验证 Clerk 会话 → 读-改-写 +1。两个动词对未认证调用一律 401
+- [functions/api/todo.js](../../functions/api/todo.js) → 仅登录可用的 TODO List。
+  每用户键 `todo_user_<uid>`；GET = 读取 `{ items }`，POST = 新增条目，
+  PATCH = 勾选/改名，DELETE = 删除。全部动词对未认证调用一律 401
   （验签见 clerk-edge-auth skill）。
 - [functions/api/echo.js](../../functions/api/echo.js) ·
   [functions/api/headers.js](../../functions/api/headers.js) → http-check 调试
@@ -54,9 +54,9 @@ SSR/预渲染。
   （`class ListKey { key: String }`——不是 `name`）。列出后用 `Promise.all`
   批量读取，不要逐键串行 await。
 - **没有后台任务**：过期键的删除搭载在写路径请求上（惰性清扫）。
-- **KV 只能从边缘函数调用。** 未绑定或不可用时优雅降级：presence 与 counter
-  应答 `503 {error:"kv-not-configured"}` / `{error:"kv-unavailable"}`；counter
-  UI 保留上次读数/提供重试，而不是崩溃。
+- **KV 只能从边缘函数调用。** 未绑定或不可用时优雅降级：presence 与 todo
+  应答 `503 {error:"kv-not-configured"}` / `{error:"kv-unavailable"}`；todo
+  UI 提供重试而不是崩溃。
 
 ## 5. 缓存规则
 

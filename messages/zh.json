@@ -311,9 +311,9 @@
         "name": "HTTP 请求体检",
         "description": "从服务器视角解读你的每一次访问：IP、地理线索、设备指纹与完整请求头，由服务端实时渲染。"
       },
-      "counter": {
-        "name": "实时计数器",
-        "description": "登录后可用的全局计数器：点击 +1 写入云端 KV，多端近实时汇总。"
+      "todo": {
+        "name": "TODO List",
+        "description": "登录后可用的个人待办清单：数据写入云端 KV，按账号隔离，多端同步。"
       }
     },
     "actions": {
@@ -352,19 +352,20 @@
       "apiDesc": "同样的数据也以 JSON 形式公开，可将任意请求发往 /api/echo 用于调试。",
       "openApi": "查看 JSON 输出"
     },
-    "counter": {
+    "todo": {
       "gateTitle": "仅限登录用户",
-      "gateDesc": "实时计数器使用你的登录身份记录每次点击，请先登录再使用。",
+      "gateDesc": "TODO List 使用你的登录身份在云端 KV 保存待办，不同账号的数据完全隔离。",
       "gateSignIn": "登录 / 注册",
-      "loading": "正在读取计数…",
-      "loadError": "计数加载失败，请稍后重试。",
+      "loading": "正在读取待办…",
+      "loadError": "待办加载失败，请稍后重试。",
       "retry": "重试",
       "sessionExpired": "登录状态已失效，请重新登录。",
-      "totalLabel": "全局总计",
-      "mineLabel": "我的点击",
-      "usersLabel": "{count} 位用户参与",
-      "plusOne": "+1",
-      "approxHint": "计数写入云端 KV 后最终一致（同步可能延迟约 1 分钟），页面每 5 秒自动刷新。"
+      "inputPlaceholder": "新增一条待办…",
+      "add": "添加",
+      "empty": "还没有待办，添加第一条吧。",
+      "deleteItem": "删除「{title}」",
+      "itemCount": "共 {count} 条",
+      "kvHint": "数据保存在云端 KV 并与账号绑定，换设备登录也能看到同一份清单。"
     },
     "labels": {
       "jsonInput": "JSON 输入",

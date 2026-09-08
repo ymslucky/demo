@@ -582,44 +582,45 @@
 .pv-badge--warn { background: var(--color-tint-strong); color: var(--color-text); animation-delay: 0.5s; }
 .pv-badge--err { background: var(--color-err-bg); color: var(--color-err-text); animation-delay: 1s; }
 
-/* counter: +1 按钮敲击并冒出上浮气泡 */
-.pv-counter {
-  position: relative;
+/* todo-list: 清单条目循环打勾 */
+.pv-todos {
   display: flex;
-  align-items: center;
+  flex-direction: column;
   justify-content: center;
-  gap: var(--space-md);
+  gap: var(--space-sm);
   width: 100%;
 }
 
-.pv-plus {
-  position: relative;
-  padding: 0.3em 0.7em;
+.pv-todo {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+.pv-todo-box {
+  flex: none;
+  width: 14px;
+  height: 14px;
   border: 3px solid var(--color-border);
   border-radius: var(--radius-sm);
-  background: var(--color-btn-primary);
-  color: var(--color-on-primary);
-  font-family: var(--font-mono);
-  font-size: var(--fs-sm);
-  font-weight: 700;
-  animation: pv-tap 2.4s ease-in-out infinite;
+  background: var(--color-surface);
+  animation: pv-todo-check 3.6s ease-in-out infinite;
 }
 
-.pv-plus::after {
-  content: "+1";
-  position: absolute;
-  left: 50%;
-  top: -6px;
-  margin-left: -0.75em;
-  font-size: var(--fs-xs);
-  color: var(--color-primary);
-  opacity: 0;
-  animation: pv-float 2.4s ease-out 0.2s infinite;
+.pv-todo-line {
+  flex: 1;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--color-tint-strong);
 }
 
-.pv-count {
-  font-size: var(--fs-2xl);
-  font-weight: 700;
+.pv-todo:nth-child(2) .pv-todo-box { animation-delay: 1.2s; }
+.pv-todo:nth-child(2) .pv-todo-line { flex: 0.6; }
+
+@keyframes pv-todo-check {
+  0%, 15% { background: var(--color-surface); }
+  30%, 70% { background: var(--color-btn-primary); }
+  85%, 100% { background: var(--color-surface); }
 }
 
 /* base64 / unit / case: 双面循环翻转 */
@@ -1437,23 +1438,6 @@
 .demo-gear {
   display: inline-block;
   animation: demo-spin 5s linear infinite;
-}
-
-/* ---- 实时计数器 ---- */
-/* 总数变化时轻微弹跳（React key 重挂载触发，值不变则不重播）；
-   reduced-motion 由 base.css 的全局规则压到 0.01ms。 */
-@keyframes counter-pop {
-  from {
-    transform: scale(1.12);
-  }
-  to {
-    transform: scale(1);
-  }
-}
-
-.counter-pop {
-  display: inline-block;
-  animation: counter-pop 240ms ease-out;
 }
 
 /* ---- Demo 动画关键帧（零依赖，替代 framer-motion）----

@@ -1,16 +1,18 @@
 import { describe, expect, it } from "vitest";
 import {
-  applyTap,
-  counterKey,
-  countTotals,
+  addTodo,
   isTokenFresh,
+  makeItemId,
+  normalizeItems,
   parseTokenPayload,
   readSessionToken,
-  sumCounts,
+  removeTodo,
+  todoKey,
+  updateTodo,
   verifyRs256,
   verifySessionToken,
   verifyTokenDetailed,
-} from "../functions/api/counter.js";
+} from "../functions/api/todo.js";
 import { countOnline, sessionKey } from "../functions/api/presence.js";
 import { extractClientIp } from "../functions/api/echo.js";
 
@@ -110,59 +112,113 @@ describe("presence countOnline", () => {
 });
 
 // ---------------------------------------------------------------------------
-// functions/api/counter.js
+// functions/api/todo.js
 // ---------------------------------------------------------------------------
 
-describe("counter counterKey", () => {
+describe("todo todoKey", () => {
   it("normalizes user ids to the KV-safe charset (letters/digits/underscore)", () => {
-    expect(counterKey("user_abc-123")).toBe("counter_user_user_abc_123");
-    expect(counterKey("a/b\\c:d")).toBe("counter_user_a_b_c_d");
+    expect(todoKey("user_abc-123")).toBe("todo_user_user_abc_123");
+    expect(todoKey("a/b\\c:d")).toBe("todo_user_a_b_c_d");
   });
 
   it("caps the normalized id at 64 chars", () => {
-    const key = counterKey("x".repeat(100));
-    expect(key.startsWith("counter_user_")).toBe(true);
-    expect(key.length).toBe("counter_user_".length + 64);
+    const key = todoKey("x".repeat(100));
+    expect(key.startsWith("todo_user_")).toBe(true);
+    expect(key.length).toBe("todo_user_".length + 64);
   });
 });
 
-describe("counter sumCounts / countTotals", () => {
-  it("sums valid counts and counts only usable entries as users", () => {
-    expect(sumCounts(["3", "5", "0"])).toEqual({ total: 8, users: 3 });
-    expect(sumCounts(["oops", "-2", null, "4"])).toEqual({ total: 4, users: 1 });
-    expect(sumCounts([])).toEqual({ total: 0, users: 0 });
-    expect(sumCounts(undefined)).toEqual({ total: 0, users: 0 });
+describe("todo makeItemId", () => {
+  it("prefixes ids with the base36 timestamp", () => {
+    const now = 1_700_000_000_000;
+    expect(makeItemId(now).startsWith(now.toString(36))).toBe(true);
   });
 
-  it("countTotals reads every per-user key via list + batched get", async () => {
-    const kv = fakeKv([
-      ["counter_user_alice", "3"],
-      ["counter_user_bob", "5"],
-      ["presence_fresh", "123"], // other namespaces must not leak in
+  it("avoids collisions within the same millisecond", () => {
+    expect(makeItemId(123)).not.toBe(makeItemId(123));
+  });
+});
+
+describe("todo normalizeItems", () => {
+  it("parses the KV JSON string and drops unusable entries", () => {
+    expect(
+      normalizeItems(
+        JSON.stringify([
+          { id: "a", title: "  milk  ", done: true, createdAt: 123 },
+          {},
+          { id: "b" },
+          "junk",
+          null,
+          { id: "c", title: "x", done: "yes", createdAt: "oops" },
+        ]),
+      ),
+    ).toEqual([
+      { id: "a", title: "milk", done: true, createdAt: 123 },
+      { id: "c", title: "x", done: false, createdAt: 0 },
     ]);
-    expect(await countTotals(kv)).toEqual({ total: 8, users: 2 });
+  });
+
+  it("accepts an already-parsed array and caps the list size", () => {
+    const raw = Array.from({ length: 250 }, (_, i) => ({
+      id: `k${i}`,
+      title: `t${i}`,
+    }));
+    const items = normalizeItems(raw);
+    expect(items).toHaveLength(200);
+    expect(items[0]).toMatchObject({ id: "k0" });
+  });
+
+  it("degrades any malformed payload to an empty list", () => {
+    expect(normalizeItems("not json")).toEqual([]);
+    expect(normalizeItems({ items: [] })).toEqual([]);
+    expect(normalizeItems(null)).toEqual([]);
   });
 });
 
-describe("counter applyTap", () => {
-  it("increments from zero for a first-time user", async () => {
-    const kv = fakeKv();
-    expect(await applyTap(kv, "user_a")).toBe(1);
-    expect(kv.store.get("counter_user_user_a")).toBe("1");
+describe("todo addTodo / updateTodo / removeTodo", () => {
+  it("addTodo prepends a trimmed item and caps the list size", () => {
+    const full = Array.from({ length: 200 }, (_, i) => ({
+      id: `k${i}`,
+      title: `t${i}`,
+      done: false,
+      createdAt: i,
+    }));
+    const added = addTodo(full, "  hello  ", { id: "new", createdAt: 42 })!;
+    expect(added).toHaveLength(200);
+    expect(added[0]).toEqual({ id: "new", title: "hello", done: false, createdAt: 42 });
+    expect(added[1]).toMatchObject({ id: "k0" });
+    expect(addTodo([], "   ")).toBeNull(); // blank titles are rejected
   });
 
-  it("increments existing counts and repairs corrupted values", async () => {
-    const kv = fakeKv([
-      ["counter_user_user_a", "9"],
-      ["counter_user_user_b", "not-a-number"],
+  it("updateTodo patches done/title immutably and rejects ghost ids", () => {
+    const items = [
+      { id: "a", title: "first", done: false, createdAt: 1 },
+      { id: "b", title: "second", done: false, createdAt: 2 },
+    ];
+    const patched = updateTodo(items, "a", { done: true, title: "  renamed  " });
+    expect(patched[0]).toEqual({ id: "a", title: "renamed", done: true, createdAt: 1 });
+    expect(items[0].done).toBe(false); // original array untouched
+
+    expect(updateTodo(items, "ghost", { done: true })).toBeNull();
+    // Non-boolean done / blank title patches are ignored.
+    expect(updateTodo(items, "a", { done: "yes" })[0].done).toBe(false);
+    expect(updateTodo(items, "a", { title: "   " })[0].title).toBe("first");
+  });
+
+  it("removeTodo deletes by id and reports misses as null", () => {
+    const items = [
+      { id: "a", title: "first", done: false, createdAt: 1 },
+      { id: "b", title: "second", done: false, createdAt: 2 },
+    ];
+    expect(removeTodo(items, "a")).toEqual([
+      { id: "b", title: "second", done: false, createdAt: 2 },
     ]);
-    expect(await applyTap(kv, "user_a")).toBe(10);
-    expect(await applyTap(kv, "user_b")).toBe(1); // corrupted -> restart at 1
-    expect(await applyTap(kv, "user_a")).toBe(11);
+    expect(removeTodo(items, "ghost")).toBeNull();
+    expect(items).toHaveLength(2); // original array untouched
   });
 });
 
-describe("counter session token helpers", () => {
+describe("todo session token helpers", () => {
   const encoder = new TextEncoder();
   // The verifier pins iss/azp allowlists (Clerk manual-verification checklist);
   // tests inject these values so no real network or production URLs are used.
@@ -575,6 +631,12 @@ describe("extractClientIp", () => {
         "x-real-ip": "3.3.3.3",
       }),
     ).toEqual({ ip: "2.2.2.2", source: "eo-connecting-ip" });
+  });
+
+  it("treats the EO-Client-IP fallback header as an EdgeOne source", () => {
+    expect(
+      extractClientIp({ "eo-client-ip": "4.4.4.4", "x-forwarded-for": "1.1.1.1" }),
+    ).toEqual({ ip: "4.4.4.4", source: "eo-client-ip" });
   });
 
   it("falls back to the first x-forwarded-for hop", () => {

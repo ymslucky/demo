@@ -67,7 +67,7 @@ token 在本地 Node 验签正常（所以测试一直全绿）。因此：
 
 ## 5. 生产诊断：`x-auth-fail` 响应头
 
-counter 端点的 401 响应携带 `x-auth-fail`，值为命中的确切失败关卡：
+todo 端点的 401 响应携带 `x-auth-fail`，值为命中的确切失败关卡：
 
 ```
 parse | alg:<x> | iss | azp | nbf | exp | sts | kid | sig | crypto | no-cookie | sub

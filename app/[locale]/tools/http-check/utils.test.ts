@@ -14,6 +14,14 @@ describe("extractClientIp", () => {
     expect(r).toEqual({ ip: "1.2.3.4", source: "eo-connecting-ip" });
   });
 
+  it("识别 EO-Client-IP 备用头并排在 x-forwarded-for 之前", () => {
+    const r = extractClientIp({
+      "eo-client-ip": "9.9.9.9",
+      "x-forwarded-for": "5.6.7.8",
+    });
+    expect(r).toEqual({ ip: "9.9.9.9", source: "eo-client-ip" });
+  });
+
   it("从 x-forwarded-for 链式列表中取最左段", () => {
     const r = extractClientIp({
       "x-forwarded-for": "203.0.113.50, 10.0.0.1, 10.0.0.2",

@@ -16,6 +16,7 @@
  */
 const IP_HEADER_PRIORITY = [
   "eo-connecting-ip",
+  "eo-client-ip",
   "cf-connecting-ip",
   "x-real-ip",
   "true-client-ip",

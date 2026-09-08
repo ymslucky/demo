@@ -17,7 +17,7 @@ const tools = [
   { id: "case-converter", icon: "Aa", key: "case" },
   { id: "color-picker", icon: "rgb", key: "color" },
   { id: "http-check", icon: "http", key: "httpCheck" },
-  { id: "counter", icon: "+1", key: "counter" },
+  { id: "todo-list", icon: "✓", key: "todo" },
 ];
 
 /** 每张卡片的装饰性活体预览 —— 纯 CSS 动画，运行时零 JS。 */
@@ -65,12 +65,18 @@ function ShowcasePreview({ id }: { id: string }) {
       </span>
     );
   }
-  if (id === "counter") {
+  if (id === "todo-list") {
     return (
       <span className="showcase-preview" aria-hidden="true">
-        <span className="pv-counter">
-          <span className="pv-plus">+1</span>
-          <span className="pv-mono pv-count">42</span>
+        <span className="pv-todos">
+          <span className="pv-todo">
+            <span className="pv-todo-box" />
+            <span className="pv-todo-line" />
+          </span>
+          <span className="pv-todo">
+            <span className="pv-todo-box" />
+            <span className="pv-todo-line" />
+          </span>
         </span>
       </span>
     );

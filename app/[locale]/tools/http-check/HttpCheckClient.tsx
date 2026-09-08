@@ -10,6 +10,10 @@ interface HeadersPayload {
   method: string;
   url: string;
   ip: string | null;
+  /** ip 的判定来源（请求头名或 eo-context），与 ip 同时为 null。 */
+  ipSource: string | null;
+  /** EdgeOne 注入的地理上下文；请求头缺地理线索时的兜底展示。 */
+  geo: Record<string, string> | null;
   headers: Record<string, string>;
 }
 
@@ -105,10 +109,14 @@ export default function HttpCheckClient() {
   const sortedHeaders = Object.entries(all).sort(([a], [b]) => a.localeCompare(b));
   const clientIp = payload
     ? (extractClientIp(all) ??
-      (payload.ip ? { ip: payload.ip, source: "x-forwarded-for" } : null))
+      (payload.ip ? { ip: payload.ip, source: payload.ipSource ?? "server" } : null))
     : null;
   const ua = parseUserAgent(all["user-agent"] ?? "");
   const geoEntries = collectGeoHeaders(all);
+  // 请求头缺地理线索时，回退到 EdgeOne 注入的服务端地理上下文。
+  const geoFallback = geoEntries.length === 0 && payload?.geo
+    ? Object.entries(payload.geo)
+    : [];
   // curl 示例的主机名：优先 Host 请求头，回退到回显 URL 的 host。
   const host = all["host"] ?? safeHost(payload?.url);
 
@@ -202,9 +210,9 @@ export default function HttpCheckClient() {
         <section style={cardStyle}>
           <h3 style={{ marginTop: 0 }}>{t("geoCard")}</h3>
           {placeholder ?? (
-            geoEntries.length > 0 ? (
+            geoEntries.length > 0 || geoFallback.length > 0 ? (
               <ul style={{ margin: 0, paddingLeft: '1.25rem' }}>
-                {geoEntries.map(([name, value]) => (
+                {(geoEntries.length > 0 ? geoEntries : geoFallback).map(([name, value]) => (
                   <li key={name} style={{ marginBottom: '0.35rem' }}>
                     <code className="blog-inline-code">{name}</code>
                     <span style={{ marginLeft: '0.5rem' }}>{value}</span>

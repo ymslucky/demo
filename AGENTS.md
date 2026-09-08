@@ -23,7 +23,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 - **运行时**：Next.js **16.3.0**（App Router，SSR 模式），经其框架适配器部署到 EdgeOne Pages（[edgeone.json](edgeone.json)：`outputDirectory: ".next"`）。React **19.2.8** · TypeScript · next-intl · **Clerk 认证**（`@clerk/nextjs`，密钥在 `.env.local`）· **不用 Tailwind**（纯手写 CSS + CSS 变量）。
 - **双层服务端**（保持分离）：
   - **Next.js 层**（[proxy.ts](proxy.ts) + 服务端组件）：路由、认证中间件组合、区域协商、页面渲染。
-  - **EdgeOne 边缘函数层**（[functions/](functions/)）：KV 支撑的 HTTP API（`/api/presence`、`/api/counter`、`/api/echo`、`/api/headers`）。
+  - **EdgeOne 边缘函数层**（[functions/](functions/)）：KV 支撑的 HTTP API（`/api/presence`、`/api/todo`、`/api/echo`、`/api/headers`）。
 - **UI 风格**：Neo-Brutalism（完整契约见 `neo-brutalism-ui` skill）。
 
 ## 1. 质量门禁（推送前必须全绿）
@@ -104,7 +104,7 @@ npm run build  # next build --webpack；构建守卫：路由表必须出现 `ƒ
 | Clerk 密钥（绝不提交） | `.env.local` |
 | Clerk 组件主题化（`clerkAppearance` + `auth-*` 类） | `app/[locale]/layout.tsx` + [app/styles/clerk.css](app/styles/clerk.css) |
 | Presence 心跳（在线人数，KV） | [functions/api/presence.js](functions/api/presence.js) + [Presence.tsx](app/[locale]/components/Presence.tsx) |
-| 实时计数器（登录门控，KV；手动 JWT 验签） | [functions/api/counter.js](functions/api/counter.js) + [CounterClient.tsx](app/[locale]/tools/counter/CounterClient.tsx) |
+| TODO List（登录门控，KV；手动 JWT 验签，按账号隔离） | [functions/api/todo.js](functions/api/todo.js) + [TodoClient.tsx](app/[locale]/tools/todo-list/TodoClient.tsx) |
 | http-check 调试端点 | [functions/api/echo.js](functions/api/echo.js) · [functions/api/headers.js](functions/api/headers.js) |
 | 边缘函数单元测试（假 KV、纯逻辑） | [tests/functions.test.ts](tests/functions.test.ts) |
 | RSS 订阅路由 | [app/feed.xml/route.ts](app/feed.xml/route.ts) |

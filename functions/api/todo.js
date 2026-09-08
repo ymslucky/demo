@@ -1,12 +1,15 @@
 /**
- * 实时计数器（EdgeOne 边缘函数 + KV 存储）— 仅登录用户可用。
+ * TODO List（EdgeOne 边缘函数 + KV 存储）— 仅登录用户可用，数据按账号隔离。
  *
  * 存储模型（EdgeOne Pages KV，官方文档语义）：
- * - 每个登录用户一个 key：counter_user_<归一化 userId>，值为该用户
- *   累计点击次数（字符串数字）；全局总数 = 全部 key 求和；
+ * - 每个登录用户一个 key：todo_user_<归一化 userId>，值为该用户的待办
+ *   数组 JSON（[{ id, title, done, createdAt }]，新条目在前）；
  * - KV key 仅允许数字/字母/下划线，userId（Clerk sub）做归一化清洗；
- * - KV 无原子 INCR，"+1" 通过 get → +1 → put 的读改写实现；
- * - KV 为最终一致（约 60s 全球同步），总数是近似值而非精确快照。
+ * - 用户身份来自 Clerk 会话 JWT 验签结果（payload.sub），请求方只能
+ *   读写自己的 key——不同账号的数据完全隔离；
+ * - 单清单封顶 MAX_ITEMS 条、单条标题截断 MAX_TITLE_LEN 字符，防御
+ *   KV 值无限膨胀；
+ * - KV 为最终一致（约 60s 全球同步），跨设备同步是近实时的。
  *
  * 登录验证（Clerk 会话，对齐官方手动验签清单）：
  * - 读取 __session cookie 中的 Clerk 会话 JWT，按 header.alg 分派验签：
@@ -24,18 +27,16 @@
  * - JWKS 按 <iss>/.well-known/jwks.json 回源（模块级缓存 1h），按
  *   header.kid 选取公钥；kid 未命中时强制刷新 JWKS 重试一次（自愈密钥
  *   轮换与陈旧缓存），仍无则拒绝；
- * - ES256 经 crypto.subtle.importKey("jwk", …) + verify 验签；验证通过
- *   即视为登录，uid 取 payload.sub。
+ * - 验证通过即视为登录，uid 取 payload.sub。
  *
  * 错误语义：401 unauthorized（未登录/会话过期/验签失败，响应附
- * x-auth-fail 诊断头说明失败环节）、400 invalid-json、
- * 503 kv-not-configured / kv-unavailable。
+ * x-auth-fail 诊断头说明失败环节）、400 invalid-json / invalid-title /
+ * invalid-id、404 not-found、503 kv-not-configured / kv-unavailable。
  *
- * 部署路径：/api/counter（functions/api/counter.js）
+ * 部署路径：/api/todo（functions/api/todo.js）
  */
 
-const KEY_PREFIX = "counter_user_";
-const LIST_PAGE_SIZE = 200;
+const KEY_PREFIX = "todo_user_";
 const KV_BINDING = "DICTIONARY";
 const JWKS_TTL_MS = 3_600_000;
 // 会话 JWT 的 issuer / azp（来源 origin）白名单：本站生产 Clerk 实例。
@@ -47,9 +48,12 @@ const ALLOWED_AZP = ["https://rdom.cn"];
 // Clerk SDK 默认 clockSkewInMs = 5000：exp/nbf 判断保持同样的容差，
 // 避免边缘节点与签发方时钟的毫秒级偏移误伤刚签发的会话。
 const CLOCK_SKEW_S = 5;
+// 单用户清单条数上限与单条标题长度上限（防御 KV 值膨胀）。
+const MAX_ITEMS = 200;
+const MAX_TITLE_LEN = 200;
 
 /** userId 归一化为合法 KV key（仅数字/字母/下划线，最长 64）。导出仅供测试。 */
-export function counterKey(uid) {
+export function todoKey(uid) {
   return KEY_PREFIX + String(uid).replace(/[^A-Za-z0-9_]/g, "_").slice(0, 64);
 }
 
@@ -74,54 +78,102 @@ function jsonResponse(body, extraHeaders = {}, status = 200) {
   });
 }
 
+// ---------------------------------------------------------------------------
+// 清单纯逻辑（导出仅供测试；处理器通过 loadItems/saveItems 组合它们）
+// ---------------------------------------------------------------------------
+
+/** 生成条目 id：时间戳 base36 + 短随机段（同一毫秒内也不易碰撞）。 */
+export function makeItemId(now = Date.now()) {
+  return `${now.toString(36)}${Math.random().toString(36).slice(2, 8)}`;
+}
+
 /**
- * 汇总一批计数值：只累计非负有限数字，users 为有效参与人数。
+ * 把 KV 原始值（JSON 字符串或已解析值）守卫式归一化为合法条目数组：
+ * 非对象/缺 id/标题为空的条目一律丢弃，标题截断到 MAX_TITLE_LEN，
+ * 整表截断到最近 MAX_ITEMS 条。任何畸形输入都退化为空数组。
  * 导出仅供测试。
  */
-export function sumCounts(raws) {
-  let total = 0;
-  let users = 0;
-  for (const raw of raws ?? []) {
-    // null/undefined 表示键无值（KV 列表与读取间的最终一致间隙），
-    // 不计入参与人数；Number(null) === 0 的陷阱在此排除。
-    if (raw === null || raw === undefined) continue;
-    const n = Number(raw);
-    if (Number.isFinite(n) && n >= 0) {
-      total += n;
-      users += 1;
+export function normalizeItems(value) {
+  let raw = value;
+  if (typeof raw === "string") {
+    try {
+      raw = JSON.parse(raw);
+    } catch {
+      return [];
     }
   }
-  return { total, users };
+  if (!Array.isArray(raw)) return [];
+  const items = [];
+  for (const entry of raw) {
+    if (typeof entry !== "object" || entry === null) continue;
+    const title = typeof entry.title === "string" ? entry.title.trim() : "";
+    if (!title) continue;
+    const createdAt = Number(entry.createdAt);
+    items.push({
+      id: typeof entry.id === "string" && entry.id ? entry.id : makeItemId(),
+      title: title.slice(0, MAX_TITLE_LEN),
+      done: entry.done === true,
+      createdAt: Number.isFinite(createdAt) ? createdAt : 0,
+    });
+  }
+  return items.slice(0, MAX_ITEMS);
 }
 
 /**
- * 读改写实现一次 "+1"：读取该用户当前计数（缺失/损坏按 0 起步），
- * 写回 +1 后的新值并返回。导出仅供测试。
+ * 新增一条待办：标题 trim 后截断，空标题拒绝（返回 null）；新条目插到
+ * 队首并保持总数封顶。id/createdAt 可注入（测试用），缺省自动生成。
+ * 导出仅供测试。
  */
-export async function applyTap(kv, uid) {
-  const key = counterKey(uid);
-  const current = Number(await kv.get(key));
-  const mine = Number.isFinite(current) && current >= 0 ? current + 1 : 1;
-  await kv.put(key, String(mine));
-  return mine;
+export function addTodo(items, title, { id, createdAt } = {}) {
+  const clean = String(title ?? "").trim().slice(0, MAX_TITLE_LEN);
+  if (!clean) return null;
+  const at = Number.isFinite(createdAt) ? createdAt : Date.now();
+  return [
+    {
+      id: typeof id === "string" && id ? id : makeItemId(at),
+      title: clean,
+      done: false,
+      createdAt: at,
+    },
+    ...items,
+  ].slice(0, MAX_ITEMS);
 }
 
 /**
- * 列出全部 counter_user_* key 并逐个读取，返回全局快照
- * { total, users }。导出仅供测试。
+ * 按 id 更新 done/title（存在的字段才生效，标题 trim + 截断）；
+ * 找不到条目返回 null。不改变原数组。导出仅供测试。
  */
-export async function countTotals(kv) {
-  const result = await kv.list({ prefix: KEY_PREFIX, limit: LIST_PAGE_SIZE });
-  const entries = Array.isArray(result?.keys) ? result.keys : [];
+export function updateTodo(items, id, patch = {}) {
+  const index = items.findIndex((item) => item.id === id);
+  if (index === -1) return null;
+  const next = items.slice();
+  next[index] = {
+    ...next[index],
+    ...(typeof patch.done === "boolean" ? { done: patch.done } : null),
+    ...(typeof patch.title === "string" && patch.title.trim()
+      ? { title: patch.title.trim().slice(0, MAX_TITLE_LEN) }
+      : null),
+  };
+  return next;
+}
 
-  // 官方 ListResult 的键条目为 ListKey 对象，键名字段是 key。
-  const names = entries
-    .map((entry) => (typeof entry === "string" ? entry : entry?.key))
-    .filter((name) => typeof name === "string");
+/**
+ * 按 id 删除条目；找不到返回 null（区分"删除成功"与"没这条"）。
+ * 不改变原数组。导出仅供测试。
+ */
+export function removeTodo(items, id) {
+  const next = items.filter((item) => item.id !== id);
+  return next.length === items.length ? null : next;
+}
 
-  // 官方最佳实践：list 后用 Promise.all 批量读取，而非逐 key 串行等待。
-  const raws = await Promise.all(names.map((name) => kv.get(name)));
-  return sumCounts(raws);
+/** 读取当前用户的清单（缺失/损坏按空清单起步）。 */
+async function loadItems(kv, uid) {
+  return normalizeItems(await kv.get(todoKey(uid)));
+}
+
+/** 写回当前用户的清单。 */
+async function saveItems(kv, uid, items) {
+  await kv.put(todoKey(uid), JSON.stringify(items));
 }
 
 /**
@@ -424,18 +476,10 @@ export async function verifyTokenDetailed(
 
 /**
  * 验证 Clerk 会话 JWT，通过返回 payload（含 sub），否则返回 null。
- * verifyTokenDetailed 的薄包装，保持既有导出签名。导出仅供测试。
+ * verifyTokenDetailed 的薄包装。导出仅供测试。
  *
  * @param {string} token
  * @param {object} [deps]
- * @param {Array<Record<string, unknown>> | null} [deps.jwks]
- *   直接注入的 JWKS keys（注入时跳过网络回源与刷新重试）。
- * @param {number} [deps.now]
- * @param {Crypto} [deps.crypto]
- * @param {(issuer: string, opts?: { forceRefresh?: boolean }) =>
- *   Promise<Array<Record<string, unknown>>>} [deps.fetchJwks]
- * @param {Array<string>} [deps.allowedIssuers]
- * @param {Array<string>} [deps.allowedAzp]
  * @returns {Promise<Record<string, unknown> | null>}
  */
 export async function verifySessionToken(token, deps = {}) {
@@ -459,7 +503,17 @@ async function readSessionUid(request) {
     : { uid: null, reason: "sub" };
 }
 
-/** GET：登录后只读快照 { total, users, mine }。 */
+/** 解析 JSON body（畸形 / 非对象一律 null）。 */
+async function readJsonBody(request) {
+  try {
+    const body = await request.json();
+    return typeof body === "object" && body !== null ? body : null;
+  } catch {
+    return null;
+  }
+}
+
+/** GET：登录后返回自己的清单 { items }。 */
 export async function onRequestGet({ request }) {
   const kv = getKv();
   if (!kv) return jsonResponse({ error: "kv-not-configured" }, { "x-kv": "unbound" }, 503);
@@ -468,21 +522,13 @@ export async function onRequestGet({ request }) {
     if (!uid) {
       return jsonResponse({ error: "unauthorized" }, { "x-auth-fail": reason }, 401);
     }
-    const [snapshot, mine] = await Promise.all([
-      countTotals(kv),
-      kv.get(counterKey(uid)),
-    ]);
-    const myCount = Number(mine);
-    return jsonResponse({
-      ...snapshot,
-      mine: Number.isFinite(myCount) && myCount >= 0 ? myCount : 0,
-    });
+    return jsonResponse({ items: await loadItems(kv, uid) });
   } catch {
     return jsonResponse({ error: "kv-unavailable" }, {}, 503);
   }
 }
 
-/** POST：登录后为自己的计数 +1，返回写入后的全局快照与个人计数。 */
+/** POST：登录后为自己的清单新增一条，返回写入后的清单（201）。 */
 export async function onRequestPost({ request }) {
   const kv = getKv();
   if (!kv) return jsonResponse({ error: "kv-not-configured" }, { "x-kv": "unbound" }, 503);
@@ -491,9 +537,66 @@ export async function onRequestPost({ request }) {
     if (!uid) {
       return jsonResponse({ error: "unauthorized" }, { "x-auth-fail": reason }, 401);
     }
-    const mine = await applyTap(kv, uid);
-    const snapshot = await countTotals(kv);
-    return jsonResponse({ ...snapshot, mine });
+    const body = await readJsonBody(request);
+    if (!body) return jsonResponse({ error: "invalid-json" }, {}, 400);
+    const items = addTodo(await loadItems(kv, uid), body.title);
+    if (!items) return jsonResponse({ error: "invalid-title" }, {}, 400);
+    await saveItems(kv, uid, items);
+    return jsonResponse({ items }, {}, 201);
+  } catch {
+    return jsonResponse({ error: "kv-unavailable" }, {}, 503);
+  }
+}
+
+/** PATCH：登录后按 id 更新 done/title，返回写入后的清单。 */
+export async function onRequestPatch({ request }) {
+  const kv = getKv();
+  if (!kv) return jsonResponse({ error: "kv-not-configured" }, { "x-kv": "unbound" }, 503);
+  try {
+    const { uid, reason } = await readSessionUid(request);
+    if (!uid) {
+      return jsonResponse({ error: "unauthorized" }, { "x-auth-fail": reason }, 401);
+    }
+    const body = await readJsonBody(request);
+    if (!body) return jsonResponse({ error: "invalid-json" }, {}, 400);
+    const id = typeof body.id === "string" && body.id ? body.id : null;
+    if (!id) return jsonResponse({ error: "invalid-id" }, {}, 400);
+    const patch = {};
+    if (typeof body.done === "boolean") patch.done = body.done;
+    if (typeof body.title === "string") patch.title = body.title;
+    const items = updateTodo(await loadItems(kv, uid), id, patch);
+    if (!items) return jsonResponse({ error: "not-found" }, {}, 404);
+    await saveItems(kv, uid, items);
+    return jsonResponse({ items });
+  } catch {
+    return jsonResponse({ error: "kv-unavailable" }, {}, 503);
+  }
+}
+
+/** DELETE：登录后按 id 删除条目（?id= 优先，回落 body { id }）。 */
+export async function onRequestDelete({ request }) {
+  const kv = getKv();
+  if (!kv) return jsonResponse({ error: "kv-not-configured" }, { "x-kv": "unbound" }, 503);
+  try {
+    const { uid, reason } = await readSessionUid(request);
+    if (!uid) {
+      return jsonResponse({ error: "unauthorized" }, { "x-auth-fail": reason }, 401);
+    }
+    let id = null;
+    try {
+      id = new URL(request.url).searchParams.get("id");
+    } catch {
+      id = null;
+    }
+    if (!id) {
+      const body = await readJsonBody(request);
+      if (typeof body?.id === "string" && body.id) id = body.id;
+    }
+    if (!id) return jsonResponse({ error: "invalid-id" }, {}, 400);
+    const items = removeTodo(await loadItems(kv, uid), id);
+    if (!items) return jsonResponse({ error: "not-found" }, {}, 404);
+    await saveItems(kv, uid, items);
+    return jsonResponse({ items });
   } catch {
     return jsonResponse({ error: "kv-unavailable" }, {}, 503);
   }
