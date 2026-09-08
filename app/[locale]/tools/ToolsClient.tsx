@@ -23,8 +23,8 @@ const COMPONENTS: Record<string, ComponentType | undefined> = {
   "case-converter": CaseConverter,
 };
 
-// http-check 在服务端渲染（它需要请求头），因此这里只提供
-// 一个跳转链接，而不是内嵌组件。
+// http-check 渲染服务端数据、counter 需要登录门控，均为独立页面，
+// 这里只提供跳转链接而不是内嵌组件。
 const tools = [
   { id: "json-formatter", icon: "json", key: "json" },
   { id: "base64", icon: "b64", key: "base64" },
@@ -33,6 +33,7 @@ const tools = [
   { id: "color-picker", icon: "color", key: "color" },
   { id: "case-converter", icon: "case", key: "case" },
   { id: "http-check", icon: "http", key: "httpCheck" },
+  { id: "counter", icon: "+1", key: "counter" },
 ];
 
 export default function ToolsPage() {

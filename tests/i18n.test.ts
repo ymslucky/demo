@@ -59,8 +59,6 @@ describe("message catalogs", () => {
       "footer",
       "languageSwitcher",
       "home",
-      "about",
-      "projects",
       "links",
       "contact",
       "tools",
@@ -193,17 +191,6 @@ function linkKeysFor(data: unknown): string[] {
   return out;
 }
 
-/** Generates the message keys the projects page requests from its data. */
-function projectKeysFor(data: unknown): string[] {
-  const out: string[] = [];
-  for (const project of (data as Array<{ key: string }>)) {
-    out.push(`items.${project.key}.name`);
-    out.push(`items.${project.key}.description`);
-    out.push(`items.${project.key}.tags`);
-  }
-  return out;
-}
-
 /** Generates the message keys the tools page requests from its data. */
 function toolKeysFor(data: unknown): string[] {
   const out: string[] = [];
@@ -321,11 +308,6 @@ describe("key usage coverage", () => {
         "links/page.tsx",
         "links",
         linkKeysFor(extractConst(read("[locale]/links/page.tsx"), "categories")),
-      ],
-      [
-        "projects/page.tsx",
-        "projects",
-        projectKeysFor(extractConst(read("[locale]/projects/page.tsx"), "projects")),
       ],
       [
         "tools/ToolsClient.tsx",

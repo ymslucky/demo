@@ -1,6 +1,15 @@
 import { describe, expect, it } from "vitest";
+import {
+  applyTap,
+  counterKey,
+  countTotals,
+  isTokenFresh,
+  parseTokenPayload,
+  readSessionToken,
+  sumCounts,
+  verifySessionToken,
+} from "../functions/api/counter.js";
 import { countOnline, sessionKey } from "../functions/api/presence.js";
-import { buildStarsPayload, isFresh } from "../functions/api/github/stars.js";
 import { extractClientIp } from "../functions/api/echo.js";
 
 /**
@@ -9,8 +18,6 @@ import { extractClientIp } from "../functions/api/echo.js";
  * the deployed handlers (onRequest*) stay thin wrappers around it. Changing
  * any exported signature here requires updating the corresponding assertions.
  */
-
-const HOUR = 3_600_000;
 
 // ---------------------------------------------------------------------------
 // functions/api/presence.js
@@ -101,46 +108,173 @@ describe("presence countOnline", () => {
 });
 
 // ---------------------------------------------------------------------------
-// functions/api/github/stars.js
+// functions/api/counter.js
 // ---------------------------------------------------------------------------
 
-describe("stars isFresh", () => {
-  const base = 1_700_000_000_000;
-
-  it("fresh within one hour", () => {
-    expect(isFresh({ fetchedAt: base }, base + HOUR - 1)).toBe(true);
+describe("counter counterKey", () => {
+  it("normalizes user ids to the KV-safe charset (letters/digits/underscore)", () => {
+    expect(counterKey("user_abc-123")).toBe("counter_user_user_abc_123");
+    expect(counterKey("a/b\\c:d")).toBe("counter_user_a_b_c_d");
   });
 
-  it("stale at exactly one hour", () => {
-    expect(isFresh({ fetchedAt: base }, base + HOUR)).toBe(false);
-  });
-
-  it("malformed records are never fresh", () => {
-    expect(isFresh(null, base)).toBe(false);
-    expect(isFresh(undefined, base)).toBe(false);
-    expect(isFresh({}, base)).toBe(false);
-    expect(isFresh({ fetchedAt: "x" }, base)).toBe(false);
+  it("caps the normalized id at 64 chars", () => {
+    const key = counterKey("x".repeat(100));
+    expect(key.startsWith("counter_user_")).toBe(true);
+    expect(key.length).toBe("counter_user_".length + 64);
   });
 });
 
-describe("buildStarsPayload", () => {
-  const repos = [
-    { name: "b", stargazers_count: 10, html_url: "https://github.com/x/b" },
-    { name: "a", stargazers_count: 30, html_url: "https://github.com/x/a" },
-    { name: "c", stargazers_count: 20, html_url: "https://github.com/x/c" },
-    { name: "d", stargazers_count: 5, html_url: "https://github.com/x/d" },
-    { stargazers_count: 99 }, // malformed: no name
-  ];
-
-  it("sums stars and counts repos, including malformed entries", () => {
-    const payload = buildStarsPayload(repos);
-    expect(payload.totalStars).toBe(99 + 30 + 20 + 10 + 5);
-    expect(payload.publicRepoCount).toBe(5);
+describe("counter sumCounts / countTotals", () => {
+  it("sums valid counts and counts only usable entries as users", () => {
+    expect(sumCounts(["3", "5", "0"])).toEqual({ total: 8, users: 3 });
+    expect(sumCounts(["oops", "-2", null, "4"])).toEqual({ total: 4, users: 1 });
+    expect(sumCounts([])).toEqual({ total: 0, users: 0 });
+    expect(sumCounts(undefined)).toEqual({ total: 0, users: 0 });
   });
 
-  it("ranks top 3 by stars, skipping malformed entries", () => {
-    const payload = buildStarsPayload(repos);
-    expect(payload.top.map((repo: { name: string }) => repo.name)).toEqual(["a", "c", "b"]);
+  it("countTotals reads every per-user key via list + batched get", async () => {
+    const kv = fakeKv([
+      ["counter_user_alice", "3"],
+      ["counter_user_bob", "5"],
+      ["presence_fresh", "123"], // other namespaces must not leak in
+    ]);
+    expect(await countTotals(kv)).toEqual({ total: 8, users: 2 });
+  });
+});
+
+describe("counter applyTap", () => {
+  it("increments from zero for a first-time user", async () => {
+    const kv = fakeKv();
+    expect(await applyTap(kv, "user_a")).toBe(1);
+    expect(kv.store.get("counter_user_user_a")).toBe("1");
+  });
+
+  it("increments existing counts and repairs corrupted values", async () => {
+    const kv = fakeKv([
+      ["counter_user_user_a", "9"],
+      ["counter_user_user_b", "not-a-number"],
+    ]);
+    expect(await applyTap(kv, "user_a")).toBe(10);
+    expect(await applyTap(kv, "user_b")).toBe(1); // corrupted -> restart at 1
+    expect(await applyTap(kv, "user_a")).toBe(11);
+  });
+});
+
+describe("counter session token helpers", () => {
+  const encoder = new TextEncoder();
+
+  function b64urlEncode(bytes: Uint8Array): string {
+    let binary = "";
+    bytes.forEach((b) => (binary += String.fromCharCode(b)));
+    return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  }
+
+  function b64urlJson(value: unknown): string {
+    return b64urlEncode(encoder.encode(JSON.stringify(value)));
+  }
+
+  function fakeRequest(cookie: string | undefined) {
+    return { headers: new Headers(cookie === undefined ? {} : { cookie }) };
+  }
+
+  async function makeKey(kid: string) {
+    const pair = (await crypto.subtle.generateKey(
+      { name: "ECDSA", namedCurve: "P-256" },
+      true,
+      ["sign", "verify"],
+    )) as CryptoKeyPair;
+    const jwk = {
+      ...(await crypto.subtle.exportKey("jwk", pair.publicKey)),
+      kid,
+    };
+    return { privateKey: pair.privateKey, jwk };
+  }
+
+  async function buildToken(
+    privateKey: CryptoKey,
+    header: Record<string, unknown>,
+    payload: Record<string, unknown>,
+  ) {
+    const signingInput = `${b64urlJson(header)}.${b64urlJson(payload)}`;
+    const signature = await crypto.subtle.sign(
+      { name: "ECDSA", hash: "SHA-256" },
+      privateKey,
+      encoder.encode(signingInput),
+    );
+    return `${signingInput}.${b64urlEncode(new Uint8Array(signature))}`;
+  }
+
+  it("readSessionToken extracts __session from the cookie header", () => {
+    expect(readSessionToken(fakeRequest("__session=jwt.value.sig"))).toBe("jwt.value.sig");
+    expect(readSessionToken(fakeRequest("other=1; __session=abc; x=2"))).toBe("abc");
+    expect(readSessionToken(fakeRequest("other=1"))).toBeNull();
+    expect(readSessionToken(fakeRequest(undefined))).toBeNull();
+    expect(readSessionToken(null)).toBeNull();
+  });
+
+  it("parseTokenPayload splits a well-formed JWT and rejects malformed ones", () => {
+    const token = `${b64urlJson({ alg: "ES256", kid: "k" })}.${b64urlJson({
+      sub: "u1",
+      exp: 2_000_000_000,
+    })}.c2ln`;
+    const parsed = parseTokenPayload(token);
+    expect(parsed?.header).toEqual({ alg: "ES256", kid: "k" });
+    expect(parsed?.payload).toEqual({ sub: "u1", exp: 2_000_000_000 });
+
+    expect(parseTokenPayload("a.b")).toBeNull(); // missing signature
+    expect(parseTokenPayload("a..c2ln")).toBeNull(); // empty payload segment
+    expect(parseTokenPayload("!!!.!!!.!!!")).toBeNull(); // not base64
+    expect(parseTokenPayload(42 as unknown as string)).toBeNull();
+  });
+
+  it("isTokenFresh checks exp (seconds) against now (ms)", () => {
+    expect(isTokenFresh({ exp: 2_000_000_000 }, 1_000_000_000_000)).toBe(true);
+    expect(isTokenFresh({ exp: 1_000_000_000 }, 1_000_000_000_000)).toBe(false);
+    expect(isTokenFresh({}, 1_000_000_000_000)).toBe(false);
+  });
+
+  it("verifySessionToken validates signature, alg, kid and exp", async () => {
+    const { privateKey, jwk } = await makeKey("test-key");
+    const exp = Math.floor(Date.now() / 1000) + 600;
+    const token = await buildToken(
+      privateKey,
+      { alg: "ES256", kid: "test-key", typ: "JWT" },
+      { sub: "user_abc", iss: "https://test.example.com", exp },
+    );
+
+    const payload = await verifySessionToken(token, { jwks: [jwk] });
+    expect(payload?.sub).toBe("user_abc");
+  });
+
+  it("verifySessionToken rejects tampered, expired, wrong-alg and unknown-kid tokens", async () => {
+    const { privateKey, jwk } = await makeKey("test-key");
+    const now = Date.now();
+    const header = { alg: "ES256", kid: "test-key", typ: "JWT" };
+
+    const expired = await buildToken(privateKey, header, {
+      sub: "u",
+      exp: Math.floor(now / 1000) - 10,
+    });
+    expect(await verifySessionToken(expired, { jwks: [jwk], now })).toBeNull();
+
+    const wrongAlg = await buildToken(privateKey, { ...header, alg: "none" }, {
+      sub: "u",
+      exp: Math.floor(now / 1000) + 600,
+    });
+    expect(await verifySessionToken(wrongAlg, { jwks: [jwk] })).toBeNull();
+
+    const unknownKid = await buildToken(privateKey, { ...header, kid: "other" }, {
+      sub: "u",
+      exp: Math.floor(now / 1000) + 600,
+    });
+    expect(await verifySessionToken(unknownKid, { jwks: [jwk] })).toBeNull();
+
+    const valid = await buildToken(privateKey, header, {
+      sub: "u",
+      exp: Math.floor(now / 1000) + 600,
+    });
+    const tampered = `${valid.slice(0, -4)}AAAA`;
+    await expect(verifySessionToken(tampered, { jwks: [jwk] })).resolves.toBeNull();
   });
 });
 

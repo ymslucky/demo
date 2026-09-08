@@ -7,17 +7,6 @@ export const ICONS: Record<NavKey, React.ReactNode> = {
       <path d="M5 10v11h14V10" />
     </svg>
   ),
-  about: (
-    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-      <circle cx="12" cy="8" r="4" />
-      <path d="M4 21c1.5-4 5-6 8-6s6.5 2 8 6" />
-    </svg>
-  ),
-  projects: (
-    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-      <path d="M3 7a2 2 0 0 1 2-2h4l2 2.5h8a2 2 0 0 1 2 2V17a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-    </svg>
-  ),
   blog: (
     <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
       <path d="M12 20h9" />

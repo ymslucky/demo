@@ -8,8 +8,6 @@
     "ariaLabel": "主导航",
     "skipToContent": "跳到正文",
     "home": "首页",
-    "about": "关于",
-    "projects": "项目",
     "links": "导航",
     "tools": "工具",
     "blog": "博客",
@@ -43,92 +41,6 @@
       "less": "少",
       "more": "多",
       "dayTooltip": "{count} 次贡献 · {date}"
-    }
-  },
-  "about": {
-    "title": "关于",
-    "description": "关于 LuckyLab — 独立开发者的技术栈、关注方向与开源贡献。",
-    "heading": "关于我",
-    "p1": "我是一名独立开发者，热衷于用技术解决日常生活和工作中的实际问题。我的技术栈以 TypeScript 和 Python 为主，擅长使用 Next.js 构建现代 Web 应用，也熟悉 Appwrite、Cloudflare 等无服务器（Serverless）平台的后端开发。",
-    "p2": "除了 Web 开发，我也对桌面端自动化工具和数据可视化充满兴趣——曾用 PySide6 构建零代码自动化操作原型，用雷达图等可视化方式呈现复杂业务数据。我倾向于选择简洁、高效的技术方案，追求以最小的复杂度交付可用的产品。",
-    "p3": "在开源方面，我维护了多个公开仓库，涵盖实用工具、导航站和数据可视化项目，也曾作为 Arctic Code Vault Contributor 参与过被 GitHub 永久存档的开源代码贡献。",
-    "focusTitle": "当前关注方向",
-    "focusAreas": [
-      "全栈 Web 应用开发",
-      "AI 辅助开发与图像生成",
-      "自动化与桌面效率工具",
-      "数据可视化"
-    ],
-    "honor": "★ 荣誉：GitHub Arctic Code Vault Contributor",
-    "githubStarsTitle": "GitHub 星标概览",
-    "githubStarsTotal": "共 {count} 颗星",
-    "githubStarsRepos": "{count} 个公开仓库",
-    "githubStarsStars": "★ {count}",
-    "githubStarsLoading": "正在获取 GitHub 数据…",
-    "githubStarsError": "暂时无法获取 GitHub 数据"
-  },
-  "projects": {
-    "title": "项目",
-    "description": "LuckyLab 的精选项目 — 节假日日历、Serverless 平台、数据可视化、桌面自动化工具等。",
-    "heading": "精选项目",
-    "demo": "在线 Demo →",
-    "source": "源码 →",
-    "close": "关闭",
-    "outroTitle": "还有更多在 GitHub",
-    "githubCta": "查看全部项目",
-    "contactCta": "联系我",
-    "items": {
-      "holiday": {
-        "name": "Holiday — 节假日日历",
-        "description": "一个简洁的交互式节假日日历应用。基于 Next.js 构建，支持滚轮切换月份、高亮当天日期，并针对移动端和桌面端做了响应式优化。",
-        "tags": [
-          "Next.js",
-          "TypeScript",
-          "Tailwind CSS"
-        ]
-      },
-      "functionstore": {
-        "name": "FunctionStore — Serverless 函数仓库",
-        "description": "基于 Appwrite 的自托管 Serverless 函数管理平台。使用 Python 编写的云函数集合，将常用后端逻辑封装为可复用的 FaaS 工作流。",
-        "tags": [
-          "Python",
-          "Appwrite",
-          "Serverless"
-        ]
-      },
-      "dateview": {
-        "name": "DateView — 数据可视化看板",
-        "description": "基于 Next.js 的数据展示与雷达图可视化应用。探索 Edge Functions 与前端的结合，优化了数据获取逻辑和图表渲染性能。",
-        "tags": [
-          "Next.js",
-          "TypeScript",
-          "Edge Functions"
-        ]
-      },
-      "fnav": {
-        "name": "FNav — 导航站",
-        "description": "个人定制的简洁导航网站，收录常用在线工具、开发资源和社区入口。",
-        "tags": [
-          "HTML",
-          "CSS"
-        ]
-      },
-      "autotask": {
-        "name": "AutoTask-UI — 零代码桌面自动化工具",
-        "description": "基于 PySide6 的桌面自动化操作原型，将重复步骤抽象为可配置任务，由 PyAutoGUI 在后台精确复现。",
-        "tags": [
-          "Python",
-          "PySide6",
-          "PyAutoGUI"
-        ]
-      },
-      "bitresonance": {
-        "name": "BitResonance",
-        "description": "实验性技术探索项目，探索字节级数据处理与信号共振的概念，后续补充文档。",
-        "tags": [
-          "探索中"
-        ]
-      }
     }
   },
   "blog": {
@@ -398,6 +310,10 @@
       "httpCheck": {
         "name": "HTTP 请求体检",
         "description": "从服务器视角解读你的每一次访问：IP、地理线索、设备指纹与完整请求头，由服务端实时渲染。"
+      },
+      "counter": {
+        "name": "实时计数器",
+        "description": "登录后可用的全局计数器：点击 +1 写入云端 KV，多端近实时汇总。"
       }
     },
     "actions": {
@@ -435,6 +351,20 @@
       "apiCard": "JSON 回显接口",
       "apiDesc": "同样的数据也以 JSON 形式公开，可将任意请求发往 /api/echo 用于调试。",
       "openApi": "查看 JSON 输出"
+    },
+    "counter": {
+      "gateTitle": "仅限登录用户",
+      "gateDesc": "实时计数器使用你的登录身份记录每次点击，请先登录再使用。",
+      "gateSignIn": "登录 / 注册",
+      "loading": "正在读取计数…",
+      "loadError": "计数加载失败，请稍后重试。",
+      "retry": "重试",
+      "sessionExpired": "登录状态已失效，请重新登录。",
+      "totalLabel": "全局总计",
+      "mineLabel": "我的点击",
+      "usersLabel": "{count} 位用户参与",
+      "plusOne": "+1",
+      "approxHint": "计数写入云端 KV 后最终一致（同步可能延迟约 1 分钟），页面每 5 秒自动刷新。"
     },
     "labels": {
       "jsonInput": "JSON 输入",

@@ -8,8 +8,6 @@
     "ariaLabel": "Main navigation",
     "skipToContent": "Skip to content",
     "home": "Home",
-    "about": "About",
-    "projects": "Projects",
     "links": "Links",
     "tools": "Tools",
     "blog": "Blog",
@@ -43,92 +41,6 @@
       "less": "Less",
       "more": "More",
       "dayTooltip": "{count} contributions · {date}"
-    }
-  },
-  "about": {
-    "title": "About",
-    "description": "About LuckyLab — the tech stack, focus areas and open source contributions of an indie developer.",
-    "heading": "About Me",
-    "p1": "I'm an indie developer who enjoys using technology to solve practical problems in daily life and work. My stack centers on TypeScript and Python — I build modern web applications with Next.js and am familiar with backend development on serverless platforms like Appwrite and Cloudflare.",
-    "p2": "Besides web development, I'm also passionate about desktop automation tools and data visualization — I once prototyped a no-code desktop automation tool with PySide6 and presented complex business data with visualizations like radar charts. I prefer simple, efficient technical solutions and aim to ship usable products with minimal complexity.",
-    "p3": "In open source, I maintain several public repositories covering practical tools, a link directory and data visualization projects, and I contributed as an Arctic Code Vault Contributor to code permanently archived by GitHub.",
-    "focusTitle": "Current Focus Areas",
-    "focusAreas": [
-      "Full-stack web application development",
-      "AI-assisted development & image generation",
-      "Automation & desktop productivity tools",
-      "Data visualization"
-    ],
-    "honor": "★ Honor: GitHub Arctic Code Vault Contributor",
-    "githubStarsTitle": "GitHub Stars Overview",
-    "githubStarsTotal": "{count} stars in total",
-    "githubStarsRepos": "{count} public repositories",
-    "githubStarsStars": "★ {count}",
-    "githubStarsLoading": "Fetching GitHub data…",
-    "githubStarsError": "GitHub data is temporarily unavailable"
-  },
-  "projects": {
-    "title": "Projects",
-    "description": "Selected projects by LuckyLab — holiday calendar, serverless platform, data visualization, desktop automation tools and more.",
-    "heading": "Selected Projects",
-    "demo": "Live Demo →",
-    "source": "Source →",
-    "close": "Close",
-    "outroTitle": "More on GitHub",
-    "githubCta": "Browse all projects",
-    "contactCta": "Contact me",
-    "items": {
-      "holiday": {
-        "name": "Holiday — Holiday Calendar",
-        "description": "A clean interactive holiday calendar app built with Next.js. Supports wheel-based month switching, highlights today, and is optimized for both mobile and desktop.",
-        "tags": [
-          "Next.js",
-          "TypeScript",
-          "Tailwind CSS"
-        ]
-      },
-      "functionstore": {
-        "name": "FunctionStore — Serverless Function Repository",
-        "description": "A self-hosted serverless function management platform built on Appwrite. A collection of cloud functions written in Python that package common backend logic into reusable FaaS workflows.",
-        "tags": [
-          "Python",
-          "Appwrite",
-          "Serverless"
-        ]
-      },
-      "dateview": {
-        "name": "DateView — Data Visualization Dashboard",
-        "description": "A Next.js data display and radar-chart visualization app. Explores combining Edge Functions with the frontend, optimizing data fetching and chart rendering performance.",
-        "tags": [
-          "Next.js",
-          "TypeScript",
-          "Edge Functions"
-        ]
-      },
-      "fnav": {
-        "name": "FNav — Link Directory",
-        "description": "A personally curated, minimal link directory collecting common online tools, development resources and community entry points.",
-        "tags": [
-          "HTML",
-          "CSS"
-        ]
-      },
-      "autotask": {
-        "name": "AutoTask-UI — No-Code Desktop Automation",
-        "description": "A desktop automation prototype built with PySide6 that abstracts repetitive steps into configurable tasks, precisely replayed in the background by PyAutoGUI.",
-        "tags": [
-          "Python",
-          "PySide6",
-          "PyAutoGUI"
-        ]
-      },
-      "bitresonance": {
-        "name": "BitResonance",
-        "description": "An experimental exploration of byte-level data processing and signal resonance concepts; documentation to follow.",
-        "tags": [
-          "Exploring"
-        ]
-      }
     }
   },
   "blog": {
@@ -398,6 +310,10 @@
       "httpCheck": {
         "name": "HTTP Request Health Check",
         "description": "See each visit the way the server does: your IP, geo hints, device fingerprint and full request headers — rendered live on the server."
+      },
+      "counter": {
+        "name": "Real-time Counter",
+        "description": "A sign-in-only global counter: each +1 tap is written to cloud KV and summarized across devices in near real time."
       }
     },
     "actions": {
@@ -435,6 +351,20 @@
       "apiCard": "JSON echo API",
       "apiDesc": "The same data is also available as JSON — send any request to /api/echo for debugging.",
       "openApi": "View JSON output"
+    },
+    "counter": {
+      "gateTitle": "Signed-in users only",
+      "gateDesc": "The real-time counter records every tap against your signed-in identity — please sign in first.",
+      "gateSignIn": "Sign in / Sign up",
+      "loading": "Loading counter…",
+      "loadError": "Failed to load the counter — please try again later.",
+      "retry": "Retry",
+      "sessionExpired": "Your session has expired — please sign in again.",
+      "totalLabel": "Global total",
+      "mineLabel": "My taps",
+      "usersLabel": "{count} contributors",
+      "plusOne": "+1",
+      "approxHint": "Counts live in cloud KV and are eventually consistent (sync can lag by ~1 minute); this page refreshes every 5 seconds."
     },
     "labels": {
       "jsonInput": "JSON input",

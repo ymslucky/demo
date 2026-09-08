@@ -1,7 +1,7 @@
 /* ============================================
    Components — page sections and UI building blocks
-   (hero, buttons, cards, bento, about/contact/links,
-   footer, tools, blog, demo)
+   (hero, buttons, cards, contact/links, footer,
+   tools, blog, demo)
    ============================================ */
 
 /* ---- Hero ---- */
@@ -45,13 +45,6 @@
 
 .hero-bio {
   animation-delay: 0.08s;
-}
-
-/* Centered call-to-action row (projects outro etc.) */
-.cta-row {
-  display: flex;
-  gap: var(--space-md);
-  justify-content: center;
 }
 
 /* ---- Buttons ---- */
@@ -171,176 +164,6 @@
   gap: var(--space-md);
   font-size: var(--fs-sm);
   font-weight: 500;
-}
-
-/* ---- Projects Bento grid ---- */
-.bento {
-  display: grid;
-  gap: var(--space-md);
-  grid-template-columns: 1fr;
-}
-
-@media (min-width: 580px) {
-  .bento {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-
-/* Wide screens: 6-column Bento with alternating wide/narrow spans
-   forming varied card groups (6-card cycle) */
-@media (min-width: 960px) {
-  .bento {
-    grid-template-columns: repeat(6, 1fr);
-  }
-
-  .bento > :nth-child(6n + 1),
-  .bento > :nth-child(6n + 4) {
-    grid-column: span 4;
-  }
-
-  .bento > :nth-child(6n + 2),
-  .bento > :nth-child(6n + 3) {
-    grid-column: span 2;
-  }
-
-  .bento > :nth-child(6n),
-  .bento > :nth-child(6n + 5) {
-    grid-column: span 3;
-  }
-}
-
-.bento-card {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-}
-
-.bento-card:hover {
-  border-color: var(--color-primary);
-  box-shadow: var(--shadow-md);
-}
-
-.bento-card h3 {
-  margin-bottom: var(--space-xs);
-}
-
-.bento-card h3 a {
-  color: inherit;
-}
-
-.bento-card h3 a:hover {
-  color: var(--color-primary);
-}
-
-.bento-card p {
-  font-size: var(--fs-sm);
-  color: var(--color-text-muted);
-  margin-bottom: var(--space-sm);
-}
-
-/* Pin links to the card bottom so cards of different heights align visually */
-.bento-card .project-links {
-  margin-top: auto;
-}
-
-.bento-index {
-  position: absolute;
-  top: -14px;
-  left: -12px;
-  font-family: var(--font-mono);
-  font-size: var(--fs-xs);
-  font-weight: 700;
-  background: var(--color-primary);
-  color: var(--color-on-primary);
-  border: 3px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  padding: 0.15em 0.5em;
-}
-
-.icon-link {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 48px;
-  height: 48px;
-  border: 3px solid var(--color-border);
-  border-radius: var(--radius-md);
-  background: var(--color-surface);
-  color: var(--color-text);
-  box-shadow: var(--shadow-sm);
-  transition: var(--transition);
-}
-
-.icon-link:hover {
-  background: var(--color-primary);
-  color: var(--color-on-primary);
-  transform: translate(-2px, -2px);
-  box-shadow: var(--shadow-md);
-}
-
-.projects-outro {
-  margin-top: var(--space-xl);
-  text-align: center;
-}
-
-.projects-outro h2 {
-  font-size: var(--fs-3xl);
-  margin-bottom: var(--space-sm);
-}
-
-/* ---- About ---- */
-.about-text {
-  /* Cap line length so text stays readable after the container widens */
-  max-width: 72ch;
-}
-
-.about-text p {
-  margin-bottom: var(--space-md);
-  font-size: var(--fs-lg);
-}
-
-.about-focus {
-  margin-top: var(--space-lg);
-  padding: var(--space-lg);
-  background: var(--color-surface);
-  border: 3px solid var(--color-border);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-sm);
-}
-
-.about-focus h2 {
-  margin-bottom: var(--space-sm);
-  font-size: var(--fs-base);
-  color: var(--color-text-muted);
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-.focus-tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-sm);
-}
-
-.focus-tag {
-  background: var(--color-tint);
-  color: var(--color-primary-dark);
-  padding: var(--space-xs) var(--space-md);
-  border-radius: var(--radius-md);
-  font-size: var(--fs-sm);
-  font-weight: 500;
-}
-
-.about-honor {
-  margin-top: var(--space-lg);
-  padding: var(--space-md) var(--space-lg);
-  background: var(--color-info-bg);
-  border: 3px solid var(--color-border);
-  border-radius: var(--radius-md);
-  font-size: var(--fs-sm);
-  color: var(--color-info-text);
-  box-shadow: var(--shadow-sm);
 }
 
 /* ---- Contact ---- */
@@ -723,16 +546,6 @@
 
 /* ---- Mobile refinements (<=480px) ---- */
 @media (max-width: 480px) {
-  .cta-row {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .about-focus,
-  .about-honor {
-    padding: var(--space-md);
-  }
-
   .contact-item {
     flex-direction: column;
     align-items: flex-start;
@@ -1265,6 +1078,23 @@
 .demo-gear {
   display: inline-block;
   animation: demo-spin 5s linear infinite;
+}
+
+/* ---- 实时计数器 ---- */
+/* 总数变化时轻微弹跳（React key 重挂载触发，值不变则不重播）；
+   reduced-motion 由 base.css 的全局规则压到 0.01ms。 */
+@keyframes counter-pop {
+  from {
+    transform: scale(1.12);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+
+.counter-pop {
+  display: inline-block;
+  animation: counter-pop 240ms ease-out;
 }
 
 /* ---- Demo 动画关键帧（零依赖，替代 framer-motion）----

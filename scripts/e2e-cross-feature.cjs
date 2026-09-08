@@ -16,7 +16,7 @@ const EXEC = process.env.CHROMIUM_PATH || "";
 const SHOTS = path.join(__dirname, "e2e-screenshots");
 fs.mkdirSync(SHOTS, { recursive: true });
 
-const ROUTES = ["", "/about", "/projects", "/links", "/tools", "/contact"];
+const ROUTES = ["", "/links", "/tools", "/contact"];
 
 // Strings allowed to contain CJK on English pages (language name + Chinese cloud brands)
 const ALLOWED_CJK = ["中文", "阿里云", "腾讯云", "华为云"];
