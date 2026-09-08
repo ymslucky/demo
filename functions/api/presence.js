@@ -21,7 +21,6 @@
 const SESSION_TTL_MS = 45_000;
 const LIST_PAGE_SIZE = 200;
 const KEY_PREFIX = "presence_";
-const KV_BINDING = "DICTIONARY";
 
 /** sessionId 归一化为合法 KV key（仅数字/字母/下划线，最长 64）。导出仅供测试。 */
 export function sessionKey(sessionId) {
@@ -29,12 +28,11 @@ export function sessionKey(sessionId) {
 }
 
 function getKv() {
-  // 官方语义（同官方模板的裸标识符用法）：绑定命名空间按控制台设置的
-  // 变量名（DICTIONARY）注入为全局变量，而非 context.env 属性。
-  // 裸标识符配 typeof 守卫（未绑定时 typeof 不抛 ReferenceError），
-  // 再退回 globalThis 属性探测；两者皆无视为未绑定，返回 null。
-  if (typeof DICTIONARY !== "undefined") return DICTIONARY;
-  return globalThis?.[KV_BINDING] ?? null;
+  // 绑定命名空间按控制台设置的变量名（DICTIONARY）注入为边缘函数全局
+  // 变量，而非 context.env 属性。typeof 守卫：未绑定时不抛
+  // ReferenceError，返回 null 以便上层优雅降级为 503。
+  if (typeof DICTIONARY === "undefined") return null;
+  return DICTIONARY;
 }
 
 function jsonResponse(body, extraHeaders = {}, status = 200) {

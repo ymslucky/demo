@@ -40,9 +40,10 @@ SSR/预渲染。
 
 ## 4. KV 最佳实践（官方语义）
 
-命名空间在 EdgeOne 控制台绑定，变量名 `DICTIONARY`；它以**裸的边缘函数全局
-标识符**注入，不在 `context.env` 上——`getKv()` 通过带 `typeof` 守卫的裸标识符
-读取，附带 `globalThis` 兜底。
+命名空间在 EdgeOne 控制台绑定，以**裸的边缘函数全局标识符**注入，不在
+`context.env` 上——`getKv()` 通过带 `typeof` 守卫的裸标识符读取（未绑定
+返回 null，优雅降级为 503）。现有绑定：presence → 变量名 `DICTIONARY`、
+todo → 变量名 `TODO_LIST`（独立命名空间）。
 
 - **键**只接受 `[A-Za-z0-9_]`（≤512B）——所有用户来源的输入必须规范化（见
   `sessionKey()` / `counterKey()`）。值为字符串，≤25MB。

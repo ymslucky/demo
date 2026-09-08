@@ -313,7 +313,7 @@
       },
       "todo": {
         "name": "TODO List",
-        "description": "A sign-in-only personal todo list: items persist to cloud KV, isolated per account and synced across devices."
+        "description": "A personal todo list: sign in to persist items to cloud KV — isolated per account and synced across devices. Signed-out visitors can use it too, with data kept in this browser only."
       }
     },
     "actions": {
@@ -353,8 +353,6 @@
       "openApi": "View JSON output"
     },
     "todo": {
-      "gateTitle": "Signed-in users only",
-      "gateDesc": "TODO List stores your items in cloud KV under your signed-in identity, fully isolated per account.",
       "gateSignIn": "Sign in / Sign up",
       "loading": "Loading todos…",
       "loadError": "Failed to load your todos — please try again later.",
@@ -364,7 +362,21 @@
       "add": "Add",
       "empty": "No todos yet — add your first one.",
       "deleteItem": "Delete “{title}”",
-      "itemCount": "{count} items",
+      "editItem": "Edit “{title}”",
+      "titleLabel": "Title",
+      "noteLabel": "Details",
+      "notePlaceholder": "Add details or notes…",
+      "save": "Save",
+      "cancel": "Cancel",
+      "statsProgress": "{done} / {total} completed",
+      "statsRate": "{rate}% complete",
+      "statsPending": "{count} pending",
+      "storageSource": "Data source: {source}",
+      "storageCloud": "Cloud KV",
+      "storageLocal": "This browser",
+      "lastSaved": "Last updated {time}",
+      "neverSaved": "Not saved yet",
+      "localHint": "Guest mode: todos are stored in this browser only. Sign in to write to cloud KV — isolated per account and synced across devices (existing local items stay on this machine).",
       "kvHint": "Todos live in cloud KV tied to your account — sign in on any device to see the same list."
     },
     "labels": {

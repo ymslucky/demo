@@ -1,13 +1,21 @@
 /**
- * Client-side guards for the /api/todo payload. The edge function is the
- * source of truth; these helpers only normalize defensive reads so a
- * malformed payload can never crash the UI.
+ * Client-side guards for the /api/todo payload (and for the signed-out
+ * localStorage mirror of the same shape). The edge function is the source
+ * of truth; these helpers only normalize defensive reads so a malformed
+ * payload can never crash the UI.
  */
+
+/** List size cap, mirroring the edge function's MAX_ITEMS. */
+export const MAX_ITEMS = 200;
+
+/** Details (note) length cap, mirroring the edge function's MAX_NOTE_LEN. */
+export const MAX_NOTE_LEN = 2000;
 
 /** Shape of a single todo item as returned by /api/todo. */
 export interface TodoItem {
   id: string;
   title: string;
+  note: string;
   done: boolean;
   createdAt: number;
 }
@@ -22,6 +30,8 @@ export function normalizeItem(entry: unknown): TodoItem | null {
   return {
     id: raw.id,
     title: raw.title,
+    note:
+      typeof raw.note === "string" ? raw.note.trim().slice(0, MAX_NOTE_LEN) : "",
     done: raw.done === true,
     createdAt: Number.isFinite(createdAt) ? createdAt : 0,
   };
@@ -39,4 +49,15 @@ export function normalizeItems(data: unknown): TodoItem[] | null {
   return raw.items
     .map((entry) => normalizeItem(entry))
     .filter((item): item is TodoItem => item !== null);
+}
+
+/** Aggregate counters for the status footer. */
+export function statsSummary(items: TodoItem[]): {
+  total: number;
+  done: number;
+  pending: number;
+} {
+  const total = items.length;
+  const done = items.filter((item) => item.done).length;
+  return { total, done, pending: total - done };
 }

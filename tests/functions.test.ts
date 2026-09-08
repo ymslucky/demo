@@ -183,20 +183,32 @@ describe("todo addTodo / updateTodo / removeTodo", () => {
       done: false,
       createdAt: i,
     }));
-    const added = addTodo(full, "  hello  ", { id: "new", createdAt: 42 })!;
+    const added = addTodo(full, "  hello  ", { id: "new", createdAt: 42, note: "  n  " })!;
     expect(added).toHaveLength(200);
-    expect(added[0]).toEqual({ id: "new", title: "hello", done: false, createdAt: 42 });
+    expect(added[0]).toEqual({
+      id: "new",
+      title: "hello",
+      note: "n",
+      done: false,
+      createdAt: 42,
+    });
     expect(added[1]).toMatchObject({ id: "k0" });
     expect(addTodo([], "   ")).toBeNull(); // blank titles are rejected
   });
 
-  it("updateTodo patches done/title immutably and rejects ghost ids", () => {
+  it("updateTodo patches done/title/note immutably and rejects ghost ids", () => {
     const items = [
-      { id: "a", title: "first", done: false, createdAt: 1 },
-      { id: "b", title: "second", done: false, createdAt: 2 },
+      { id: "a", title: "first", note: "", done: false, createdAt: 1 },
+      { id: "b", title: "second", note: "", done: false, createdAt: 2 },
     ];
     const patched = updateTodo(items, "a", { done: true, title: "  renamed  " });
-    expect(patched[0]).toEqual({ id: "a", title: "renamed", done: true, createdAt: 1 });
+    expect(patched[0]).toEqual({
+      id: "a",
+      title: "renamed",
+      note: "",
+      done: true,
+      createdAt: 1,
+    });
     expect(items[0].done).toBe(false); // original array untouched
 
     expect(updateTodo(items, "ghost", { done: true })).toBeNull();
@@ -205,13 +217,21 @@ describe("todo addTodo / updateTodo / removeTodo", () => {
     expect(updateTodo(items, "a", { title: "   " })[0].title).toBe("first");
   });
 
+  it("updateTodo trims note, allows clearing with an empty string", () => {
+    const items = [{ id: "a", title: "first", note: "old", done: false, createdAt: 1 }];
+    expect(updateTodo(items, "a", { note: "  new  " })[0].note).toBe("new");
+    expect(updateTodo(items, "a", { note: "   " })[0].note).toBe("");
+    expect(updateTodo(items, "a", { note: "x".repeat(3000) })[0].note).toHaveLength(2000);
+    expect(items[0].note).toBe("old"); // original array untouched
+  });
+
   it("removeTodo deletes by id and reports misses as null", () => {
     const items = [
-      { id: "a", title: "first", done: false, createdAt: 1 },
-      { id: "b", title: "second", done: false, createdAt: 2 },
+      { id: "a", title: "first", note: "", done: false, createdAt: 1 },
+      { id: "b", title: "second", note: "", done: false, createdAt: 2 },
     ];
     expect(removeTodo(items, "a")).toEqual([
-      { id: "b", title: "second", done: false, createdAt: 2 },
+      { id: "b", title: "second", note: "", done: false, createdAt: 2 },
     ]);
     expect(removeTodo(items, "ghost")).toBeNull();
     expect(items).toHaveLength(2); // original array untouched

@@ -353,8 +353,6 @@
       "openApi": "查看 JSON 输出"
     },
     "todo": {
-      "gateTitle": "仅限登录用户",
-      "gateDesc": "TODO List 使用你的登录身份在云端 KV 保存待办，不同账号的数据完全隔离。",
       "gateSignIn": "登录 / 注册",
       "loading": "正在读取待办…",
       "loadError": "待办加载失败，请稍后重试。",
@@ -364,7 +362,21 @@
       "add": "添加",
       "empty": "还没有待办，添加第一条吧。",
       "deleteItem": "删除「{title}」",
-      "itemCount": "共 {count} 条",
+      "editItem": "编辑「{title}」",
+      "titleLabel": "标题",
+      "noteLabel": "详情",
+      "notePlaceholder": "补充详情、备注…",
+      "save": "保存",
+      "cancel": "取消",
+      "statsProgress": "已完成 {done} / {total}",
+      "statsRate": "完成率 {rate}%",
+      "statsPending": "待办 {count} 条",
+      "storageSource": "数据来源：{source}",
+      "storageCloud": "云端 KV",
+      "storageLocal": "本机浏览器",
+      "lastSaved": "最近更新 {time}",
+      "neverSaved": "尚未保存",
+      "localHint": "未登录模式：待办仅保存在当前浏览器。登录后新增数据写入云端 KV、按账号隔离、多端同步（本地已有数据仍保留在本机）。",
       "kvHint": "数据保存在云端 KV 并与账号绑定，换设备登录也能看到同一份清单。"
     },
     "labels": {

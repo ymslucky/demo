@@ -37,7 +37,6 @@
  */
 
 const KEY_PREFIX = "todo_user_";
-const KV_BINDING = "DICTIONARY";
 const JWKS_TTL_MS = 3_600_000;
 // 会话 JWT 的 issuer / azp（来源 origin）白名单：本站生产 Clerk 实例。
 // 钉死 issuer 是 Clerk 官方手动验签清单的硬性要求（防"任意 iss + 自造
@@ -48,9 +47,10 @@ const ALLOWED_AZP = ["https://rdom.cn"];
 // Clerk SDK 默认 clockSkewInMs = 5000：exp/nbf 判断保持同样的容差，
 // 避免边缘节点与签发方时钟的毫秒级偏移误伤刚签发的会话。
 const CLOCK_SKEW_S = 5;
-// 单用户清单条数上限与单条标题长度上限（防御 KV 值膨胀）。
+// 单用户清单条数上限、单条标题长度上限与单条详情长度上限（防御 KV 值膨胀）。
 const MAX_ITEMS = 200;
 const MAX_TITLE_LEN = 200;
+const MAX_NOTE_LEN = 2000;
 
 /** userId 归一化为合法 KV key（仅数字/字母/下划线，最长 64）。导出仅供测试。 */
 export function todoKey(uid) {
@@ -58,12 +58,11 @@ export function todoKey(uid) {
 }
 
 function getKv() {
-  // 官方语义（同官方模板的裸标识符用法）：绑定命名空间按控制台设置的
-  // 变量名（DICTIONARY）注入为全局变量，而非 context.env 属性。
-  // 裸标识符配 typeof 守卫（未绑定时 typeof 不抛 ReferenceError），
-  // 再退回 globalThis 属性探测；两者皆无视为未绑定，返回 null。
-  if (typeof DICTIONARY !== "undefined") return DICTIONARY;
-  return globalThis?.[KV_BINDING] ?? null;
+  // 绑定命名空间按控制台设置的变量名（TODO_LIST）注入为边缘函数全局
+  // 变量，而非 context.env 属性。typeof 守卫：未绑定时不抛
+  // ReferenceError，返回 null 以便上层优雅降级为 503。
+  if (typeof TODO_LIST === "undefined") return null;
+  return TODO_LIST;
 }
 
 function jsonResponse(body, extraHeaders = {}, status = 200) {
@@ -124,7 +123,7 @@ export function normalizeItems(value) {
  * 队首并保持总数封顶。id/createdAt 可注入（测试用），缺省自动生成。
  * 导出仅供测试。
  */
-export function addTodo(items, title, { id, createdAt } = {}) {
+export function addTodo(items, title, { id, createdAt, note } = {}) {
   const clean = String(title ?? "").trim().slice(0, MAX_TITLE_LEN);
   if (!clean) return null;
   const at = Number.isFinite(createdAt) ? createdAt : Date.now();
@@ -132,6 +131,8 @@ export function addTodo(items, title, { id, createdAt } = {}) {
     {
       id: typeof id === "string" && id ? id : makeItemId(at),
       title: clean,
+      note:
+        typeof note === "string" ? note.trim().slice(0, MAX_NOTE_LEN) : "",
       done: false,
       createdAt: at,
     },
@@ -140,7 +141,7 @@ export function addTodo(items, title, { id, createdAt } = {}) {
 }
 
 /**
- * 按 id 更新 done/title（存在的字段才生效，标题 trim + 截断）；
+ * 按 id 更新 done/title/note（存在的字段才生效，标题 trim + 截断）；
  * 找不到条目返回 null。不改变原数组。导出仅供测试。
  */
 export function updateTodo(items, id, patch = {}) {
@@ -152,6 +153,10 @@ export function updateTodo(items, id, patch = {}) {
     ...(typeof patch.done === "boolean" ? { done: patch.done } : null),
     ...(typeof patch.title === "string" && patch.title.trim()
       ? { title: patch.title.trim().slice(0, MAX_TITLE_LEN) }
+      : null),
+    // note 允许设为空串（清空详情），空串之外的空白 trim。
+    ...(typeof patch.note === "string"
+      ? { note: patch.note.trim().slice(0, MAX_NOTE_LEN) }
       : null),
   };
   return next;
@@ -564,6 +569,7 @@ export async function onRequestPatch({ request }) {
     const patch = {};
     if (typeof body.done === "boolean") patch.done = body.done;
     if (typeof body.title === "string") patch.title = body.title;
+    if (typeof body.note === "string") patch.note = body.note;
     const items = updateTodo(await loadItems(kv, uid), id, patch);
     if (!items) return jsonResponse({ error: "not-found" }, {}, 404);
     await saveItems(kv, uid, items);
