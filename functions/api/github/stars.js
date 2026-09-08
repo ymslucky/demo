@@ -65,7 +65,8 @@ export function buildStarsPayload(repos) {
 async function readCache(kv) {
   if (!kv) return null;
   try {
-    const record = await kv.get(CACHE_KEY, { type: "json" });
+    // 官方 get 签名为 get(key, type?)，type 是位置参数（'json' 自动反序列化）。
+    const record = await kv.get(CACHE_KEY, "json");
     return record && typeof record === "object" ? record : null;
   } catch {
     return null;

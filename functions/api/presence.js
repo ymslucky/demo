@@ -54,19 +54,26 @@ export async function countOnline(kv, { now = Date.now(), sweep = false } = {}) 
   const result = await kv.list({ prefix: KEY_PREFIX, limit: LIST_PAGE_SIZE });
   const entries = Array.isArray(result?.keys) ? result.keys : [];
 
-  let online = 0;
-  for (const entry of entries) {
-    // ListKey 的字段名为 key（官方 ListResult 定义）。
-    const name = typeof entry === "string" ? entry : entry?.key;
-    if (typeof name !== "string") continue;
+  // 官方 ListResult 的键条目字段名为 name。
+  const names = entries
+    .map((entry) => (typeof entry === "string" ? entry : entry?.name))
+    .filter((name) => typeof name === "string");
 
-    const raw = await kv.get(name);
-    const ts = Number(raw);
+  // 官方最佳实践：list 后用 Promise.all 批量读取，而非逐 key 串行等待。
+  const raws = await Promise.all(names.map((name) => kv.get(name)));
+
+  const expired = [];
+  let online = 0;
+  names.forEach((name, i) => {
+    const ts = Number(raws[i]);
     if (!Number.isFinite(ts) || now - ts > SESSION_TTL_MS) {
-      if (sweep) await kv.delete(name);
-      continue;
+      expired.push(name);
+    } else {
+      online += 1;
     }
-    online += 1;
+  });
+  if (sweep && expired.length > 0) {
+    await Promise.all(expired.map((name) => kv.delete(name)));
   }
   return online;
 }
