@@ -1524,3 +1524,90 @@
     transform: rotate(360deg);
   }
 }
+
+/* ---- Todo List：清单/统计标签页 + 编辑弹窗 ---- */
+
+/* 标签页行容器 */
+.todo-tabs {
+  display: flex;
+  gap: var(--space-xs);
+  margin-bottom: var(--space-md);
+}
+
+/* 标签按钮：选中态由 aria-selected 驱动，键盘导航在组件内实现 */
+.todo-tab {
+  padding: 0.5rem 1.25rem;
+  border: 3px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: var(--fs-sm);
+  font-weight: 700;
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.todo-tab:hover {
+  transform: translate(-1px, -1px);
+  box-shadow: var(--shadow-sm);
+}
+
+.todo-tab[aria-selected="true"] {
+  background: var(--color-btn-primary);
+  color: var(--color-on-primary);
+  box-shadow: var(--shadow-sm);
+}
+
+/* 编辑弹窗：遮罩固定全屏居中，点击空白处关闭由组件处理 */
+.todo-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-md);
+  background: rgba(0, 0, 0, 0.45);
+  animation: todo-fade-in 0.18s ease-out both;
+}
+
+/* 弹窗卡片：硬边框 + 投影上浮入场；长内容内部滚动 */
+.todo-modal {
+  width: min(560px, 100%);
+  max-height: calc(100vh - 2 * var(--space-md));
+  overflow-y: auto;
+  padding: var(--space-md);
+  border: 3px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-md);
+  display: grid;
+  gap: var(--space-sm);
+  animation: todo-rise-in 0.22s ease-out both;
+}
+
+@keyframes todo-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes todo-rise-in {
+  from {
+    transform: translateY(16px) scale(0.97);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+}
+
+@media (max-width: 480px) {
+  .todo-tab {
+    flex: 1;
+  }
+}

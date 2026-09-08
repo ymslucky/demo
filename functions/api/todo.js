@@ -108,11 +108,23 @@ export function normalizeItems(value) {
     const title = typeof entry.title === "string" ? entry.title.trim() : "";
     if (!title) continue;
     const createdAt = Number(entry.createdAt);
+    const completedAt = Number(entry.completedAt);
     items.push({
       id: typeof entry.id === "string" && entry.id ? entry.id : makeItemId(),
       title: title.slice(0, MAX_TITLE_LEN),
+      note:
+        typeof entry.note === "string" ? entry.note.trim().slice(0, MAX_NOTE_LEN) : "",
       done: entry.done === true,
       createdAt: Number.isFinite(createdAt) ? createdAt : 0,
+      // 已完成但缺完成时间回退 createdAt（旧数据进趋势图的近似）。
+      completedAt:
+        entry.done === true
+          ? Number.isFinite(completedAt) && completedAt > 0
+            ? completedAt
+            : Number.isFinite(createdAt) && createdAt > 0
+              ? createdAt
+              : 0
+          : 0,
     });
   }
   return items.slice(0, MAX_ITEMS);
@@ -135,6 +147,7 @@ export function addTodo(items, title, { id, createdAt, note } = {}) {
         typeof note === "string" ? note.trim().slice(0, MAX_NOTE_LEN) : "",
       done: false,
       createdAt: at,
+      completedAt: 0,
     },
     ...items,
   ].slice(0, MAX_ITEMS);
@@ -142,15 +155,19 @@ export function addTodo(items, title, { id, createdAt, note } = {}) {
 
 /**
  * 按 id 更新 done/title/note（存在的字段才生效，标题 trim + 截断）；
+ * done 状态切换联动完成时间（标记完成记录当下，撤销完成清零）。
  * 找不到条目返回 null。不改变原数组。导出仅供测试。
  */
-export function updateTodo(items, id, patch = {}) {
+export function updateTodo(items, id, patch = {}, now = Date.now()) {
   const index = items.findIndex((item) => item.id === id);
   if (index === -1) return null;
   const next = items.slice();
   next[index] = {
     ...next[index],
     ...(typeof patch.done === "boolean" ? { done: patch.done } : null),
+    // 完成时间只由 done 切换驱动，不随 title/note 编辑变化。
+    ...(patch.done === true ? { completedAt: now } : null),
+    ...(patch.done === false ? { completedAt: 0 } : null),
     ...(typeof patch.title === "string" && patch.title.trim()
       ? { title: patch.title.trim().slice(0, MAX_TITLE_LEN) }
       : null),
@@ -544,7 +561,9 @@ export async function onRequestPost({ request }) {
     }
     const body = await readJsonBody(request);
     if (!body) return jsonResponse({ error: "invalid-json" }, {}, 400);
-    const items = addTodo(await loadItems(kv, uid), body.title);
+    const items = addTodo(await loadItems(kv, uid), body.title, {
+      note: body.note,
+    });
     if (!items) return jsonResponse({ error: "invalid-title" }, {}, 400);
     await saveItems(kv, uid, items);
     return jsonResponse({ items }, {}, 201);
@@ -553,7 +572,7 @@ export async function onRequestPost({ request }) {
   }
 }
 
-/** PATCH：登录后按 id 更新 done/title，返回写入后的清单。 */
+/** PATCH：登录后按 id 更新 done/title/note（done 切换联动完成时间），返回写入后的清单。 */
 export async function onRequestPatch({ request }) {
   const kv = getKv();
   if (!kv) return jsonResponse({ error: "kv-not-configured" }, { "x-kv": "unbound" }, 503);

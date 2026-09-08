@@ -313,7 +313,7 @@
       },
       "todo": {
         "name": "TODO List",
-        "description": "登录后可用的个人待办清单：数据写入云端 KV，按账号隔离，多端同步。"
+        "description": "个人待办清单：登录后数据写入云端 KV，按账号隔离、多端同步；未登录也可使用，数据仅保存在本机浏览器。"
       }
     },
     "actions": {
@@ -368,9 +368,23 @@
       "notePlaceholder": "补充详情、备注…",
       "save": "保存",
       "cancel": "取消",
-      "statsProgress": "已完成 {done} / {total}",
-      "statsRate": "完成率 {rate}%",
       "statsPending": "待办 {count} 条",
+      "tabList": "清单",
+      "tabStats": "数据统计",
+      "editTitle": "编辑待办",
+      "closeModal": "关闭",
+      "statTotal": "全部",
+      "statDoneLabel": "已完成",
+      "statPendingLabel": "待办",
+      "trendTitle": "近 7 天动态",
+      "trendAdded": "新增",
+      "trendCompleted": "完成",
+      "trendEmpty": "暂无数据，添加待办后可见动态。",
+      "donutLabel": "完成率 {rate}%",
+      "syncSaving": "同步中…",
+      "syncSaved": "已同步",
+      "syncError": "同步失败，已还原为云端数据",
+      "localOnly": "本地保存",
       "storageSource": "数据来源：{source}",
       "storageCloud": "云端 KV",
       "storageLocal": "本机浏览器",

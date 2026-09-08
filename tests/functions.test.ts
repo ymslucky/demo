@@ -153,8 +153,15 @@ describe("todo normalizeItems", () => {
         ]),
       ),
     ).toEqual([
-      { id: "a", title: "milk", done: true, createdAt: 123 },
-      { id: "c", title: "x", done: false, createdAt: 0 },
+      {
+        id: "a",
+        title: "milk",
+        note: "",
+        done: true,
+        createdAt: 123,
+        completedAt: 123, // done but no completedAt -> falls back to createdAt
+      },
+      { id: "c", title: "x", note: "", done: false, createdAt: 0, completedAt: 0 },
     ]);
   });
 
@@ -191,6 +198,7 @@ describe("todo addTodo / updateTodo / removeTodo", () => {
       note: "n",
       done: false,
       createdAt: 42,
+      completedAt: 0,
     });
     expect(added[1]).toMatchObject({ id: "k0" });
     expect(addTodo([], "   ")).toBeNull(); // blank titles are rejected
@@ -201,13 +209,19 @@ describe("todo addTodo / updateTodo / removeTodo", () => {
       { id: "a", title: "first", note: "", done: false, createdAt: 1 },
       { id: "b", title: "second", note: "", done: false, createdAt: 2 },
     ];
-    const patched = updateTodo(items, "a", { done: true, title: "  renamed  " });
+    const patched = updateTodo(
+      items,
+      "a",
+      { done: true, title: "  renamed  " },
+      999,
+    );
     expect(patched[0]).toEqual({
       id: "a",
       title: "renamed",
       note: "",
       done: true,
       createdAt: 1,
+      completedAt: 999,
     });
     expect(items[0].done).toBe(false); // original array untouched
 
@@ -223,6 +237,29 @@ describe("todo addTodo / updateTodo / removeTodo", () => {
     expect(updateTodo(items, "a", { note: "   " })[0].note).toBe("");
     expect(updateTodo(items, "a", { note: "x".repeat(3000) })[0].note).toHaveLength(2000);
     expect(items[0].note).toBe("old"); // original array untouched
+  });
+
+  it("updateTodo couples completedAt to done toggles only", () => {
+    const base = { id: "a", title: "first", note: "", createdAt: 1 };
+    const items = [
+      { ...base, done: false, completedAt: 0 },
+      { ...base, done: true, completedAt: 55, id: "b", title: "second" },
+    ];
+    // Marking done stamps completedAt with the injected clock.
+    expect(updateTodo(items, "a", { done: true }, 888)[0]).toMatchObject({
+      done: true,
+      completedAt: 888,
+    });
+    // Un-checking clears it.
+    expect(updateTodo(items, "b", { done: false })!.find((i: { id: string }) => i.id === "b")).toMatchObject({
+      done: false,
+      completedAt: 0,
+    });
+    // Title/note edits leave an existing completion stamp untouched.
+    expect(updateTodo(items, "b", { title: "renamed" }, 888)!.find((i: { id: string }) => i.id === "b")).toMatchObject({
+      done: true,
+      completedAt: 55,
+    });
   });
 
   it("removeTodo deletes by id and reports misses as null", () => {
