@@ -8,6 +8,7 @@ import {
   readSessionToken,
   sumCounts,
   verifySessionToken,
+  verifyTokenDetailed,
 } from "../functions/api/counter.js";
 import { countOnline, sessionKey } from "../functions/api/presence.js";
 import { extractClientIp } from "../functions/api/echo.js";
@@ -162,6 +163,10 @@ describe("counter applyTap", () => {
 
 describe("counter session token helpers", () => {
   const encoder = new TextEncoder();
+  // The verifier pins iss/azp allowlists (Clerk manual-verification checklist);
+  // tests inject these values so no real network or production URLs are used.
+  const ISS = "https://clerk.test.example.com";
+  const AZP = "https://app.test.example.com";
 
   function b64urlEncode(bytes: Uint8Array): string {
     let binary = "";
@@ -250,22 +255,36 @@ describe("counter session token helpers", () => {
     expect(parseTokenPayload(42 as unknown as string)).toBeNull();
   });
 
-  it("isTokenFresh checks exp (seconds) against now (ms)", () => {
+  it("isTokenFresh checks exp/nbf (seconds) against now (ms) with clerk skew tolerance", () => {
     expect(isTokenFresh({ exp: 2_000_000_000 }, 1_000_000_000_000)).toBe(true);
-    expect(isTokenFresh({ exp: 1_000_000_000 }, 1_000_000_000_000)).toBe(false);
+    // 5s tolerance: an exp within CLOCK_SKEW_S is still accepted.
+    expect(isTokenFresh({ exp: 1_000_000_003 }, 1_000_000_000_000)).toBe(true);
+    expect(isTokenFresh({ exp: 999_999_990 }, 1_000_000_000_000)).toBe(false);
     expect(isTokenFresh({}, 1_000_000_000_000)).toBe(false);
+
+    // nbf inside the tolerance window is accepted, beyond it is rejected.
+    expect(
+      isTokenFresh({ exp: 2_000_000_000, nbf: 1_000_000_003 }, 1_000_000_000_000),
+    ).toBe(true);
+    expect(
+      isTokenFresh({ exp: 2_000_000_000, nbf: 1_000_000_100 }, 1_000_000_000_000),
+    ).toBe(false);
   });
 
-  it("verifySessionToken validates signature, alg, kid and exp", async () => {
+  it("verifySessionToken validates signature, alg, kid, iss and exp", async () => {
     const { privateKey, jwk } = await makeKey("test-key");
     const exp = Math.floor(Date.now() / 1000) + 600;
     const token = await buildToken(
       privateKey,
       { alg: "ES256", kid: "test-key", typ: "JWT" },
-      { sub: "user_abc", iss: "https://test.example.com", exp },
+      { sub: "user_abc", iss: ISS, azp: AZP, exp },
     );
 
-    const payload = await verifySessionToken(token, { jwks: [jwk] });
+    const payload = await verifySessionToken(token, {
+      jwks: [jwk],
+      allowedIssuers: [ISS],
+      allowedAzp: [AZP],
+    });
     expect(payload?.sub).toBe("user_abc");
   });
 
@@ -276,28 +295,40 @@ describe("counter session token helpers", () => {
 
     const expired = await buildToken(privateKey, header, {
       sub: "u",
+      iss: ISS,
       exp: Math.floor(now / 1000) - 10,
     });
-    expect(await verifySessionToken(expired, { jwks: [jwk], now })).toBeNull();
+    expect(
+      await verifySessionToken(expired, { jwks: [jwk], now, allowedIssuers: [ISS] }),
+    ).toBeNull();
 
     const wrongAlg = await buildToken(privateKey, { ...header, alg: "none" }, {
       sub: "u",
+      iss: ISS,
       exp: Math.floor(now / 1000) + 600,
     });
-    expect(await verifySessionToken(wrongAlg, { jwks: [jwk] })).toBeNull();
+    expect(
+      await verifySessionToken(wrongAlg, { jwks: [jwk], allowedIssuers: [ISS] }),
+    ).toBeNull();
 
     const unknownKid = await buildToken(privateKey, { ...header, kid: "other" }, {
       sub: "u",
+      iss: ISS,
       exp: Math.floor(now / 1000) + 600,
     });
-    expect(await verifySessionToken(unknownKid, { jwks: [jwk] })).toBeNull();
+    expect(
+      await verifySessionToken(unknownKid, { jwks: [jwk], allowedIssuers: [ISS] }),
+    ).toBeNull();
 
     const valid = await buildToken(privateKey, header, {
       sub: "u",
+      iss: ISS,
       exp: Math.floor(now / 1000) + 600,
     });
     const tampered = `${valid.slice(0, -4)}AAAA`;
-    await expect(verifySessionToken(tampered, { jwks: [jwk] })).resolves.toBeNull();
+    await expect(
+      verifySessionToken(tampered, { jwks: [jwk], allowedIssuers: [ISS] }),
+    ).resolves.toBeNull();
   });
 
   it("verifySessionToken accepts RS256 tokens (production Clerk instances sign with RSA)", async () => {
@@ -306,10 +337,14 @@ describe("counter session token helpers", () => {
     const token = await buildToken(
       privateKey,
       { alg: "RS256", kid: "rsa-key", typ: "JWT" },
-      { sub: "user_rsa", iss: "https://test.example.com", exp },
+      { sub: "user_rsa", iss: ISS, azp: AZP, exp },
     );
 
-    const payload = await verifySessionToken(token, { jwks: [jwk] });
+    const payload = await verifySessionToken(token, {
+      jwks: [jwk],
+      allowedIssuers: [ISS],
+      allowedAzp: [AZP],
+    });
     expect(payload?.sub).toBe("user_rsa");
   });
 
@@ -320,21 +355,147 @@ describe("counter session token helpers", () => {
 
     const valid = await buildToken(privateKey, header, {
       sub: "u",
-      iss: "https://test.example.com",
+      iss: ISS,
       exp,
     });
     const tampered = `${valid.slice(0, -4)}AAAA`;
-    await expect(verifySessionToken(tampered, { jwks: [jwk] })).resolves.toBeNull();
+    await expect(
+      verifySessionToken(tampered, { jwks: [jwk], allowedIssuers: [ISS] }),
+    ).resolves.toBeNull();
 
     // ES256 header against an RSA key: Web Crypto importKey fails, which must
     // surface as a null payload (401 semantics), not a thrown error.
     const { privateKey: ecKey } = await makeKey("rsa-key");
     const mismatched = await buildToken(ecKey, { ...header, alg: "ES256" }, {
       sub: "u",
-      iss: "https://test.example.com",
+      iss: ISS,
       exp,
     });
-    await expect(verifySessionToken(mismatched, { jwks: [jwk] })).resolves.toBeNull();
+    await expect(
+      verifySessionToken(mismatched, { jwks: [jwk], allowedIssuers: [ISS] }),
+    ).resolves.toBeNull();
+  });
+
+  it("verifyTokenDetailed pins the issuer and rejects unknown iss / mismatched azp", async () => {
+    const { privateKey, jwk } = await makeKey("test-key");
+    const now = Date.now();
+    const exp = Math.floor(now / 1000) + 600;
+
+    // Attacker-chosen iss must never be trusted (fake-JWKS auth bypass).
+    const foreignIss = await buildToken(privateKey, { alg: "ES256", kid: "test-key" }, {
+      sub: "u",
+      iss: "https://evil.example.com",
+      exp,
+    });
+    await expect(
+      verifyTokenDetailed(foreignIss, { jwks: [jwk], now, allowedIssuers: [ISS] }),
+    ).resolves.toMatchObject({ ok: false, reason: "iss" });
+
+    const badAzp = await buildToken(privateKey, { alg: "ES256", kid: "test-key" }, {
+      sub: "u",
+      iss: ISS,
+      azp: "https://other.example.com",
+      exp,
+    });
+    await expect(
+      verifyTokenDetailed(badAzp, {
+        jwks: [jwk],
+        now,
+        allowedIssuers: [ISS],
+        allowedAzp: [AZP],
+      }),
+    ).resolves.toMatchObject({ ok: false, reason: "azp" });
+
+    // Old Clerk instances may omit azp: allowed when absent.
+    const noAzp = await buildToken(privateKey, { alg: "ES256", kid: "test-key" }, {
+      sub: "u",
+      iss: ISS,
+      exp,
+    });
+    await expect(
+      verifyTokenDetailed(noAzp, { jwks: [jwk], now, allowedIssuers: [ISS] }),
+    ).resolves.toMatchObject({ ok: true });
+  });
+
+  it("verifyTokenDetailed enforces the nbf and sts claims", async () => {
+    const { privateKey, jwk } = await makeKey("test-key");
+    const now = Date.now();
+    const exp = Math.floor(now / 1000) + 600;
+
+    const notYet = await buildToken(privateKey, { alg: "ES256", kid: "test-key" }, {
+      sub: "u",
+      iss: ISS,
+      exp,
+      nbf: Math.floor(now / 1000) + 60,
+    });
+    await expect(
+      verifyTokenDetailed(notYet, { jwks: [jwk], now, allowedIssuers: [ISS] }),
+    ).resolves.toMatchObject({ ok: false, reason: "nbf" });
+
+    const inactive = await buildToken(privateKey, { alg: "ES256", kid: "test-key" }, {
+      sub: "u",
+      iss: ISS,
+      exp,
+      sts: "pending",
+    });
+    await expect(
+      verifyTokenDetailed(inactive, { jwks: [jwk], now, allowedIssuers: [ISS] }),
+    ).resolves.toMatchObject({ ok: false, reason: "sts" });
+
+    const active = await buildToken(privateKey, { alg: "ES256", kid: "test-key" }, {
+      sub: "u",
+      iss: ISS,
+      exp,
+      sts: "active",
+    });
+    await expect(
+      verifyTokenDetailed(active, { jwks: [jwk], now, allowedIssuers: [ISS] }),
+    ).resolves.toMatchObject({ ok: true });
+  });
+
+  it("verifyTokenDetailed force-refreshes the JWKS once when the kid is unknown", async () => {
+    const { privateKey, jwk } = await makeKey("rotated-key");
+    const now = Date.now();
+    const exp = Math.floor(now / 1000) + 600;
+    const token = await buildToken(privateKey, { alg: "ES256", kid: "rotated-key" }, {
+      sub: "u",
+      iss: ISS,
+      exp,
+    });
+
+    // Stale cache serves the old key set; the forced refresh returns the
+    // rotated one. Covers key rotation and the stale-JWKS-cache failure mode.
+    let calls = 0;
+    const fetchJwks = async (_iss: string, opts?: { forceRefresh?: boolean }) => {
+      calls += 1;
+      return opts?.forceRefresh ? [jwk] : [{ kid: "old-key" }];
+    };
+    await expect(
+      verifyTokenDetailed(token, { now, fetchJwks, allowedIssuers: [ISS] }),
+    ).resolves.toMatchObject({ ok: true });
+    expect(calls).toBe(2);
+
+    // Unknown kid after a refresh (or with injected keys) stays a rejection
+    // without any further fetch.
+    calls = 0;
+    const stillMissing = await buildToken(privateKey, { alg: "ES256", kid: "ghost" }, {
+      sub: "u",
+      iss: ISS,
+      exp,
+    });
+    await expect(
+      verifyTokenDetailed(stillMissing, { now, fetchJwks, allowedIssuers: [ISS] }),
+    ).resolves.toMatchObject({ ok: false, reason: "kid" });
+    expect(calls).toBe(2);
+
+    // Injected jwks skip the network path entirely, including the refresh.
+    await expect(
+      verifyTokenDetailed(stillMissing, {
+        jwks: [{ kid: "other" }],
+        now,
+        allowedIssuers: [ISS],
+      }),
+    ).resolves.toMatchObject({ ok: false, reason: "kid" });
   });
 });
 

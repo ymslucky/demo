@@ -8,17 +8,26 @@
  * - KV 无原子 INCR，"+1" 通过 get → +1 → put 的读改写实现；
  * - KV 为最终一致（约 60s 全球同步），总数是近似值而非精确快照。
  *
- * 登录验证（Clerk 会话，边缘运行时 Web Crypto）：
+ * 登录验证（Clerk 会话，边缘运行时 Web Crypto，对齐官方手动验签清单）：
  * - 读取 __session cookie 中的 Clerk 会话 JWT，按 header.alg 分派验签：
  *   ES256 = ECDSA P-256 + SHA-256；RS256 = RSASSA-PKCS1-v1_5 + SHA-256
  *   （生产实例 JWKS 实测密钥型为 RSA/RS256）；其余算法直接拒绝；
- * - 从 payload.iss 推导 JWKS 地址（<iss>/.well-known/jwks.json，模块级
- *   缓存 1h），按 header.kid 选取公钥；
- * - crypto.subtle.importKey("jwk", …) + verify 验签，再查 exp 是否过期；
- * - 验证通过即视为登录，uid 取 payload.sub。
+ * - 钉死 issuer：payload.iss 必须命中 ALLOWED_ISSUERS 白名单，JWKS 只从
+ *   白名单实例回源——绝不信任 token 内任意 iss（否则攻击者可自造 JWKS
+ *   伪造任意身份，构成认证绕过）；
+ * - 校验 azp：存在且不在 ALLOWED_AZP 白名单时拒绝（Clerk 官方建议，
+ *   防子域 cookie 泄漏攻击；旧实例可能不带 azp，缺失时放行）；
+ * - exp/nbf 均带 CLOCK_SKEW_S（5s）容差（对齐 Clerk SDK clockSkewInMs
+ *   默认值）；sts 存在且非 "active" 时拒绝；
+ * - JWKS 按 <iss>/.well-known/jwks.json 回源（模块级缓存 1h），按
+ *   header.kid 选取公钥；kid 未命中时强制刷新 JWKS 重试一次（自愈密钥
+ *   轮换与陈旧缓存），仍无则拒绝；
+ * - crypto.subtle.importKey("jwk", …) + verify 验签；验证通过即视为登录，
+ *   uid 取 payload.sub。
  *
- * 错误语义：401 unauthorized（未登录/会话过期/验签失败）、
- * 400 invalid-json、503 kv-not-configured / kv-unavailable。
+ * 错误语义：401 unauthorized（未登录/会话过期/验签失败，响应附
+ * x-auth-fail 诊断头说明失败环节）、400 invalid-json、
+ * 503 kv-not-configured / kv-unavailable。
  *
  * 部署路径：/api/counter（functions/api/counter.js）
  */
@@ -27,6 +36,15 @@ const KEY_PREFIX = "counter_user_";
 const LIST_PAGE_SIZE = 200;
 const KV_BINDING = "DICTIONARY";
 const JWKS_TTL_MS = 3_600_000;
+// 会话 JWT 的 issuer / azp（来源 origin）白名单：本站生产 Clerk 实例。
+// 钉死 issuer 是 Clerk 官方手动验签清单的硬性要求（防"任意 iss + 自造
+// JWKS"伪造身份）；azp 校验防子域 cookie 泄漏攻击。旧实例可能不带
+// azp——按官方示例，缺失时放行，存在且不匹配才拒绝。
+const ALLOWED_ISSUERS = ["https://clerk.rdom.cn"];
+const ALLOWED_AZP = ["https://rdom.cn"];
+// Clerk SDK 默认 clockSkewInMs = 5000：exp/nbf 判断保持同样的容差，
+// 避免边缘节点与签发方时钟的毫秒级偏移误伤刚签发的会话。
+const CLOCK_SKEW_S = 5;
 
 /** userId 归一化为合法 KV key（仅数字/字母/下划线，最长 64）。导出仅供测试。 */
 export function counterKey(uid) {
@@ -150,19 +168,29 @@ export function parseTokenPayload(token) {
   }
 }
 
-/** exp（秒）在 now（毫秒）之后视为有效。导出仅供测试。 */
+/**
+ * exp/nbf（秒）对照 now（毫秒）判断时间有效性，两侧各留 CLOCK_SKEW_S
+ * 容差（对齐 Clerk SDK clockSkewInMs 默认值）。nbf 缺失/非有限数视为
+ * 不约束（无害 claim）。导出仅供测试。
+ */
 export function isTokenFresh(payload, now = Date.now()) {
   const exp = Number(payload?.exp);
-  return Number.isFinite(exp) && now / 1000 < exp;
+  if (!Number.isFinite(exp) || now / 1000 >= exp + CLOCK_SKEW_S) return false;
+  const nbf = Number(payload?.nbf);
+  return !Number.isFinite(nbf) || now / 1000 >= nbf - CLOCK_SKEW_S;
 }
 
 // 模块级 JWKS 缓存：iss → { keys, expiresAt }，避免每次请求都回源。
 const jwksCache = new Map();
 
-async function getJwks(issuer) {
+/**
+ * 回源并解析 JWKS。forceRefresh 跳过缓存读取（kid 未命中时的自愈路径，
+ * 覆盖密钥轮换与陈旧缓存两种场景），刷新结果仍写回缓存。
+ */
+async function getJwks(issuer, { forceRefresh = false } = {}) {
   const iss = String(issuer).replace(/\/+$/, "");
   const cached = jwksCache.get(iss);
-  if (cached && cached.expiresAt > Date.now()) return cached.keys;
+  if (!forceRefresh && cached && cached.expiresAt > Date.now()) return cached.keys;
 
   const res = await fetch(`${iss}/.well-known/jwks.json`, { cache: "no-store" });
   if (!res.ok) throw new Error(`jwks-http-${res.status}`);
@@ -173,35 +201,97 @@ async function getJwks(issuer) {
   return keys;
 }
 
+/** 响应头安全的小标签：只放行受限字符集，其余归一为 "invalid"。 */
+function sanitizeTag(value) {
+  const raw = String(value ?? "");
+  return /^[\w.:-]{1,32}$/.test(raw) ? raw : "invalid";
+}
+
+/** issuer/azp 比较前的尾斜杠归一化。 */
+function normalizeIssuer(value) {
+  return String(value ?? "").replace(/\/+$/, "");
+}
+
 /**
- * 验证 Clerk 会话 JWT，通过返回 payload（含 sub），否则返回 null。
- * 依赖均可注入（jwks / now / crypto / fetchJwks），测试无需真实网络。
- * 导出仅供测试。
+ * 验证 Clerk 会话 JWT（详细版）：成功返回 { ok: true, payload }，失败
+ * 返回 { ok: false, reason }。reason 取值：parse / alg:<算法> / iss /
+ * azp / nbf / exp / sts / kid / sig / crypto——会进 401 响应的
+ * x-auth-fail 诊断头，动态拼接的算法名经 sanitizeTag 消毒。
+ * 依赖均可注入，测试无需真实网络。导出仅供测试。
  *
  * @param {string} token
  * @param {object} [deps]
  * @param {Array<Record<string, unknown>> | null} [deps.jwks]
- *   直接注入的 JWKS keys（注入时跳过网络回源）。
+ *   直接注入的 JWKS keys（注入时跳过网络回源与刷新重试）。
  * @param {number} [deps.now]
  * @param {Crypto} [deps.crypto]
- * @param {(issuer: string) => Promise<Array<Record<string, unknown>>>} [deps.fetchJwks]
- * @returns {Promise<Record<string, unknown> | null>}
+ * @param {(issuer: string, opts?: { forceRefresh?: boolean }) => Promise<Array<Record<string, unknown>>>} [deps.fetchJwks]
+ * @param {Array<string>} [deps.allowedIssuers]
+ * @param {Array<string>} [deps.allowedAzp]
+ * @returns {Promise<{ ok: true, payload: Record<string, unknown> } | { ok: false, reason: string }>}
  */
-export async function verifySessionToken(
+export async function verifyTokenDetailed(
   token,
-  { jwks = null, now = Date.now(), crypto: cryptoObj = globalThis.crypto, fetchJwks = getJwks } = {},
+  {
+    jwks = null,
+    now = Date.now(),
+    crypto: cryptoObj = globalThis.crypto,
+    fetchJwks = getJwks,
+    allowedIssuers = ALLOWED_ISSUERS,
+    allowedAzp = ALLOWED_AZP,
+  } = {},
 ) {
   const parsed = parseTokenPayload(token);
-  if (!parsed) return null;
+  if (!parsed) return { ok: false, reason: "parse" };
+
   // Clerk 实例间会话签名算法不固定（开发/生产实例分别为 ES256/RS256），
   // 按 header.alg 分派到与实例 JWKS 密钥型一致的算法，其余直接拒绝。
   const alg = parsed.header.alg;
-  if (alg !== "ES256" && alg !== "RS256") return null;
-  if (!isTokenFresh(parsed.payload, now)) return null;
+  if (alg !== "ES256" && alg !== "RS256") {
+    return { ok: false, reason: `alg:${sanitizeTag(alg)}` };
+  }
 
-  const keys = Array.isArray(jwks) ? jwks : await fetchJwks(parsed.payload.iss);
-  const jwk = keys.find((k) => k?.kid === parsed.header.kid);
-  if (!jwk) return null;
+  const payload = parsed.payload;
+  // 钉死 issuer：只信任白名单实例并只回源其 JWKS（官方清单硬性要求，
+  // 防"任意 iss + 自造 JWKS"伪造身份），比较前做尾斜杠归一化。
+  const iss = normalizeIssuer(payload.iss);
+  if (!allowedIssuers.map(normalizeIssuer).includes(iss)) {
+    return { ok: false, reason: "iss" };
+  }
+
+  // azp 校验（官方建议，防子域 cookie 泄漏攻击）：与官方示例对齐——
+  // 存在且不匹配才拒绝，缺失放行。
+  if (
+    payload.azp
+    && !allowedAzp.map(normalizeIssuer).includes(normalizeIssuer(payload.azp))
+  ) {
+    return { ok: false, reason: "azp" };
+  }
+
+  // 时间窗：exp 缺失/已过期、nbf 未生效，各带 CLOCK_SKEW_S 容差。
+  const nowSec = now / 1000;
+  const exp = Number(payload.exp);
+  if (!Number.isFinite(exp) || nowSec >= exp + CLOCK_SKEW_S) {
+    return { ok: false, reason: "exp" };
+  }
+  const nbf = Number(payload.nbf);
+  if (Number.isFinite(nbf) && nowSec < nbf - CLOCK_SKEW_S) {
+    return { ok: false, reason: "nbf" };
+  }
+  // sts（官方可选校验）：存在但非 "active" 视为会话未就绪。
+  if (payload.sts !== undefined && payload.sts !== "active") {
+    return { ok: false, reason: "sts" };
+  }
+
+  // 选取公钥：注入 JWKS 时跳过网络路径；回源时 kid 未命中则强制刷新
+  // 一次再试（自愈密钥轮换与陈旧缓存），仍无则拒绝。
+  let keys = Array.isArray(jwks) ? jwks : await fetchJwks(iss);
+  let jwk = keys.find((k) => k?.kid === parsed.header.kid);
+  if (!jwk && !Array.isArray(jwks)) {
+    keys = await fetchJwks(iss, { forceRefresh: true });
+    jwk = keys.find((k) => k?.kid === parsed.header.kid);
+  }
+  if (!jwk) return { ok: false, reason: "kid" };
 
   // RS256 的 hash 在 importKey 时绑定进密钥；ECDSA 在 verify 时指定。
   const importParams = alg === "RS256"
@@ -221,20 +311,48 @@ export async function verifySessionToken(
       parsed.signature,
       new TextEncoder().encode(parsed.signingInput),
     );
-    return ok ? parsed.payload : null;
+    return ok ? { ok: true, payload } : { ok: false, reason: "sig" };
   } catch {
     // 密钥型与算法不匹配等 Web Crypto 异常一律按验签失败（401）处理。
-    return null;
+    return { ok: false, reason: "crypto" };
   }
 }
 
-/** 会话验证 + uid 提取；未登录/验签失败返回 null。 */
+/**
+ * 验证 Clerk 会话 JWT，通过返回 payload（含 sub），否则返回 null。
+ * verifyTokenDetailed 的薄包装，保持既有导出签名。导出仅供测试。
+ *
+ * @param {string} token
+ * @param {object} [deps]
+ * @param {Array<Record<string, unknown>> | null} [deps.jwks]
+ *   直接注入的 JWKS keys（注入时跳过网络回源与刷新重试）。
+ * @param {number} [deps.now]
+ * @param {Crypto} [deps.crypto]
+ * @param {(issuer: string, opts?: { forceRefresh?: boolean }) =>
+ *   Promise<Array<Record<string, unknown>>>} [deps.fetchJwks]
+ * @param {Array<string>} [deps.allowedIssuers]
+ * @param {Array<string>} [deps.allowedAzp]
+ * @returns {Promise<Record<string, unknown> | null>}
+ */
+export async function verifySessionToken(token, deps = {}) {
+  const result = await verifyTokenDetailed(token, deps);
+  return result.ok ? result.payload : null;
+}
+
+/**
+ * 会话验证 + uid 提取：成功返回 { uid, reason: null }；失败返回
+ * { uid: null, reason }（no-cookie / verifyTokenDetailed 失败码 / sub），
+ * reason 会进 401 响应的 x-auth-fail 诊断头。
+ */
 async function readSessionUid(request) {
   const token = readSessionToken(request);
-  if (!token) return null;
-  const payload = await verifySessionToken(token);
-  const sub = payload?.sub;
-  return typeof sub === "string" && sub.length > 0 ? sub : null;
+  if (!token) return { uid: null, reason: "no-cookie" };
+  const result = await verifyTokenDetailed(token);
+  if (!result.ok) return { uid: null, reason: result.reason };
+  const sub = result.payload?.sub;
+  return typeof sub === "string" && sub.length > 0
+    ? { uid: sub, reason: null }
+    : { uid: null, reason: "sub" };
 }
 
 /** GET：登录后只读快照 { total, users, mine }。 */
@@ -242,8 +360,10 @@ export async function onRequestGet({ request }) {
   const kv = getKv();
   if (!kv) return jsonResponse({ error: "kv-not-configured" }, { "x-kv": "unbound" }, 503);
   try {
-    const uid = await readSessionUid(request);
-    if (!uid) return jsonResponse({ error: "unauthorized" }, {}, 401);
+    const { uid, reason } = await readSessionUid(request);
+    if (!uid) {
+      return jsonResponse({ error: "unauthorized" }, { "x-auth-fail": reason }, 401);
+    }
     const [snapshot, mine] = await Promise.all([
       countTotals(kv),
       kv.get(counterKey(uid)),
@@ -263,8 +383,10 @@ export async function onRequestPost({ request }) {
   const kv = getKv();
   if (!kv) return jsonResponse({ error: "kv-not-configured" }, { "x-kv": "unbound" }, 503);
   try {
-    const uid = await readSessionUid(request);
-    if (!uid) return jsonResponse({ error: "unauthorized" }, {}, 401);
+    const { uid, reason } = await readSessionUid(request);
+    if (!uid) {
+      return jsonResponse({ error: "unauthorized" }, { "x-auth-fail": reason }, 401);
+    }
     const mine = await applyTap(kv, uid);
     const snapshot = await countTotals(kv);
     return jsonResponse({ ...snapshot, mine });
