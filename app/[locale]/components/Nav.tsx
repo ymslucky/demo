@@ -5,7 +5,8 @@ import { useTranslations } from "next-intl";
 import { Link, usePathname } from "@/i18n/navigation";
 import LanguageSwitcher from "./LanguageSwitcher";
 import ThemeToggle from "./ThemeToggle";
-import { ICONS, navItems } from "./nav/NavIcons";
+import { ICONS } from "./nav/icons";
+import { navItems } from "./nav/navItems";
 import { useDockPress } from "./nav/useDockPress";
 import { useDockMode } from "./nav/useDockMode";
 

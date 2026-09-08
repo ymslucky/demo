@@ -1,6 +1,6 @@
 /**
  * 令牌桶演示专用的内联 SVG 图标（零依赖，替代 lucide-react）。
- * 风格与 nav/NavIcons.tsx 保持一致：stroke 描边、currentColor、
+ * 风格与 nav/icons.tsx 保持一致：stroke 描边、currentColor、
  * aria-hidden（纯装饰，伴随可读文本出现）。
  */
 

@@ -98,4 +98,4 @@ npm run build  # next build --webpack && node scripts/inject-theme.mjs
 | RSS feed (exported to `out/feed.xml`) | [app/feed.xml/route.ts](app/feed.xml/route.ts) |
 | EdgeOne deploy config (out dir, redirects, HTML edge cache) | [edgeone.json](edgeone.json) |
 | Test suite (grep contracts + unit) | [tests/](tests/) |
-| Cross-feature zh/en × light/dark E2E script (manual) | [e2e-cross-feature.cjs](e2e-cross-feature.cjs) |
+| Cross-feature zh/en × light/dark E2E script (manual) | [scripts/e2e-cross-feature.cjs](scripts/e2e-cross-feature.cjs) |

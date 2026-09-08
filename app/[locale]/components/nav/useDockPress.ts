@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { navItems } from "./NavIcons";
+import { navItems } from "./navItems";
 
 /* Morphing Slab press-key physics: gaussian proximity "presses" the key
    under the pointer (small translateY sink), driven by an under-damped
