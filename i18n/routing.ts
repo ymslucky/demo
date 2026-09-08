@@ -4,11 +4,9 @@ import { defineRouting } from "next-intl/routing";
  * Locale routing configuration.
  *
  * `localePrefix: "always"` gives every locale an explicit prefix (`/zh/...`,
- * `/en/...`). Static export cannot serve a locale-negotiated `/` (there is no
- * runtime to rewrite it), so the default locale must live under `/zh/` too.
- * The bare `/` is handled by the `functions/index.js` edge function, which
- * redirects to the preferred locale based on the `NEXT_LOCALE` cookie and the
- * `Accept-Language` header.
+ * `/en/...`). The default locale therefore lives under `/zh/` too, and the
+ * bare `/` (or any unprefixed path) is locale-negotiated by `intlMiddleware`
+ * in `proxy.ts` (NEXT_LOCALE cookie → Accept-Language → `zh`).
  */
 export const routing = defineRouting({
   locales: ["zh", "en"],

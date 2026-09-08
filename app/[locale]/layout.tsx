@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
+import { ClerkProvider } from "@clerk/nextjs";
 import { NextIntlClientProvider } from "next-intl";
 import { getMessages, getTranslations, setRequestLocale } from "next-intl/server";
 import { routing } from "@/i18n/routing";
+import { themeInitScript } from "../lib/theme";
 import "../globals.css";
 import Nav from "./components/Nav";
 import Footer from "./components/Footer";
@@ -78,26 +80,33 @@ export default async function LocaleLayout({
       data-scroll-behavior="smooth"
       suppressHydrationWarning
     >
+      <head>
+        {/* 首帧主题防闪烁脚本（Next.js 官方 preventing-flash-before-hydration
+            模式）：本 layout 是 server component，script 在 HTML 解析阶段同步
+            执行、赶在首次绘制前设置 data-theme，且不进入客户端渲染树 ——
+            React 19 的 script 告警只针对客户端渲染出的 script 节点。
+            <html> 上的 suppressHydrationWarning 压掉 data-theme 在 hydration
+            前被提前设置导致的属性不匹配告警。逻辑与约束见 app/lib/theme.ts。 */}
+        <script dangerouslySetInnerHTML={{ __html: themeInitScript() }} />
+      </head>
       <body>
-        {/* 绘制前的主题同步脚本由构建管线（scripts/inject-theme.mjs）在
-            next build 之后注入到 out/ 下每个 HTML 的 head 中，处于 React
-            组件树之外（原理与约束见 AGENTS.md §3），此处刻意不渲染任何
-            脚本节点 —— React 19 会对客户端渲染出的 script 节点告警。html
-            上的 suppressHydrationWarning 用于压掉 data-theme 在 hydration
-            前被提前设置导致的属性不匹配告警。 */}
-        <NextIntlClientProvider messages={messages} locale={locale}>
-          <ThemeSync />
-          <div className="page">
-            <a className="skip-link" href="#main-content">
-              {t("skipToContent")}
-            </a>
-            <Nav />
-            <main id="main-content" tabIndex={-1}>
-              <div className="container">{children}</div>
-            </main>
-            <Footer />
-          </div>
-        </NextIntlClientProvider>
+        {/* ClerkProvider 必须位于 <body> 内（不得包裹 <html>），
+            详见 Clerk Next.js quickstart 的关键规则。 */}
+        <ClerkProvider>
+          <NextIntlClientProvider messages={messages} locale={locale}>
+            <ThemeSync />
+            <div className="page">
+              <a className="skip-link" href="#main-content">
+                {t("skipToContent")}
+              </a>
+              <Nav />
+              <main id="main-content" tabIndex={-1}>
+                <div className="container">{children}</div>
+              </main>
+              <Footer />
+            </div>
+          </NextIntlClientProvider>
+        </ClerkProvider>
       </body>
     </html>
   );

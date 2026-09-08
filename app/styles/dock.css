@@ -368,6 +368,62 @@ main:focus {
   display: block;
 }
 
+/* ---- Auth controls (Clerk) ---- */
+.dock-auth-btn {
+  height: 36px;
+  padding: 0 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-text-muted);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--transition);
+  flex-shrink: 0;
+}
+
+.dock-auth-btn:hover {
+  color: var(--color-primary);
+  border-color: var(--color-primary-light);
+  background: var(--color-tint);
+}
+
+/* Sign-up is the primary call to action: solid accent plate with the
+   signature displaced hard shadow (no blur) */
+.dock-auth-btn--primary {
+  border-width: 2px;
+  background: var(--color-btn-primary);
+  color: var(--color-on-primary);
+  box-shadow: var(--shadow-sm);
+}
+
+.dock-auth-btn--primary:hover {
+  color: var(--color-on-primary);
+  transform: translate(-1px, -1px);
+  box-shadow: 3px 3px 0 0 var(--color-border);
+}
+
+.dock-auth-btn--primary:active {
+  transform: translate(1px, 1px);
+  box-shadow: none;
+}
+
+/* Keep the Clerk avatar button on the 36px tool slot grid */
+.dock-user {
+  display: inline-flex;
+  align-items: center;
+  height: 36px;
+  flex-shrink: 0;
+}
+
+.dock-user .cl-userButtonRoot,
+.dock-user .cl-userButtonTrigger,
+.dock-user .cl-userButtonAvatarBox {
+  width: 32px !important;
+  height: 32px !important;
+}
+
 /* Medium screens: brand nameplate collapses to the bare letter mark
    (plaque chrome removed, mark carries the identity) */
 @media (max-width: 880px) {

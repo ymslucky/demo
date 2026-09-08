@@ -13,7 +13,9 @@
     "links": "Links",
     "tools": "Tools",
     "blog": "Blog",
-    "contact": "Contact"
+    "contact": "Contact",
+    "signIn": "Sign in",
+    "signUp": "Sign up"
   },
   "footer": {
     "tagline": "Turning ideas into products with code",

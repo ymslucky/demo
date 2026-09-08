@@ -13,7 +13,9 @@
     "links": "导航",
     "tools": "工具",
     "blog": "博客",
-    "contact": "联系"
+    "contact": "联系",
+    "signIn": "登录",
+    "signUp": "注册"
   },
   "footer": {
     "tagline": "用代码把想法变成产品",

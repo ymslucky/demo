@@ -1,8 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
+import { readFileSync, readdirSync, statSync } from "node:fs";
+import { join, relative } from "node:path";
 import { THEME_STORAGE_KEY } from "../app/lib/theme";
-import { injectTheme, themeInitScript } from "../scripts/inject-theme.mjs";
 import { stripComments } from "./strip-comments";
 
 /**
@@ -20,6 +19,19 @@ import { stripComments } from "./strip-comments";
 
 const APP = join(process.cwd(), "app");
 const read = (rel: string) => readFileSync(join(APP, rel), "utf8");
+
+// app/ 下全部 .ts/.tsx 文件清单（相对 app/ 的路径，POSIX 分隔符），
+// 用于全量扫描非法 <script> 渲染点。
+function collectFiles(dir: string): string[] {
+  return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+    const full = join(dir, entry.name);
+    if (entry.isDirectory()) return collectFiles(full);
+    return entry.name.endsWith(".ts") || entry.name.endsWith(".tsx")
+      ? [relative(APP, full).split("\\").join("/")]
+      : [];
+  });
+}
+const COMPONENT_FILES = collectFiles(APP);
 
 function loadCatalog(locale: "zh" | "en"): Record<string, unknown> {
   return JSON.parse(
@@ -101,34 +113,29 @@ describe("theme × i18n integration", () => {
     expect(nav).toContain("<ThemeToggle />");
   });
 
-  it("theme init is injected at build time by scripts/inject-theme.mjs", () => {
-    // Static export has no runtime middleware: the anti-FOUC script is
-    // spliced into every out/**/*.html right after <head> post-build.
-    const injector = readFileSync(
-      join(process.cwd(), "scripts", "inject-theme.mjs"),
-      "utf8",
-    );
-    // Single source of truth for both the script and the injection logic
-    expect(injector).toMatch(/export function themeInitScript\(\)/);
-    expect(injector).toMatch(/export function injectTheme\(/);
-    // <head> is the preferred injection point (runs before first paint)
-    expect(injector).toContain('html.indexOf("<head>")');
-
-    // Functional: splices right after <head> and is idempotent
-    const page = '<!doctype html><html><head><meta charset="utf-8"></head><body><p>x</p></body></html>';
-    const once = injectTheme(page);
-    const headAt = once.indexOf("<head>") + "<head>".length;
-    expect(once.slice(headAt, headAt + "<script>".length)).toBe("<script>");
-    expect(injectTheme(once)).toBe(once);
-    // The embedded script is exactly the contract asserted in theme.test.ts
-    expect(once).toContain(themeInitScript());
+  it("layout renders the theme init script inline in <head> (SSR mode)", () => {
+    // SSR 架构（无 out/ 静态目录、无构建后注入管线）：主题脚本由根 layout
+    // 以 server component 身份直出进 <head>，遵循 Next.js 官方
+    // preventing-flash-before-hydration 指南的 Themes 章节。
+    const layout = read("[locale]/layout.tsx");
+    // 脚本字符串的唯一来源是 app/lib/theme.ts 的 themeInitScript()
+    expect(layout).toMatch(/import \{ themeInitScript \} from "\.\.\/lib\/theme"/);
+    // 必须以 dangerouslySetInnerHTML 内联渲染（HTML 解析阶段同步执行）
+    expect(layout).toMatch(/dangerouslySetInnerHTML=\{\{ __html: themeInitScript\(\) \}\}/);
+    // 渲染点必须在 <head> 内（先于任何内容绘制执行）
+    expect(layout).toMatch(/<head>[\s\S]*themeInitScript\(\)[\s\S]*<\/head>/);
+    // 脚本不得再走构建后注入管线（注入器已随静态导出一起退役）
+    expect(() => statSync(join(process.cwd(), "scripts", "inject-theme.mjs"))).toThrow();
   });
 
-  it("layout never renders a <script> node (React 19 client warning)", () => {
-    // suppressHydrationWarning covers the pre-hydration data-theme set by
-    // the injected script; the layout itself must stay script-free.
-    const layout = read("[locale]/layout.tsx");
-    expect(layout).toContain("suppressHydrationWarning");
-    expect(stripComments(layout, "layout.tsx")).not.toMatch(/<script/);
+  it("layout is the ONLY component rendering a <script> node", () => {
+    // 反 FOUC 脚本必须且只能由 server-rendered 的根 layout 提供；
+    // 其它任何组件（尤其 client components）渲染 script 节点都会
+    // 触发 React 19 的客户端告警或破坏单一来源契约。
+    const offenders = COMPONENT_FILES.filter((rel) => {
+      if (rel === "[locale]/layout.tsx") return false;
+      return /<script/.test(stripComments(read(rel), rel));
+    });
+    expect(offenders).toEqual([]);
   });
 });

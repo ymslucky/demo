@@ -11,9 +11,9 @@ import {
   resolveTheme,
   shouldFollowSystem,
   systemPrefersDark,
+  themeInitScript,
   type Theme,
 } from "../app/lib/theme";
-import { themeInitScript } from "../scripts/inject-theme.mjs";
 
 // ---------------------------------------------------------------------------
 // 纯逻辑: resolveTheme / nextTheme / shouldFollowSystem / isTheme

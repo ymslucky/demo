@@ -186,7 +186,7 @@ async function main() {
       const ctx = await browser.newContext({ colorScheme: "light" });
       const page = await ctx.newPage();
       // Start: zh + light (default). Set dark via toggle.
-      // ("/" 302-negotiates via functions/index.js; go straight to /zh/.)
+      // ("/" 307-negotiates via intlMiddleware in proxy.ts; go straight to /zh/.)
       await page.goto(BASE + "/zh/", { waitUntil: "domcontentloaded" });
       await sleep(400);
       await page.click(".theme-toggle");

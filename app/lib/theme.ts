@@ -101,3 +101,32 @@ export function applyTheme(theme: Theme): void {
     // SSR — 无可应用对象
   }
 }
+
+/**
+ * 首帧主题初始化脚本（anti-FOUC）。
+ *
+ * 由根 layout 以 server component 身份渲染进 <head>（Next.js 官方推荐的
+ * preventing-flash-before-hydration 模式）：HTML 解析阶段同步执行，赶在
+ * 首次绘制之前把 data-theme 设到 <html> 上。server component 直出的
+ * script 节点不进入客户端渲染树，因此不会触发 React 19 的
+ * "Encountered a script tag while rendering" 客户端告警。
+ *
+ * 实现必须与 resolveTheme 的决策逻辑一致（手动覆盖优先，否则跟随系统），
+ * 且保持自包含 ES5：无 import、无箭头函数、无模板字符串，可在任何
+ * 浏览器直接执行。与 ThemeSync 的分工：本脚本负责硬导航的首次绘制，
+ * ThemeSync 负责客户端导航（locale 切换重协调 <html>）后的属性重放。
+ */
+export function themeInitScript(): string {
+  return [
+    "(function () {",
+    "  try {",
+    "    var stored = null;",
+    `    try { stored = localStorage.getItem("${THEME_STORAGE_KEY}"); } catch (e) {}`,
+    "    var dark = false;",
+    `    try { dark = window.matchMedia && window.matchMedia("${SYSTEM_DARK_QUERY}").matches; } catch (e) {}`,
+    '    var theme = (stored === "light" || stored === "dark") ? stored : (dark ? "dark" : "light");',
+    '    document.documentElement.setAttribute("data-theme", theme);',
+    "  } catch (e) {}",
+    "})();",
+  ].join("\n");
+}

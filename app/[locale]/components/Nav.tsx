@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { useTranslations } from "next-intl";
+import { SignInButton, SignUpButton, Show, UserButton } from "@clerk/nextjs";
 import { Link, usePathname } from "@/i18n/navigation";
 import LanguageSwitcher from "./LanguageSwitcher";
 import ThemeToggle from "./ThemeToggle";
@@ -84,6 +85,25 @@ export default function Nav() {
           <div className="dock-tools">
             <LanguageSwitcher />
             <ThemeToggle />
+            {/* Auth controls: sign-in / sign-up while signed out, avatar
+                menu while signed in. Labels go through next-intl. */}
+            <Show when="signed-out">
+              <SignInButton mode="modal">
+                <button type="button" className="dock-auth-btn">
+                  {t("signIn")}
+                </button>
+              </SignInButton>
+              <SignUpButton mode="modal">
+                <button type="button" className="dock-auth-btn dock-auth-btn--primary">
+                  {t("signUp")}
+                </button>
+              </SignUpButton>
+            </Show>
+            <Show when="signed-in">
+              <span className="dock-user">
+                <UserButton />
+              </span>
+            </Show>
           </div>
         </div>
       </div>

@@ -30,10 +30,9 @@ describe("i18n routing", () => {
     expect(routing.locales).toEqual(["zh", "en"]);
   });
 
-  it("always prefixes the locale — required by the static export", () => {
-    // output: "export" cannot keep the default locale at the root (no
-    // rewrites exist in out/), so every route lives under /zh/ or /en/
-    // and "/" itself is negotiated by functions/index.js (302).
+  it("always prefixes the locale", () => {
+    // Every route lives under /zh/ or /en/; unprefixed paths (including "/")
+    // are negotiated to a prefixed URL by intlMiddleware in proxy.ts.
     expect(routing.localePrefix).toBe("always");
   });
 });
