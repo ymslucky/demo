@@ -66,7 +66,7 @@ npm run build  # next build --webpack
   - [functions/api/counter.js](functions/api/counter.js) → sign-in-only real-time counter (KV). Per-user key `counter_user_<uid>`; GET = read-only snapshot `{ total, users, mine }`, POST = verify Clerk session → read-modify-write +1. Both verbs reject unauthenticated calls with 401.
   - [functions/api/echo.js](functions/api/echo.js) · [functions/api/headers.js](functions/api/headers.js) → debug endpoints for the http-check tool (never cached).
   - There is **no** `functions/index.js`: root-path locale negotiation moved into `proxy.ts` (`intlMiddleware`). Do not re-add a `/` edge function — it would shadow the Next.js layer.
-- **KV best practices** (namespace must be bound in the EdgeOne console as `luckylab_kv`; code probes `context.env` **and** a global binding):
+- **KV best practices** (the namespace is bound in the EdgeOne console with the variable name `DICTIONARY`; per the official semantics it is injected as an **edge-function global variable**, NOT on `context.env` — code probes `globalThis` only):
   - Keys accept **only `[A-Za-z0-9_]`** (≤512B) — normalize all user-derived input (see `sessionKey()`). Values are strings ≤25MB.
   - **No TTL and no atomic INCR**: expiry is decided at the application layer (presence: 45s heartbeat window), and counters are computed via `list({ prefix })` + per-key `get` (see `countOnline`) — inherently approximate. KV is **eventually consistent (~60s global propagation)**: UI copy must not promise exactness.
   - `list()` is the only key-discovery API and caps at 256 keys per page (`cursor` for more; `ListKey` field is `name`). Deletes of stale keys piggyback on write-path requests (lazy sweep) — there is no background job.

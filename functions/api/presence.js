@@ -11,8 +11,9 @@
  *   删除已过期会话（sweep），避免陈旧 key 无限累积；
  * - KV 为最终一致（约 60s 全球同步），计数是近似值而非精确快照。
  *
- * KV 命名空间须在控制台绑定到项目，变量名为 luckylab_kv；未绑定或
- * KV 不可用时返回 503，前端保持上一次读数不崩溃。
+ * KV 命名空间须在控制台绑定到项目，绑定变量名为 DICTIONARY —— 官方
+ * 语义下它以该名字注入为边缘函数的全局变量（不在 context.env 上）；
+ * 未绑定或 KV 不可用时返回 503，前端保持上一次读数不崩溃。
  *
  * 部署路径：/api/presence（functions/api/presence.js）
  */
@@ -20,17 +21,17 @@
 const SESSION_TTL_MS = 45_000;
 const LIST_PAGE_SIZE = 200;
 const KEY_PREFIX = "presence_";
-const KV_BINDING = "luckylab_kv";
+const KV_BINDING = "DICTIONARY";
 
 /** sessionId 归一化为合法 KV key（仅数字/字母/下划线，最长 64）。导出仅供测试。 */
 export function sessionKey(sessionId) {
   return KEY_PREFIX + String(sessionId).replace(/[^A-Za-z0-9_]/g, "_").slice(0, 64);
 }
 
-function getKv(env) {
-  // 绑定命名空间既可能以 context.env 属性暴露，也可能按官方示例注入
-  // 为全局变量 —— 两种路径都探测，未绑定返回 null。
-  return env?.[KV_BINDING] ?? globalThis?.[KV_BINDING] ?? null;
+function getKv() {
+  // 官方语义：绑定命名空间按控制台设置的变量名（DICTIONARY）注入为
+  // 全局变量，而非 context.env 属性 —— 只探测 globalThis，未绑定返回 null。
+  return globalThis?.[KV_BINDING] ?? null;
 }
 
 function jsonResponse(body, extraHeaders = {}, status = 200) {
@@ -78,8 +79,8 @@ export async function countOnline(kv, { now = Date.now(), sweep = false } = {}) 
   return online;
 }
 
-async function heartbeat(request, env, sweep) {
-  const kv = getKv(env);
+async function heartbeat(request, sweep) {
+  const kv = getKv();
   if (!kv) return jsonResponse({ error: "kv-not-configured" }, { "x-kv": "unbound" }, 503);
 
   let sessionId;
@@ -100,17 +101,17 @@ async function heartbeat(request, env, sweep) {
 }
 
 /** POST：记录心跳并顺带惰性清理过期会话，返回当前在线数。 */
-export async function onRequestPost({ request, env }) {
+export async function onRequestPost({ request }) {
   try {
-    return await heartbeat(request, env, true);
+    return await heartbeat(request, true);
   } catch {
     return jsonResponse({ error: "kv-unavailable" }, {}, 503);
   }
 }
 
 /** GET：只读快照，不做任何写入。 */
-export async function onRequestGet({ env }) {
-  const kv = getKv(env);
+export async function onRequestGet() {
+  const kv = getKv();
   if (!kv) return jsonResponse({ error: "kv-not-configured" }, { "x-kv": "unbound" }, 503);
   try {
     const online = await countOnline(kv, { now: Date.now(), sweep: false });

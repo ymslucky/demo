@@ -32,10 +32,10 @@ export function counterKey(uid) {
   return KEY_PREFIX + String(uid).replace(/[^A-Za-z0-9_]/g, "_").slice(0, 64);
 }
 
-function getKv(env) {
-  // 绑定命名空间既可能以 context.env 属性暴露，也可能按官方示例注入
-  // 为全局变量 —— 两种路径都探测，未绑定返回 null。
-  return env?.[KV_BINDING] ?? globalThis?.[KV_BINDING] ?? null;
+function getKv() {
+  // 官方语义：绑定命名空间按控制台设置的变量名（DICTIONARY）注入为
+  // 全局变量，而非 context.env 属性 —— 只探测 globalThis，未绑定返回 null。
+  return globalThis?.[KV_BINDING] ?? null;
 }
 
 function jsonResponse(body, extraHeaders = {}, status = 200) {
@@ -223,8 +223,8 @@ async function readSessionUid(request) {
 }
 
 /** GET：登录后只读快照 { total, users, mine }。 */
-export async function onRequestGet({ request, env }) {
-  const kv = getKv(env);
+export async function onRequestGet({ request }) {
+  const kv = getKv();
   if (!kv) return jsonResponse({ error: "kv-not-configured" }, { "x-kv": "unbound" }, 503);
   try {
     const uid = await readSessionUid(request);
@@ -244,8 +244,8 @@ export async function onRequestGet({ request, env }) {
 }
 
 /** POST：登录后为自己的计数 +1，返回写入后的全局快照与个人计数。 */
-export async function onRequestPost({ request, env }) {
-  const kv = getKv(env);
+export async function onRequestPost({ request }) {
+  const kv = getKv();
   if (!kv) return jsonResponse({ error: "kv-not-configured" }, { "x-kv": "unbound" }, 503);
   try {
     const uid = await readSessionUid(request);
