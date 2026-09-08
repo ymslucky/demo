@@ -24,7 +24,7 @@
 
 const KEY_PREFIX = "counter_user_";
 const LIST_PAGE_SIZE = 200;
-const KV_BINDING = "luckylab_kv";
+const KV_BINDING = "DICTIONARY";
 const JWKS_TTL_MS = 3_600_000;
 
 /** userId 归一化为合法 KV key（仅数字/字母/下划线，最长 64）。导出仅供测试。 */
