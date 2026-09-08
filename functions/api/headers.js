@@ -19,15 +19,16 @@ export async function onRequestGet({ request }) {
   const first = xff ? xff.split(",")[0]?.trim() : undefined;
 
   // 按名称对 headers 排序，便于肉眼浏览。
-  return Response.json(
-    {
+  // V8 运行时没有 Response.json 静态方法，须手工序列化。
+  return new Response(
+    JSON.stringify({
       method: request.method,
       url: request.url,
       ip: first ? first : null,
       headers: Object.fromEntries(
         Object.entries(headers).sort(([a], [b]) => a.localeCompare(b))
       ),
-    },
-    { headers: { "cache-control": "no-store" } }
+    }),
+    { headers: { "content-type": "application/json", "cache-control": "no-store" } }
   );
 }

@@ -33,8 +33,16 @@ function getKv(env) {
   return env?.[KV_BINDING] ?? globalThis?.[KV_BINDING] ?? null;
 }
 
-function jsonResponse(body, extraHeaders = {}) {
-  return Response.json(body, { headers: { "cache-control": "no-store", ...extraHeaders } });
+function jsonResponse(body, extraHeaders = {}, status = 200) {
+  // V8 运行时没有 Response.json 静态方法，须手工序列化。
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: {
+      "content-type": "application/json",
+      "cache-control": "no-store",
+      ...extraHeaders,
+    },
+  });
 }
 
 /**

@@ -23,6 +23,18 @@ function getKv(env) {
   return env?.[KV_BINDING] ?? globalThis?.[KV_BINDING] ?? null;
 }
 
+function jsonResponse(body, extraHeaders = {}, status = 200) {
+  // V8 运行时没有 Response.json 静态方法，须手工序列化。
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: {
+      "content-type": "application/json",
+      "cache-control": "no-store",
+      ...extraHeaders,
+    },
+  });
+}
+
 /** 缓存记录在 now 时刻是否仍新鲜。导出仅供测试。 */
 export function isFresh(record, now = Date.now()) {
   return Boolean(
@@ -73,7 +85,7 @@ export async function onRequest({ env }) {
   const kv = getKv(env);
   const cached = await readCache(kv);
   if (isFresh(cached)) {
-    return Response.json(cached.payload, { headers: { "cache-control": "no-store" } });
+    return jsonResponse(cached.payload);
   }
 
   const login = env?.GITHUB_LOGIN ?? "ymslucky";
@@ -94,15 +106,12 @@ export async function onRequest({ env }) {
 
     const payload = buildStarsPayload(repos);
     await writeCache(kv, payload);
-    return Response.json(payload, { headers: { "cache-control": "no-store" } });
+    return jsonResponse(payload);
   } catch {
     // 上游失败：回退过期缓存，仍无缓存才向上报错。
     if (cached?.payload) {
-      return Response.json(cached.payload, { headers: { "cache-control": "no-store" } });
+      return jsonResponse(cached.payload);
     }
-    return Response.json(
-      { error: "upstream" },
-      { status: 502, headers: { "cache-control": "no-store" } }
-    );
+    return jsonResponse({ error: "upstream" }, {}, 502);
   }
 }

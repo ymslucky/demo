@@ -42,8 +42,9 @@ async function echo({ request }) {
   });
 
   const url = new URL(request.url);
-  return Response.json(
-    {
+  // V8 运行时没有 Response.json 静态方法，须手工序列化。
+  return new Response(
+    JSON.stringify({
       ok: true,
       method: request.method,
       host: url.host,
@@ -54,8 +55,8 @@ async function echo({ request }) {
       userAgent: headers["user-agent"] ?? null,
       // 按名称对 headers 排序，便于肉眼浏览。
       headers: Object.fromEntries(Object.entries(headers).sort(([a], [b]) => a.localeCompare(b))),
-    },
-    { headers: { "cache-control": "no-store" } }
+    }),
+    { headers: { "content-type": "application/json", "cache-control": "no-store" } }
   );
 }
 
