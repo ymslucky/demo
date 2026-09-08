@@ -190,14 +190,37 @@ describe("counter session token helpers", () => {
     return { privateKey: pair.privateKey, jwk };
   }
 
+  async function makeRsaKey(kid: string) {
+    const pair = (await crypto.subtle.generateKey(
+      {
+        name: "RSASSA-PKCS1-v1_5",
+        modulusLength: 2048,
+        publicExponent: new Uint8Array([1, 0, 1]),
+        hash: "SHA-256",
+      },
+      true,
+      ["sign", "verify"],
+    )) as CryptoKeyPair;
+    const jwk = {
+      ...(await crypto.subtle.exportKey("jwk", pair.publicKey)),
+      kid,
+    };
+    return { privateKey: pair.privateKey, jwk };
+  }
+
   async function buildToken(
     privateKey: CryptoKey,
     header: Record<string, unknown>,
     payload: Record<string, unknown>,
   ) {
     const signingInput = `${b64urlJson(header)}.${b64urlJson(payload)}`;
+    // Sign with the algorithm named in the header (ES256 is the default).
+    const signParams =
+      header.alg === "RS256"
+        ? { name: "RSASSA-PKCS1-v1_5" }
+        : { name: "ECDSA", hash: "SHA-256" };
     const signature = await crypto.subtle.sign(
-      { name: "ECDSA", hash: "SHA-256" },
+      signParams,
       privateKey,
       encoder.encode(signingInput),
     );
@@ -275,6 +298,43 @@ describe("counter session token helpers", () => {
     });
     const tampered = `${valid.slice(0, -4)}AAAA`;
     await expect(verifySessionToken(tampered, { jwks: [jwk] })).resolves.toBeNull();
+  });
+
+  it("verifySessionToken accepts RS256 tokens (production Clerk instances sign with RSA)", async () => {
+    const { privateKey, jwk } = await makeRsaKey("rsa-key");
+    const exp = Math.floor(Date.now() / 1000) + 600;
+    const token = await buildToken(
+      privateKey,
+      { alg: "RS256", kid: "rsa-key", typ: "JWT" },
+      { sub: "user_rsa", iss: "https://test.example.com", exp },
+    );
+
+    const payload = await verifySessionToken(token, { jwks: [jwk] });
+    expect(payload?.sub).toBe("user_rsa");
+  });
+
+  it("verifySessionToken rejects a tampered RS256 token and an alg/key-type mismatch", async () => {
+    const { privateKey, jwk } = await makeRsaKey("rsa-key");
+    const exp = Math.floor(Date.now() / 1000) + 600;
+    const header = { alg: "RS256", kid: "rsa-key", typ: "JWT" };
+
+    const valid = await buildToken(privateKey, header, {
+      sub: "u",
+      iss: "https://test.example.com",
+      exp,
+    });
+    const tampered = `${valid.slice(0, -4)}AAAA`;
+    await expect(verifySessionToken(tampered, { jwks: [jwk] })).resolves.toBeNull();
+
+    // ES256 header against an RSA key: Web Crypto importKey fails, which must
+    // surface as a null payload (401 semantics), not a thrown error.
+    const { privateKey: ecKey } = await makeKey("rsa-key");
+    const mismatched = await buildToken(ecKey, { ...header, alg: "ES256" }, {
+      sub: "u",
+      iss: "https://test.example.com",
+      exp,
+    });
+    await expect(verifySessionToken(mismatched, { jwks: [jwk] })).resolves.toBeNull();
   });
 });
 

@@ -9,8 +9,9 @@
  * - KV 为最终一致（约 60s 全球同步），总数是近似值而非精确快照。
  *
  * 登录验证（Clerk 会话，边缘运行时 Web Crypto）：
- * - 读取 __session cookie 中的 Clerk 会话 JWT（ES256 = ECDSA P-256 +
- *   SHA-256）；
+ * - 读取 __session cookie 中的 Clerk 会话 JWT，按 header.alg 分派验签：
+ *   ES256 = ECDSA P-256 + SHA-256；RS256 = RSASSA-PKCS1-v1_5 + SHA-256
+ *   （生产实例 JWKS 实测密钥型为 RSA/RS256）；其余算法直接拒绝；
  * - 从 payload.iss 推导 JWKS 地址（<iss>/.well-known/jwks.json，模块级
  *   缓存 1h），按 header.kid 选取公钥；
  * - crypto.subtle.importKey("jwk", …) + verify 验签，再查 exp 是否过期；
@@ -192,28 +193,39 @@ export async function verifySessionToken(
 ) {
   const parsed = parseTokenPayload(token);
   if (!parsed) return null;
-  // Clerk 会话固定为 ES256；其他算法直接拒绝。
-  if (parsed.header.alg !== "ES256") return null;
+  // Clerk 实例间会话签名算法不固定（开发/生产实例分别为 ES256/RS256），
+  // 按 header.alg 分派到与实例 JWKS 密钥型一致的算法，其余直接拒绝。
+  const alg = parsed.header.alg;
+  if (alg !== "ES256" && alg !== "RS256") return null;
   if (!isTokenFresh(parsed.payload, now)) return null;
 
   const keys = Array.isArray(jwks) ? jwks : await fetchJwks(parsed.payload.iss);
   const jwk = keys.find((k) => k?.kid === parsed.header.kid);
   if (!jwk) return null;
 
-  const key = await cryptoObj.subtle.importKey(
-    "jwk",
-    jwk,
-    { name: "ECDSA", namedCurve: "P-256" },
-    false,
-    ["verify"],
-  );
-  const ok = await cryptoObj.subtle.verify(
-    { name: "ECDSA", hash: "SHA-256" },
-    key,
-    parsed.signature,
-    new TextEncoder().encode(parsed.signingInput),
-  );
-  return ok ? parsed.payload : null;
+  // RS256 的 hash 在 importKey 时绑定进密钥；ECDSA 在 verify 时指定。
+  const importParams = alg === "RS256"
+    ? { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" }
+    : { name: "ECDSA", namedCurve: "P-256" };
+  const verifyParams = alg === "RS256"
+    ? { name: "RSASSA-PKCS1-v1_5" }
+    : { name: "ECDSA", hash: "SHA-256" };
+
+  try {
+    const key = await cryptoObj.subtle.importKey(
+      "jwk", jwk, importParams, false, ["verify"],
+    );
+    const ok = await cryptoObj.subtle.verify(
+      verifyParams,
+      key,
+      parsed.signature,
+      new TextEncoder().encode(parsed.signingInput),
+    );
+    return ok ? parsed.payload : null;
+  } catch {
+    // 密钥型与算法不匹配等 Web Crypto 异常一律按验签失败（401）处理。
+    return null;
+  }
 }
 
 /** 会话验证 + uid 提取；未登录/验签失败返回 null。 */
