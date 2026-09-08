@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { getTranslations, setRequestLocale } from "next-intl/server";
+import GithubStarsCard from "../components/GithubStarsCard";
 
 export async function generateMetadata({
   params,
@@ -46,6 +47,8 @@ export default async function AboutPage({
       </div>
 
       <div className="about-honor">{t("honor")}</div>
+
+      <GithubStarsCard />
     </>
   );
 }

@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { Zap, Play, Settings2, Trash2 } from "lucide-react";
+import { useState, useEffect, useRef, type CSSProperties } from "react";
+import { Settings2Icon, PlayIcon, ZapIcon, Trash2Icon } from "./icons";
 
 interface Token {
   id: number;
   rotate: number;
+  /** 已被请求消费、正在播放离场动画（等效 AnimatePresence 的 exit） */
+  leaving?: boolean;
 }
 
 export default function RateLimiterDemo() {
@@ -29,7 +30,8 @@ export default function RateLimiterDemo() {
         // 在渲染之外生成随机旋转角，保持 render 纯净
         const newToken: Token = { id: nextTokenId.current++, rotate: Math.random() * 20 - 10 };
         tokensRef.current = [...tokensRef.current, newToken];
-        setTokens([...tokensRef.current]);
+        // 仍在离场动画中的令牌尚未移除，需要一并保留在渲染列表里
+        setTokens((prev) => [...prev.filter((t) => t.leaving), ...tokensRef.current]);
       }
     }, 1000 / rate);
     return () => clearInterval(interval);
@@ -56,8 +58,12 @@ export default function RateLimiterDemo() {
         });
 
         if (consumed > 0) {
+          // 被消费的令牌先标记离场（缩小淡出），动画结束后再真正移除
+          const leavingIds = new Set(tokensRef.current.slice(0, consumed).map((t) => t.id));
           tokensRef.current = tokensRef.current.slice(consumed);
-          setTokens([...tokensRef.current]);
+          setTokens((prev) =>
+            prev.map((t) => (leavingIds.has(t.id) ? { ...t, leaving: true } : t))
+          );
         }
 
         return newReqs;
@@ -84,7 +90,7 @@ export default function RateLimiterDemo() {
   return (
     <div className="demo-container overflow-hidden relative">
       <div className="flex items-center gap-2 mb-6 border-b-4 border-border pb-4">
-        <Settings2 className="w-6 h-6 text-primary" />
+        <Settings2Icon size={24} style={{ color: "var(--color-primary)" }} />
         <h3 style={{ margin: 0 }}>交互式演示：令牌桶 (Token Bucket)</h3>
       </div>
       
@@ -136,35 +142,36 @@ export default function RateLimiterDemo() {
           >
             {/* 液位指示 */}
             <div className="absolute top-2 left-2 text-xs font-mono font-bold text-text-muted opacity-50">
-              {tokens.length} / {capacity}
+              {tokens.filter((t) => !t.leaving).length} / {capacity}
             </div>
 
-            <AnimatePresence>
-              {tokens.map((token) => (
-                <motion.div
-                  key={token.id}
-                  initial={{ y: -150, scale: 0.5, opacity: 0, rotate: token.rotate }}
-                  animate={{ y: 0, scale: 1, opacity: 1, rotate: 0 }}
-                  exit={{ scale: 0, opacity: 0, transition: { duration: 0.15 } }}
-                  transition={{ type: "spring", bounce: 0.6, duration: 0.6 }}
-                  className="w-full h-6 bg-primary rounded-sm border-2 border-border shadow-[1px_1px_0px_0px_rgba(0,0,0,0.3)] relative overflow-hidden flex items-center justify-center"
-                >
-                  {/* 令牌高光效果 */}
-                  <div className="absolute top-0 left-0 w-full h-1/2 bg-white opacity-20"></div>
-                  <span className="text-[10px] font-mono text-white opacity-60">T-{token.id % 100}</span>
-                </motion.div>
-              ))}
-            </AnimatePresence>
+            {tokens.map((token) => (
+              <div
+                key={token.id}
+                className={`demo-token${token.leaving ? " demo-token--leaving" : ""}`}
+                style={{ "--token-rotate": `${token.rotate}deg` } as CSSProperties}
+                onAnimationEnd={(event) => {
+                  // 仅在离场动画结束时移除，入场动画的结束事件需忽略
+                  if (event.animationName === "demo-token-vanish") {
+                    setTokens((prev) => prev.filter((t) => t.id !== token.id));
+                  }
+                }}
+              >
+                {/* 令牌高光效果 */}
+                <div className="absolute top-0 left-0 w-full h-1/2 bg-white opacity-20"></div>
+                <span>T-{token.id % 100}</span>
+              </div>
+            ))}
           </div>
           
           <div className="mt-6 flex flex-col items-center">
-            <motion.div 
-              animate={{ rotate: 360 }}
-              transition={{ repeat: Infinity, duration: 10 / rate, ease: "linear" }}
-              className="text-text-muted mb-2"
+            <div
+              className="demo-gear"
+              style={{ animationDuration: `${10 / rate}s` }}
+              aria-hidden="true"
             >
               ⚙️
-            </motion.div>
+            </div>
             <p className="text-xs font-bold text-text-muted text-center uppercase tracking-widest">
               Generator<br/>{rate}/sec
             </p>
@@ -178,14 +185,14 @@ export default function RateLimiterDemo() {
               className="btn btn--primary flex items-center gap-2" 
               onClick={() => sendRequest(1)}
             >
-              <Play className="w-4 h-4" />
+              <PlayIcon size={16} />
               单次请求
             </button>
             <button 
               className="btn flex items-center gap-2 bg-accent text-white border-3 border-border shadow-[4px_4px_0px_0px_var(--color-border)] hover:-translate-y-1 hover:-translate-x-1 hover:shadow-[6px_6px_0px_0px_var(--color-border)] active:translate-y-1 active:translate-x-1 active:shadow-none transition-all font-bold px-4 py-2 uppercase"
               onClick={() => sendRequest(5)}
             >
-              <Zap className="w-4 h-4" />
+              <ZapIcon size={16} />
               瞬时并发 x5
             </button>
           </div>
@@ -194,47 +201,31 @@ export default function RateLimiterDemo() {
             <div className="flex justify-between items-center mb-4 border-b-2 border-border pb-2">
               <span className="font-bold text-sm uppercase tracking-wider">请求网关 (Gateway)</span>
               <button onClick={clearRequests} className="text-text-muted hover:text-err-text transition-colors" title="Clear Queue">
-                <Trash2 className="w-4 h-4" />
+                <Trash2Icon size={16} style={{ color: "var(--color-text-muted)" }} />
               </button>
             </div>
             
-            <div className="flex flex-col gap-2">
-              <AnimatePresence mode="popLayout">
-                {requests.length === 0 && (
-                  <motion.div 
-                    initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                    className="text-center text-text-muted text-sm py-8 font-mono"
-                  >
-                    等待流量接入...
-                  </motion.div>
-                )}
-                {requests.map((req) => (
-                  <motion.div
-                    layout
-                    key={req.id}
-                    initial={{ x: 50, opacity: 0, scale: 0.9 }}
-                    animate={{ 
-                      x: req.status === 'rejected' ? [0, -10, 10, -10, 10, 0] : 0, 
-                      opacity: 1, 
-                      scale: 1 
-                    }}
-                    transition={{ 
-                      x: { type: "spring", stiffness: 300, damping: 10 },
-                      layout: { type: "spring", bounce: 0.2, duration: 0.4 }
-                    }}
-                    className={`p-3 border-3 rounded-md font-bold text-sm flex justify-between items-center shadow-[2px_2px_0px_0px_rgba(0,0,0,0.1)] ${
-                      req.status === 'success' ? 'bg-info-bg text-info-text border-info-border' : 
-                      req.status === 'rejected' ? 'bg-err-bg text-err-text border-err-border' : 
-                      'bg-surface text-text border-border'
-                    }`}
-                  >
-                    <span className="font-mono">REQ_{String(req.id).padStart(3, '0')}</span>
-                    <span className="uppercase text-xs tracking-wider bg-white/50 px-2 py-1 rounded border border-current">
-                      {req.status}
-                    </span>
-                  </motion.div>
-                ))}
-              </AnimatePresence>
+            <div className="demo-req-list flex flex-col gap-2">
+              {requests.length === 0 && (
+                <div className="demo-empty text-center text-text-muted text-sm py-8 font-mono">
+                  等待流量接入...
+                </div>
+              )}
+              {requests.map((req) => (
+                <div
+                  key={req.id}
+                  className={`demo-req p-3 border-3 rounded-md font-bold text-sm flex justify-between items-center shadow-[2px_2px_0px_0px_rgba(0,0,0,0.1)] ${
+                    req.status === 'success' ? 'demo-req--success' :
+                    req.status === 'rejected' ? 'demo-req--rejected' :
+                    ''
+                  }`}
+                >
+                  <span className="font-mono">REQ_{String(req.id).padStart(3, '0')}</span>
+                  <span className="uppercase text-xs tracking-wider bg-white/50 px-2 py-1 rounded border border-current">
+                    {req.status}
+                  </span>
+                </div>
+              ))}
             </div>
           </div>
         </div>

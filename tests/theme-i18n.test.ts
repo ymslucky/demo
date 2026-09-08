@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { THEME_STORAGE_KEY } from "../app/lib/theme";
+import { injectTheme, themeInitScript } from "../scripts/inject-theme.mjs";
 import { stripComments } from "./strip-comments";
 
 /**
@@ -100,15 +101,34 @@ describe("theme × i18n integration", () => {
     expect(nav).toContain("<ThemeToggle />");
   });
 
-  it("theme init is injected by middleware, never rendered as a React script", () => {
-    // The anti-FOUC script is spliced into the HTML <head> at the HTTP layer
-    const mw = readFileSync(join(process.cwd(), "middleware.ts"), "utf8");
-    expect(mw).toMatch(/<script>\$\{themeInitScript\(\)\}<\/script>/);
-    expect(mw).toContain("<head>");
-    // The layout suppresses the pre-hydration data-theme attribute mismatch...
+  it("theme init is injected at build time by scripts/inject-theme.mjs", () => {
+    // Static export has no runtime middleware: the anti-FOUC script is
+    // spliced into every out/**/*.html right after <head> post-build.
+    const injector = readFileSync(
+      join(process.cwd(), "scripts", "inject-theme.mjs"),
+      "utf8",
+    );
+    // Single source of truth for both the script and the injection logic
+    expect(injector).toMatch(/export function themeInitScript\(\)/);
+    expect(injector).toMatch(/export function injectTheme\(/);
+    // <head> is the preferred injection point (runs before first paint)
+    expect(injector).toContain('html.indexOf("<head>")');
+
+    // Functional: splices right after <head> and is idempotent
+    const page = '<!doctype html><html><head><meta charset="utf-8"></head><body><p>x</p></body></html>';
+    const once = injectTheme(page);
+    const headAt = once.indexOf("<head>") + "<head>".length;
+    expect(once.slice(headAt, headAt + "<script>".length)).toBe("<script>");
+    expect(injectTheme(once)).toBe(once);
+    // The embedded script is exactly the contract asserted in theme.test.ts
+    expect(once).toContain(themeInitScript());
+  });
+
+  it("layout never renders a <script> node (React 19 client warning)", () => {
+    // suppressHydrationWarning covers the pre-hydration data-theme set by
+    // the injected script; the layout itself must stay script-free.
     const layout = read("[locale]/layout.tsx");
     expect(layout).toContain("suppressHydrationWarning");
-    // ...but must never render a <script> node (React 19 client-render warning)
     expect(stripComments(layout, "layout.tsx")).not.toMatch(/<script/);
   });
 });

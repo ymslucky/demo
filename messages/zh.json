@@ -16,7 +16,8 @@
     "contact": "联系"
   },
   "footer": {
-    "tagline": "用代码把想法变成产品"
+    "tagline": "用代码把想法变成产品",
+    "online": "{count} 人在线"
   },
   "languageSwitcher": {
     "zhLabel": "中文",
@@ -56,7 +57,13 @@
       "自动化与桌面效率工具",
       "数据可视化"
     ],
-    "honor": "★ 荣誉：GitHub Arctic Code Vault Contributor"
+    "honor": "★ 荣誉：GitHub Arctic Code Vault Contributor",
+    "githubStarsTitle": "GitHub 星标概览",
+    "githubStarsTotal": "共 {count} 颗星",
+    "githubStarsRepos": "{count} 个公开仓库",
+    "githubStarsStars": "★ {count}",
+    "githubStarsLoading": "正在获取 GitHub 数据…",
+    "githubStarsError": "暂时无法获取 GitHub 数据"
   },
   "projects": {
     "title": "项目",
@@ -403,6 +410,9 @@
     },
     "httpCheck": {
       "ipCard": "来源 IP",
+      "loading": "正在获取请求信息…",
+      "loadError": "请求数据加载失败，请检查网络后重试。",
+      "retry": "重试",
       "ipSource": "识别依据",
       "ipUnknown": "未能识别出公网 IP（本地开发环境属正常现象）。",
       "deviceCard": "客户端与设备",

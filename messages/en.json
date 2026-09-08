@@ -16,7 +16,8 @@
     "contact": "Contact"
   },
   "footer": {
-    "tagline": "Turning ideas into products with code"
+    "tagline": "Turning ideas into products with code",
+    "online": "{count, plural, =1 {1 online} other {# online}}"
   },
   "languageSwitcher": {
     "zhLabel": "中文",
@@ -56,7 +57,13 @@
       "Automation & desktop productivity tools",
       "Data visualization"
     ],
-    "honor": "★ Honor: GitHub Arctic Code Vault Contributor"
+    "honor": "★ Honor: GitHub Arctic Code Vault Contributor",
+    "githubStarsTitle": "GitHub Stars Overview",
+    "githubStarsTotal": "{count} stars in total",
+    "githubStarsRepos": "{count} public repositories",
+    "githubStarsStars": "★ {count}",
+    "githubStarsLoading": "Fetching GitHub data…",
+    "githubStarsError": "GitHub data is temporarily unavailable"
   },
   "projects": {
     "title": "Projects",
@@ -403,6 +410,9 @@
     },
     "httpCheck": {
       "ipCard": "Source IP",
+      "loading": "Loading request details…",
+      "loadError": "Failed to load request details — check your network and try again.",
+      "retry": "Retry",
       "ipSource": "Identified via",
       "ipUnknown": "No public IP could be identified (expected in local development).",
       "deviceCard": "Client & Device",

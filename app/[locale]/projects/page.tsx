@@ -1,8 +1,52 @@
 import type { Metadata } from "next";
+import type { ReactNode } from "react";
 import { getTranslations, setRequestLocale } from "next-intl/server";
-import { Code2, ExternalLink } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import { Badge, Card } from "../components/ui";
+
+interface IconProps {
+  size?: number;
+}
+
+/** 通用 SVG 骨架：24 网格描边风格，颜色继承 currentColor（替代 lucide-react，零依赖）。 */
+function Svg({ size = 24, children }: IconProps & { children: ReactNode }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2.5}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      focusable="false"
+    >
+      {children}
+    </svg>
+  );
+}
+
+function ExternalLinkIcon({ size }: IconProps) {
+  return (
+    <Svg size={size}>
+      <path d="M15 3h6v6" />
+      <path d="M10 14 21 3" />
+      <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+    </Svg>
+  );
+}
+
+function Code2Icon({ size }: IconProps) {
+  return (
+    <Svg size={size}>
+      <path d="m18 16 4-4-4-4" />
+      <path d="m6 8-4 4 4 4" />
+      <path d="m14.5 4-5 16" />
+    </Svg>
+  );
+}
 
 interface Project {
   key: string;
@@ -116,7 +160,7 @@ export default async function ProjectsPage({
                   title={t("demo")}
                   aria-label={`${item.name} ${t("demo")}`}
                 >
-                  <ExternalLink size={22} strokeWidth={2.5} />
+                  <ExternalLinkIcon size={22} />
                 </a>
               )}
               <a
@@ -127,7 +171,7 @@ export default async function ProjectsPage({
                 title={t("source")}
                 aria-label={`${item.name} ${t("source")}`}
               >
-                <Code2 size={22} strokeWidth={2.5} />
+                <Code2Icon size={22} />
               </a>
             </div>
           </Card>
@@ -143,7 +187,7 @@ export default async function ProjectsPage({
             target="_blank"
             rel="noopener noreferrer"
           >
-            <Code2 size={20} strokeWidth={2.5} />
+            <Code2Icon size={20} />
             {t("githubCta")}
           </a>
           <Link className="btn btn--secondary" href="/contact" prefetch={false}>

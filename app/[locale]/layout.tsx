@@ -79,11 +79,12 @@ export default async function LocaleLayout({
       suppressHydrationWarning
     >
       <body>
-        {/* 绘制前的主题同步脚本由 middleware.ts 在 HTTP 层注入到 HTML 的
-            head 中，处于 React 组件树之外（原理与约束见 AGENTS.md §3），
-            此处刻意不渲染任何脚本节点 —— React 19 会对客户端渲染出的
-            script 节点告警。html 上的 suppressHydrationWarning 用于压掉
-            data-theme 在 hydration 前被提前设置导致的属性不匹配告警。 */}
+        {/* 绘制前的主题同步脚本由构建管线（scripts/inject-theme.mjs）在
+            next build 之后注入到 out/ 下每个 HTML 的 head 中，处于 React
+            组件树之外（原理与约束见 AGENTS.md §3），此处刻意不渲染任何
+            脚本节点 —— React 19 会对客户端渲染出的 script 节点告警。html
+            上的 suppressHydrationWarning 用于压掉 data-theme 在 hydration
+            前被提前设置导致的属性不匹配告警。 */}
         <NextIntlClientProvider messages={messages} locale={locale}>
           <ThemeSync />
           <div className="page">

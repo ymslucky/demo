@@ -101,23 +101,3 @@ export function applyTheme(theme: Theme): void {
     // SSR — 无可应用对象
   }
 }
-
-/**
- * 内联于 <head>/body 早期的脚本，在首次绘制之前应用主题，
- * 防止错误主题闪烁（FOUC）。自包含 ES5，无 import。
- * 与 resolveTheme 决策逻辑相同：手动覆盖优先，否则跟随系统。
- */
-export function themeInitScript(): string {
-  return [
-    "(function () {",
-    "  try {",
-    "    var stored = null;",
-    "    try { stored = localStorage.getItem(\"" + THEME_STORAGE_KEY + "\"); } catch (e) {}",
-    "    var dark = false;",
-    "    try { dark = window.matchMedia && window.matchMedia(\"(prefers-color-scheme: dark)\").matches; } catch (e) {}",
-    "    var theme = (stored === \"light\" || stored === \"dark\") ? stored : (dark ? \"dark\" : \"light\");",
-    "    document.documentElement.setAttribute(\"data-theme\", theme);",
-    "  } catch (e) {}",
-    "})();",
-  ].join("\n");
-}

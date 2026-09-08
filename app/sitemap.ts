@@ -1,6 +1,9 @@
 import type { MetadataRoute } from "next";
 import { routing } from "@/i18n/routing";
 
+// 静态导出要求 metadata 路由显式声明为构建期预渲染。
+export const dynamic = "force-static";
+
 export default function sitemap(): MetadataRoute.Sitemap {
   const baseUrl = "https://luckylab-demo-qpqxce5k.edgeone.cool";
   const lastModified = new Date();
@@ -21,10 +24,11 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { path: "/contact", changeFrequency: "yearly", priority: 0.5 },
   ];
 
-  // 默认 locale (zh) 不带前缀直接服务；其他 locale 附加前缀。
+  // localePrefix "always" + trailingSlash：每个 URL 都带 locale 前缀、
+  // 以 / 结尾（对应 out/<locale>/<path>/index.html 的静态产物）。
   return paths.flatMap(({ path, changeFrequency, priority }) =>
     routing.locales.map((locale) => ({
-      url: `${baseUrl}${locale === routing.defaultLocale ? "" : `/${locale}`}${path}`,
+      url: `${baseUrl}/${locale}${path}/`,
       lastModified,
       changeFrequency,
       priority,

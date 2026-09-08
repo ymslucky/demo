@@ -1193,6 +1193,26 @@
   background: var(--color-primary);
   border-radius: var(--radius-sm);
   border: 2px solid var(--color-border);
+  /* 入场弹性下落动画（替代 framer-motion 的 spring），--token-rotate 由组件内联注入 */
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  animation: demo-token-drop 0.6s both;
+}
+
+.demo-token span {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--color-on-primary);
+  opacity: 0.7;
+}
+
+/* 离场状态：缩小淡出后由 onAnimationEnd 移除（等效 AnimatePresence 的 exit） */
+.demo-token--leaving {
+  animation: demo-token-vanish 0.15s ease-in both;
+  pointer-events: none;
 }
 
 .demo-queue {
@@ -1219,7 +1239,115 @@
   color: var(--color-info-text);
 }
 
+/* 被拒绝时整体替换 animation，触发一次水平抖动（位于 .demo-req 之后，同特异性后者胜） */
 .demo-req--rejected {
   background: var(--color-err-bg);
   color: var(--color-err-text);
+  animation: demo-card-shake 0.5s ease-in-out;
+}
+
+/* 请求列表容器与空态 */
+.demo-req-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.demo-empty {
+  padding: var(--space-lg) 0;
+  text-align: center;
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+  animation: demo-fade-in 0.25s ease-out both;
+}
+
+/* 令牌生成器齿轮：旋转周期由组件按发放速率内联注入（animationDuration） */
+.demo-gear {
+  display: inline-block;
+  animation: demo-spin 5s linear infinite;
+}
+
+/* ---- Demo 动画关键帧（零依赖，替代 framer-motion）----
+   全局 prefers-reduced-motion 规则（base.css）会把这些动画压到 0.01ms，
+   无需在此重复声明。 */
+
+/* 令牌入场：加速坠落 → 过冲放大 → 回弹 → 落定（模拟 spring bounce） */
+@keyframes demo-token-drop {
+  0% {
+    transform: translateY(-150px) scale(0.5) rotate(var(--token-rotate, 0deg));
+    opacity: 0;
+    animation-timing-function: ease-in;
+  }
+  55% {
+    transform: translateY(0) scale(1.12) rotate(0deg);
+    opacity: 1;
+    animation-timing-function: ease-out;
+  }
+  75% {
+    transform: translateY(-6px) scale(0.96);
+    animation-timing-function: ease-in;
+  }
+  100% {
+    transform: translateY(0) scale(1) rotate(0deg);
+  }
+}
+
+/* 令牌离场：缩小淡出 */
+@keyframes demo-token-vanish {
+  to {
+    transform: scale(0);
+    opacity: 0;
+  }
+}
+
+/* 请求卡片入场：右侧滑入 + 缩放 */
+@keyframes demo-card-in {
+  from {
+    transform: translateX(50px) scale(0.9);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0) scale(1);
+    opacity: 1;
+  }
+}
+
+/* 请求被拒：水平抖动（等效 framer 的 x: [0,-10,10,-10,10,0]） */
+@keyframes demo-card-shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  20% {
+    transform: translateX(-10px);
+  }
+  40% {
+    transform: translateX(10px);
+  }
+  60% {
+    transform: translateX(-10px);
+  }
+  80% {
+    transform: translateX(10px);
+  }
+}
+
+/* 空态淡入 */
+@keyframes demo-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* 齿轮持续旋转 */
+@keyframes demo-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }

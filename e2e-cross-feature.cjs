@@ -56,7 +56,8 @@ async function main() {
       page.on("pageerror", (err) => consoleErrors.push(`pageerror: ${err.message}`));
 
       for (const route of ROUTES) {
-        const url = BASE + (combo.locale === "zh" ? route : "/en" + route);
+        // Static export: every page lives under /zh/ or /en/ with a trailing slash
+        const url = BASE + (combo.locale === "zh" ? "/zh" : "/en") + (route === "" ? "/" : route + "/");
         await page.goto(url, { waitUntil: "domcontentloaded" });
         await sleep(400);
 
@@ -168,7 +169,7 @@ async function main() {
       }
 
       // screenshot of home page for this combo
-      await page.goto(BASE + (combo.locale === "zh" ? "" : "/en"), { waitUntil: "domcontentloaded" });
+      await page.goto(BASE + (combo.locale === "zh" ? "/zh/" : "/en/"), { waitUntil: "domcontentloaded" });
       await sleep(500);
       await page.evaluate((want) => {
         localStorage.setItem("theme", want);
@@ -185,7 +186,8 @@ async function main() {
       const ctx = await browser.newContext({ colorScheme: "light" });
       const page = await ctx.newPage();
       // Start: zh + light (default). Set dark via toggle.
-      await page.goto(BASE + "/", { waitUntil: "domcontentloaded" });
+      // ("/" 302-negotiates via functions/index.js; go straight to /zh/.)
+      await page.goto(BASE + "/zh/", { waitUntil: "domcontentloaded" });
       await sleep(400);
       await page.click(".theme-toggle");
       await sleep(200);
@@ -207,7 +209,7 @@ async function main() {
         bg: getComputedStyle(document.body).backgroundColor,
       }));
       check("P2: language switch keeps theme (no regression)",
-        afterLang.url === "/en" && afterLang.lang === "en" && afterLang.theme === "dark",
+        afterLang.url === "/en/" && afterLang.lang === "en" && afterLang.theme === "dark",
         JSON.stringify(afterLang));
 
       // Reload: both survive
@@ -232,7 +234,7 @@ async function main() {
         theme: document.documentElement.getAttribute("data-theme"),
       }));
       check("P4: switch back to zh keeps dark theme",
-        backZh.url === "/" && backZh.lang === "zh" && backZh.theme === "dark",
+        backZh.url === "/zh/" && backZh.lang === "zh" && backZh.theme === "dark",
         JSON.stringify(backZh));
 
       // Toggle back to light: language must stay zh
@@ -253,7 +255,7 @@ async function main() {
     {
       const ctx = await browser.newContext({ colorScheme: "dark" });
       const page = await ctx.newPage();
-      await page.goto(BASE + "/en", { waitUntil: "domcontentloaded" });
+      await page.goto(BASE + "/en/", { waitUntil: "domcontentloaded" });
       await sleep(400);
       // Tab through nav: theme toggle and lang switcher must be reachable
       const focusOrder = [];
@@ -290,7 +292,7 @@ async function main() {
       // markers or fallback key paths appear in served HTML.
       const ctx = await browser.newContext({ colorScheme: "light" });
       const page = await ctx.newPage();
-      await page.goto(BASE + "/en/tools", { waitUntil: "domcontentloaded" });
+      await page.goto(BASE + "/en/tools/", { waitUntil: "domcontentloaded" });
       await sleep(500);
       const html = await page.content();
       check("M1: no i18n missing-key markers in served HTML",

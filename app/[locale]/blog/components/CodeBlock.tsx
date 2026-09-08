@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { Check, Copy } from "lucide-react";
 
 interface CodeBlockProps {
   code: string;
@@ -47,11 +46,7 @@ export default function CodeBlock({ code, language = "java", title }: CodeBlockP
           title={t("copyCode")}
           aria-label={t("copyCode")}
         >
-          {copied ? (
-            <Check size={16} strokeWidth={2.5} aria-hidden="true" />
-          ) : (
-            <Copy size={16} strokeWidth={2.5} aria-hidden="true" />
-          )}
+          {copied ? <CheckIcon /> : <CopyIcon />}
           {copied ? t("copied") : t("copy")}
         </button>
       </div>
@@ -74,6 +69,49 @@ export default function CodeBlock({ code, language = "java", title }: CodeBlockP
         </pre>
       </div>
     </div>
+  );
+}
+
+/**
+ * 内联 SVG 图标（替代 lucide-react，零依赖）：
+ * 24 网格描边风格，颜色继承 currentColor，仅供本文件的复制按钮使用。
+ */
+function CheckIcon() {
+  return (
+    <svg
+      width={16}
+      height={16}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2.5}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <path d="M20 6 9 17l-5-5" />
+    </svg>
+  );
+}
+
+function CopyIcon() {
+  return (
+    <svg
+      width={16}
+      height={16}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2.5}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <rect width="14" height="14" x="8" y="8" rx="2" ry="2" />
+      <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" />
+    </svg>
   );
 }
 

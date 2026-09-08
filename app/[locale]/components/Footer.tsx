@@ -1,4 +1,5 @@
 import { getTranslations } from "next-intl/server";
+import Presence from "./Presence";
 
 export default async function Footer() {
   const t = await getTranslations("footer");
@@ -18,6 +19,7 @@ export default async function Footer() {
           >
             GitHub
           </a>
+          <Presence />
         </p>
       </div>
     </footer>

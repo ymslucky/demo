@@ -61,3 +61,91 @@
 .nb-table tr:last-child td {
   border-bottom: none;
 }
+
+/* ---- GithubStarsCard (about 页客户端组件) ----
+   复用 .card 基类，仅补充标题排版与仓库列表行；
+   遵循 Neo-Brutalism：3px/2px 边框 + 实心偏移阴影，无模糊阴影。 */
+.github-stars {
+  margin-top: var(--space-lg);
+}
+
+.github-stars h2 {
+  margin-bottom: var(--space-sm);
+  font-size: var(--fs-base);
+  color: var(--color-text-muted);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.github-stars-meta {
+  margin-bottom: var(--space-md);
+  font-size: var(--fs-sm);
+  color: var(--color-text-muted);
+}
+
+.github-stars-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.github-stars-list a {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  padding: var(--space-sm) var(--space-md);
+  background: var(--color-tint);
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-sm);
+  color: var(--color-text);
+  font-weight: 600;
+  font-size: var(--fs-sm);
+  text-decoration: none;
+  transition: var(--transition);
+}
+
+.github-stars-list a:hover {
+  transform: translate(-2px, -2px);
+  box-shadow: 4px 4px 0 0 var(--color-border);
+}
+
+.github-stars-count {
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  white-space: nowrap;
+}
+
+/* ---- Presence (footer) ---- */
+.presence {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-inline-start: var(--space-md);
+  font-family: var(--font-mono);
+  font-size: var(--fs-sm);
+}
+
+.presence-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-primary);
+  border: 2px solid var(--color-border);
+  animation: presence-pulse 2s ease-in-out infinite;
+}
+
+@keyframes presence-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
