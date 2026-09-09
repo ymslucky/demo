@@ -383,7 +383,7 @@
       "donutLabel": "{rate}% completion rate",
       "syncSaving": "Syncing…",
       "syncSaved": "Synced",
-      "syncError": "Sync failed — restored from server",
+      "syncError": "Sync failed — changes kept locally",
       "localOnly": "Saved locally",
       "storageSource": "Data source: {source}",
       "storageCloud": "Cloud KV",

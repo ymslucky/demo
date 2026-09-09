@@ -383,7 +383,7 @@
       "donutLabel": "完成率 {rate}%",
       "syncSaving": "同步中…",
       "syncSaved": "已同步",
-      "syncError": "同步失败，已还原为云端数据",
+      "syncError": "同步失败，改动已保留在本地",
       "localOnly": "本地保存",
       "storageSource": "数据来源：{source}",
       "storageCloud": "云端 KV",

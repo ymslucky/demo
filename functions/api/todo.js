@@ -4,8 +4,9 @@
  * 存储模型（EdgeOne Pages KV，官方文档语义）：
  * - 每个登录用户一个 key：todo_user_<归一化 userId>，值为该用户的待办
  *   数组 JSON：[{ id, title, note, done, createdAt, completedAt, dueAt,
- *   remindAt, priority, group }, ...]，新条目在前，数组顺序即拖拽后的
- *   展示顺序（PUT 端点按 id 顺序重写数组）；所有字段写入前经守卫函数
+ *   remindAt, priority, group }, ...]，数组顺序即展示顺序；客户端采用
+ *   快照同步：本地内存为事实源，PUT 端点用 { items } 全量替换服务端
+ *   列表（last-write-wins）；所有字段写入前经守卫函数
  *   清洗（cleanStamp/cleanPriority/cleanGroup/trim 截断）；
  * - 单清单封顶 MAX_ITEMS 条、单条标题截断 MAX_TITLE_LEN 字符，防御
  *   KV 值无限膨胀；
@@ -31,7 +32,7 @@
  *
  * 错误语义：401 unauthorized（未登录/会话过期/验签失败，响应附
  * x-auth-fail 诊断头说明失败环节）、400 invalid-json / invalid-title /
- * invalid-id / invalid-order、404 not-found、503 kv-not-configured /
+ * invalid-id / invalid-items、404 not-found、503 kv-not-configured /
  * kv-unavailable。
  *
  * 部署路径：/api/todo（functions/api/todo.js）
@@ -254,38 +255,6 @@ export function updateTodo(items, id, patch = {}, now = Date.now()) {
 export function removeTodo(items, id) {
   const next = items.filter((item) => item.id !== id);
   return next.length === items.length ? null : next;
-}
-
-/**
- * 按 orderedIds 的顺序重排清单，可附带分组改动（groupBy: id -> 分组名）。
- * 未出现在 orderedIds 中的条目按原相对顺序追加在尾部；orderedIds 为空数组
- * 视为合法无操作；非法输入（非数组 / 含非字符串 id）或一个 id 都没命中时
- * 返回 null（由调用方回 400 invalid-order）。不改变原数组。导出仅供测试。
- */
-export function reorderTodos(items, orderedIds, groupBy = {}) {
-  if (!Array.isArray(orderedIds)) return null;
-  if (orderedIds.some((id) => typeof id !== "string" || !id)) return null;
-  if (orderedIds.length === 0) return items;
-  const byId = new Map(items.map((item) => [item.id, item]));
-  const next = [];
-  const pendingGroups = new Map();
-  for (const id of orderedIds) {
-    const item = byId.get(id);
-    if (!item) continue;
-    if (Object.prototype.hasOwnProperty.call(groupBy, id)) {
-      pendingGroups.set(id, cleanGroup(groupBy[id]));
-    }
-    next.push(item);
-    byId.delete(id);
-  }
-  if (next.length === 0) return null;
-  for (const item of items) {
-    if (byId.has(item.id)) next.push(item);
-  }
-  // 分组改动在顺序确定后统一应用，保证命中同一 id 的多次声明互不干扰。
-  return next.map((item) =>
-    pendingGroups.has(item.id) ? { ...item, group: pendingGroups.get(item.id) } : item,
-  );
 }
 
 /** 读取当前用户的清单（缺失/损坏按空清单起步）。 */
@@ -719,7 +688,12 @@ export async function onRequestPatch({ request }) {
   }
 }
 
-/** PUT：登录后按提交的 id 顺序重排清单（可附带分组改动），返回写入后的清单。 */
+/**
+ * PUT：登录后用 { items } 快照全量替换自己的清单（客户端写后队列的
+ * 合并写入口——本地内存是事实源，服务端不做增量合并，last-write-wins）。
+ * 快照经 normalizeItems 守卫清洗（空标题丢弃/截断/封顶）后整表写入，
+ * 返回写入后的清单。items 缺失或非数组回 400 invalid-items。
+ */
 export async function onRequestPut({ request }) {
   const kv = getKv();
   if (!kv) return jsonResponse({ error: "kv-not-configured" }, { "x-kv": "unbound" }, 503);
@@ -730,12 +704,10 @@ export async function onRequestPut({ request }) {
     }
     const body = await readJsonBody(request);
     if (!body) return jsonResponse({ error: "invalid-json" }, {}, 400);
-    const groups =
-      typeof body.groups === "object" && body.groups !== null && !Array.isArray(body.groups)
-        ? body.groups
-        : {};
-    const items = reorderTodos(await loadItems(kv, uid), body.order, groups);
-    if (!items) return jsonResponse({ error: "invalid-order" }, {}, 400);
+    if (!Array.isArray(body.items)) {
+      return jsonResponse({ error: "invalid-items" }, {}, 400);
+    }
+    const items = normalizeItems(body.items);
     await saveItems(kv, uid, items);
     return jsonResponse({ items });
   } catch {

@@ -1724,14 +1724,25 @@
   box-shadow: var(--shadow-sm);
 }
 
-/* 拖拽中的条目：抬升 + 虚线边 + 底色提示；关闭过渡保证跟手 */
+/* 拖拽中的条目：位移由 JS 直接写 inline transform（像素级跟手），
+   此处只做静态外观。pointer-events:none 防止拖拽行自命中，
+   elementFromPoint 才能命中下方的插入目标 */
 .todo-item.todo-item--dragging {
-  opacity: 0.85;
+  opacity: 0.92;
   border-style: dashed;
   background: var(--color-tint);
   box-shadow: var(--shadow-md);
-  transform: scale(1.015);
+  pointer-events: none;
+  cursor: grabbing;
+  z-index: 20;
+  will-change: transform;
   transition: none;
+}
+
+/* 拖拽会话中禁文本选中与页面级光标切换 */
+body.todo-dragging {
+  user-select: none;
+  cursor: grabbing;
 }
 
 /* 拖拽手柄：touch-action 交给 window 级指针监听，阻止浏览器滚动 */
@@ -1890,6 +1901,59 @@
   animation: todo-drop-pulse 0.9s ease-in-out infinite;
 }
 
+/* 云端同步指示器：写后队列的状态呈现——
+   pending（脉冲圆点）/ saving / saved（绿勾）/ error（红叉 + 重试）。
+   reduced-motion 时 todo-overdue-pulse 等动画由 base.css 全局中和块停止 */
+.todo-sync {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--fs-sm);
+  color: var(--color-text-muted);
+}
+
+.todo-sync--saved {
+  color: var(--color-accent);
+}
+
+.todo-sync--error {
+  color: var(--color-err-text);
+}
+
+/* pending 态脉冲圆点 */
+.todo-sync-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: currentcolor;
+  animation: todo-sync-pulse 1s ease-in-out infinite;
+}
+
+/* error 态手动重试按钮：跟随红叉文案色 */
+.todo-sync-retry {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 0.5rem;
+  border: 2px solid currentcolor;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: inherit;
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.todo-sync-retry:hover {
+  box-shadow: var(--shadow-sm);
+  transform: translate(-1px, -1px);
+}
+
+.todo-sync-retry:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
 /* 编辑弹窗四要素字段网格 */
 .todo-modal-grid {
   display: grid;
@@ -1941,6 +2005,19 @@
   }
   50% {
     opacity: 0.65;
+  }
+}
+
+/* 同步 pending 圆点：透明度脉冲 */
+@keyframes todo-sync-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.4;
+    transform: scale(0.82);
   }
 }
 

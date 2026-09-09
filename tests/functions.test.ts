@@ -8,7 +8,6 @@ import {
   parseTokenPayload,
   readSessionToken,
   removeTodo,
-  reorderTodos,
   siteApex,
   todoKey,
   updateTodo,
@@ -369,50 +368,6 @@ describe("todo four-element fields (dueAt/remindAt/priority/group)", () => {
     // Non-matching types are ignored.
     expect(updateTodo(items, "a", { priority: "high" as never })[0].priority).toBe(2);
     expect(items[0].group).toBe("home"); // original array untouched
-  });
-});
-
-describe("todo reorderTodos", () => {
-  const mk = (id: string, group = "") => ({
-    id,
-    title: id,
-    note: "",
-    done: false,
-    createdAt: 1,
-    completedAt: 0,
-    dueAt: 0,
-    remindAt: 0,
-    priority: 0,
-    group,
-  });
-  const items = [mk("a"), mk("b", "work"), mk("c")];
-
-  it("reorders by the submitted id sequence and skips unknown ids", () => {
-    expect(reorderTodos(items, ["c", "zz", "a", "b"])).toEqual([mk("c"), mk("a"), mk("b", "work")]);
-  });
-
-  it("appends uncovered items in their original relative order", () => {
-    expect(reorderTodos(items, ["b"])).toEqual([mk("b", "work"), mk("a"), mk("c")]);
-  });
-
-  it("applies group changes after sequencing (cross-group drops)", () => {
-    const next = reorderTodos(items, ["a", "b", "c"], { a: "  urgent  ", b: "" })!;
-    expect(next.find((i: { id: string }) => i.id === "a")!.group).toBe("urgent");
-    expect(next.find((i: { id: string }) => i.id === "b")!.group).toBe("");
-    expect(next.find((i: { id: string }) => i.id === "c")!.group).toBe("");
-  });
-
-  it("treats an empty order as a no-op and invalid input as null", () => {
-    expect(reorderTodos(items, [])).toBe(items);
-    expect(reorderTodos(items, null as never)).toBeNull();
-    expect(reorderTodos(items, ["a", 42 as never])).toBeNull();
-    expect(reorderTodos(items, ["zz"])).toBeNull(); // no id matched
-  });
-
-  it("does not mutate the original array", () => {
-    const snapshot = JSON.stringify(items);
-    reorderTodos(items, ["c", "b", "a"], { a: "x" });
-    expect(JSON.stringify(items)).toBe(snapshot);
   });
 });
 
