@@ -30,10 +30,11 @@ describe("i18n routing", () => {
     expect(routing.locales).toEqual(["zh", "en"]);
   });
 
-  it("always prefixes the locale", () => {
-    // Every route lives under /zh/ or /en/; unprefixed paths (including "/")
-    // are negotiated to a prefixed URL by intlMiddleware in proxy.ts.
-    expect(routing.localePrefix).toBe("always");
+  it("omits the prefix for the default locale only", () => {
+    // The default locale (zh) is served at the unprefixed path (rdom.cn/...);
+    // non-default locales keep their prefix (/en/...). Prefixed default-
+    // locale URLs (/zh/...) are normalized back to "/" by intlMiddleware.
+    expect(routing.localePrefix).toBe("as-needed");
   });
 });
 
