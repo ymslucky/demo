@@ -38,12 +38,36 @@
 
 const KEY_PREFIX = "todo_user_";
 const JWKS_TTL_MS = 3_600_000;
-// 会话 JWT 的 issuer / azp（来源 origin）白名单：本站生产 Clerk 实例。
+/**
+ * 访问域名归一化：接受 "rdom.cn" / "https://rdom.cn" / "https://www.rdom.cn"
+ * 等写法，剥离协议、路径与 www 前缀，返回裸 apex 域名；空值返回 null。
+ * 导出仅供测试。
+ *
+ * @param {unknown} raw .env 中 SITE_DOMAIN 的原始值
+ * @returns {string | null}
+ */
+export function siteApex(raw) {
+  if (typeof raw !== "string") return null;
+  const host = raw
+    .trim()
+    .toLowerCase()
+    .replace(/^https?:\/\//, "")
+    .split("/")[0];
+  if (!host) return null;
+  return host.startsWith("www.") ? host.slice(4) : host;
+}
+
+// 会话 JWT 的 issuer / azp（来源 origin）白名单，全部由站点访问域名派生。
 // 钉死 issuer 是 Clerk 官方手动验签清单的硬性要求（防"任意 iss + 自造
 // JWKS"伪造身份）；azp 校验防子域 cookie 泄漏攻击。旧实例可能不带
 // azp——按官方示例，缺失时放行，存在且不匹配才拒绝。
-const ALLOWED_ISSUERS = ["https://clerk.rdom.cn"];
-const ALLOWED_AZP = ["https://rdom.cn"];
+// 派生规则：issuer 为 Clerk 自定义实例惯例 clerk.<apex>；azp 由 Clerk JS
+// 按页面 origin 签发，apex 与 www 都收录——缺一则从另一 origin 访问的
+// 已登录用户会被误判 401。换域名时只需在部署环境的 .env 配置
+// SITE_DOMAIN，无需改代码；未配置默认 rdom.cn。
+const SITE_APEX = siteApex(globalThis.process?.env?.SITE_DOMAIN) ?? "rdom.cn";
+const ALLOWED_ISSUERS = [`https://clerk.${SITE_APEX}`];
+const ALLOWED_AZP = [`https://${SITE_APEX}`, `https://www.${SITE_APEX}`];
 // Clerk SDK 默认 clockSkewInMs = 5000：exp/nbf 判断保持同样的容差，
 // 避免边缘节点与签发方时钟的毫秒级偏移误伤刚签发的会话。
 const CLOCK_SKEW_S = 5;
@@ -512,7 +536,8 @@ export async function verifySessionToken(token, deps = {}) {
 /**
  * 会话验证 + uid 提取：成功返回 { uid, reason: null }；失败返回
  * { uid: null, reason }（no-cookie / verifyTokenDetailed 失败码 / sub），
- * reason 会进 401 响应的 x-auth-fail 诊断头。
+ * reason 会进 401 响应的 x-auth-fail 诊断头。issuer / azp 白名单见
+ * 模块顶部 ALLOWED_ISSUERS / ALLOWED_AZP（由 SITE_DOMAIN 派生）。
  */
 async function readSessionUid(request) {
   const token = readSessionToken(request);

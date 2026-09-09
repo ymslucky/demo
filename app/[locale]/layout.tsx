@@ -5,6 +5,7 @@ import { zhCN, enUS } from "@clerk/localizations";
 import { NextIntlClientProvider } from "next-intl";
 import { getMessages, getTranslations, setRequestLocale } from "next-intl/server";
 import { routing } from "@/i18n/routing";
+import { SITE_URL } from "@/app/lib/site";
 import { themeInitScript } from "../lib/theme";
 import "../globals.css";
 import Nav from "./components/Nav";
@@ -71,7 +72,7 @@ export async function generateMetadata({
   const t = await getTranslations({ locale, namespace: "metadata" });
 
   return {
-    metadataBase: new URL("https://luckylab-demo-qpqxce5k.edgeone.cool"),
+    metadataBase: new URL(SITE_URL),
     title: {
       default: t("title"),
       template: t("template"),

@@ -1,11 +1,12 @@
 import type { MetadataRoute } from "next";
 import { routing } from "@/i18n/routing";
+import { SITE_URL } from "@/app/lib/site";
 
 // 静态导出要求 metadata 路由显式声明为构建期预渲染。
 export const dynamic = "force-static";
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const baseUrl = "https://luckylab-demo-qpqxce5k.edgeone.cool";
+  const baseUrl = SITE_URL;
   const lastModified = new Date();
 
   const paths: Array<{

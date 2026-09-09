@@ -39,10 +39,12 @@ description: "本仓库的 Clerk 认证知识：proxy.ts 中间件组合、Clerk
 1. **解析** `__session` cookie 中的 JWT；格式非法 → 拒绝。
 2. **按 `header.alg` 分派**：只有 `ES256` 和 `RS256` 放行。Clerk 实例并不统一——
    dev/test 实例签 ES256，生产实例（`clerk.rdom.cn`）签 RS256。绝不要钉死单一算法。
-3. **钉死 issuer** 为 `ALLOWED_ISSUERS = ["https://clerk.rdom.cn"]`。JWKS 只从
+3. **钉死 issuer** 为 `["https://clerk.<apex>"]`——白名单由部署环境 .env 的
+   `SITE_DOMAIN` 派生（`siteApex` 归一化，未配置默认 rdom.cn）。JWKS 只从
    允许列表内的实例获取——token 可控的 `iss` 会让攻击者指向自己的 JWKS（认证绕过）。
-4. **校验 `azp`**：存在时对照 `ALLOWED_AZP = ["https://rdom.cn"]`（子域 cookie
-   泄漏防御）。缺失 azp 允许通过（官方示例行为）。
+4. **校验 `azp`**：存在时对照 `["https://<apex>", "https://www.<apex>"]`（子域
+   cookie 泄漏防御；apex 与 www 都收录——缺一则从另一 origin 访问的已登录用户
+   会被误判 401）。缺失 azp 允许通过（官方示例行为）。
 5. **时间窗**：`exp`/`nbf` 双侧留 `CLOCK_SKEW_S = 5` 秒容差（对应 Clerk SDK
    默认 `clockSkewInMs: 5000`）。
 6. **`sts` 声明**：存在且不为 `"active"` → 拒绝。

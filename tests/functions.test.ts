@@ -7,6 +7,7 @@ import {
   parseTokenPayload,
   readSessionToken,
   removeTodo,
+  siteApex,
   todoKey,
   updateTodo,
   verifyRs256,
@@ -272,6 +273,17 @@ describe("todo addTodo / updateTodo / removeTodo", () => {
     ]);
     expect(removeTodo(items, "ghost")).toBeNull();
     expect(items).toHaveLength(2); // original array untouched
+  });
+});
+
+describe("todo site apex derivation", () => {
+  it("siteApex strips protocol / path / www and rejects empties", () => {
+    expect(siteApex("rdom.cn")).toBe("rdom.cn");
+    expect(siteApex("https://www.rdom.cn/zh/tools/")).toBe("rdom.cn");
+    expect(siteApex("  HTTP://RDOM.CN  ")).toBe("rdom.cn");
+    expect(siteApex(undefined)).toBeNull();
+    expect(siteApex("   ")).toBeNull();
+    expect(siteApex("https://")).toBeNull();
   });
 });
 
@@ -591,6 +603,25 @@ describe("todo session token helpers", () => {
     await expect(
       verifyTokenDetailed(noAzp, { jwks: [jwk], now, allowedIssuers: [ISS] }),
     ).resolves.toMatchObject({ ok: true });
+
+    // Every origin in the allowlist passes (apex + www are both first-party);
+    // a regression that drops one origin logs out users browsing that origin.
+    for (const origin of [AZP, "https://www.app.test.example.com"]) {
+      const token = await buildToken(privateKey, { alg: "ES256", kid: "test-key" }, {
+        sub: "u",
+        iss: ISS,
+        azp: origin,
+        exp,
+      });
+      await expect(
+        verifyTokenDetailed(token, {
+          jwks: [jwk],
+          now,
+          allowedIssuers: [ISS],
+          allowedAzp: [AZP, "https://www.app.test.example.com"],
+        }),
+      ).resolves.toMatchObject({ ok: true });
+    }
   });
 
   it("verifyTokenDetailed enforces the nbf and sts claims", async () => {

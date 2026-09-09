@@ -8,12 +8,9 @@
  */
 
 import { posts } from "@/app/[locale]/blog/posts";
+import { SITE_URL } from "@/app/lib/site";
 
 export const dynamic = "force-static";
-
-// 与 app/[locale]/layout.tsx 的 metadataBase 保持一致。
-const SITE_URL =
-  process.env.NEXT_PUBLIC_SITE_URL ?? "https://luckylab-demo-qpqxce5k.edgeone.cool";
 
 /** XML 特殊字符转义（& < > " '），先替换 & 避免二次转义。 */
 function escapeXml(value: string): string {

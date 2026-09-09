@@ -77,14 +77,32 @@ middleware.ts           # 语言协商 + HTTP 层脚本注入 (next-intl middlew
 
 ## 部署
 
-项目部署在 EdgeOne Makers 平台：
+项目部署在 EdgeOne Pages 平台（SSR，部署配置见 `edgeone.json`）：
 
-- **URL**: https://luckylab-demo-qpqxce5k.edgeone.cool
+- **URL**: https://www.rdom.cn
 - **构建命令**: `npm run build`
 - **输出目录**: `.next`
 - **Node 版本**: 22.11.0
 
 推送代码到 `main` 分支后，EdgeOne 会自动构建和部署。
+
+### 环境变量
+
+完整清单与说明见模板 [.env.example](.env.example)；本地开发用 `.env.local`（被 git 忽略，绝不提交真实密钥）。
+
+| 变量 | 用途 | 未配置时 |
+| --- | --- | --- |
+| `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` / `CLERK_SECRET_KEY` | Clerk 认证（登录、会话） | 认证不可用 |
+| `SITE_DOMAIN` | 站点访问域名；todo 边缘函数的 issuer / azp 白名单由此派生 | `rdom.cn` |
+| `NEXT_PUBLIC_SITE_URL` | 站点对外 URL（RSS feed 的绝对链接前缀） | 代码内默认值 |
+| `GITHUB_LOGIN` / `GITHUB_TOKEN` | 首页 GitHub Contributions 展示 | 代码内默认值 |
+
+### KV 绑定（EdgeOne 控制台配置，随部署注入边缘函数）
+
+| 绑定变量 | 用途 |
+| --- | --- |
+| `TODO_LIST` | Todo List 数据持久化（按 Clerk 账号隔离） |
+| `DICTIONARY` | 在线人数心跳 |
 
 ## License
 

@@ -18,6 +18,9 @@ SSR/预渲染。
 - 只能用 Web 标准 API：`fetch`、`Request`/`Response`、`URL`、`crypto`（RSA 有
   缺口，见 clerk-edge-auth skill）。没有 Node 内置模块、没有文件系统、没有
   `/tmp` 持久化。
+- **两套变量注入机制**：函数环境变量来自部署环境的 `.env` 文件，按 Node 默认
+  方式 `process.env.X` 读取（如 todo 的 `SITE_DOMAIN`）；KV 命名空间则是裸全局
+  标识符（见 §4），**不在** `process.env` 上。
 - `onRequest*` 处理器保持薄；纯逻辑导出给
   [tests/functions.test.ts](../../tests/functions.test.ts)。修改导出签名必须在
   同一提交中更新该测试。
