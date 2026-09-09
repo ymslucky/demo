@@ -4,6 +4,28 @@
   "installCommand": "npm install",
   "outputDirectory": ".next",
   "nodeVersion": "22.11.0",
+  "rewrites": [
+    {
+      "source": "/",
+      "destination": "/zh/"
+    },
+    {
+      "source": "/tools/*",
+      "destination": "/zh/tools/:splat"
+    },
+    {
+      "source": "/blog/*",
+      "destination": "/zh/blog/:splat"
+    },
+    {
+      "source": "/links*",
+      "destination": "/zh/links/"
+    },
+    {
+      "source": "/contact*",
+      "destination": "/zh/contact/"
+    }
+  ],
   "headers": [
     {
       "source": "/_next/static/*",
