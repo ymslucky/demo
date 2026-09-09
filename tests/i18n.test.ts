@@ -30,10 +30,12 @@ describe("i18n routing", () => {
     expect(routing.locales).toEqual(["zh", "en"]);
   });
 
-  it("always prefixes the locale", () => {
-    // Every route lives under /zh/ or /en/; unprefixed paths (including "/")
-    // are negotiated to a prefixed URL by intlMiddleware in proxy.ts.
-    expect(routing.localePrefix).toBe("always");
+  it("omits the prefix for the default locale only", () => {
+    // Default locale (zh) lives at bare paths ("/", "/tools/", ...);
+    // other locales keep their prefix ("/en/..."). Unprefixed requests
+    // are rewritten to the zh route — locally by intlMiddleware in
+    // proxy.ts, on EdgeOne by the edge rewrites in edgeone.json.
+    expect(routing.localePrefix).toBe("as-needed");
   });
 });
 

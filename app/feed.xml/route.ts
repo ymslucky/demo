@@ -31,9 +31,9 @@ export function GET() {
   const items = posts
     .map((post) => {
       // post.slug 形如 "/blog/rate-limiter"。静态导出 + localePrefix
-      // "always" 后，文章固定位于 /zh 前缀下，且目录 URL 以 / 结尾
-      // （对应 out/zh/blog/rate-limiter/index.html）。
-      const link = `${SITE_URL}/zh${post.slug}/`;
+      // "as-needed" 后，文章（默认语言 zh）位于裸路径，且目录 URL 以
+      // / 结尾（对应 out/zh/blog/rate-limiter/index.html）。
+      const link = `${SITE_URL}${post.slug}/`;
       return [
         "    <item>",
         `      <title>${escapeXml(post.title)}</title>`,

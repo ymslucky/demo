@@ -1,35 +1,45 @@
 ---
 name: "i18n-locale-routing"
-description: "本仓库的 next-intl 区域路由知识：localePrefix always + 尾斜杠、proxy.ts 内 cookie/Accept-Language 协商、app/route.ts 裸根兜底、app/ 目录 CJK-free 规则。凡涉及路由、locale、链接、messages 或新增页面时调用。"
+description: "本仓库的 next-intl 区域路由知识：localePrefix as-needed（zh 裸路径、en 带前缀）+ 尾斜杠、EdgeOne 不支持 Next 层 rewrite（靠 edgeone.json 边缘 rewrites 兜底）、proxy.ts 内 cookie/Accept-Language 协商、app/ 目录 CJK-free 规则。凡涉及路由、locale、链接、messages 或新增页面时调用。"
 ---
 
 # i18n 与区域路由
 
 ## 1. URL 契约
 
-[i18n/routing.ts](../../i18n/routing.ts) 使用 `localePrefix: "always"`——每个 URL
-都是 `/zh/…` 或 `/en/…`，**带尾斜杠**。所有 E2E 脚本与内部链接必须使用带前缀、
-带尾斜杠的形式。
+[i18n/routing.ts](../../i18n/routing.ts) 使用 `localePrefix: "as-needed"`——默认
+语言 zh 走**裸路径**（`/`、`/tools/`、`/blog/…`），en 保留前缀（`/en/…`），全部
+**带尾斜杠**。站内链接（next-intl `Link`）、canonical、sitemap、feed 均按此生成。
 
-## 2. 区域协商（无前缀路径）
+## 2. 无前缀路径的改写（双通道）
 
-[proxy.ts](../../proxy.ts) 内的 `intlMiddleware` 按此确切顺序协商：
+as-needed 依赖"把裸路径内部改写到 `/zh/…`"。**EdgeOne 适配器不支持 Next 层
+rewrite**（实证 2026-09）：
 
-1. `NEXT_LOCALE` cookie →
-2. `Accept-Language` 权重 →
-3. 默认 `zh`
+- Route Handler 中 `NextResponse.rewrite()` → **500**（`app route handler`
+  显式报错）；
+- proxy.ts 中间件 rewrite → **静默丢弃**（请求穿透，路径 404）。
 
-并以**重定向**应答（永不缓存）。
+因此生产由 **edgeone.json 的 `rewrites`** 在边缘层完成改写（已实证生效）：
 
-## 3. 裸根路径例外（`/`）
+- 枚举 zh 顶级区段：`/`、`/tools(/|/*)`、`/blog(/|/*)`、`/links*`、`/contact*`
+  → `/zh/…`。**新增顶级页面必须在 edgeone.json 里补一条 rewrite**。
+- 语法坑：`X/*` 的 `*` 不匹配空串——`/tools/`（区根）必须另加精确规则
+  `/tools` 与 `/tools/`；`X*` 前缀式（如 `/links*`）无此问题。
+- 副作用：边缘改写读不到 cookie/Accept-Language，裸路径（含 `/`）一律出
+  zh 内容；偏好 en 的用户需经站内切换（NEXT_LOCALE cookie → /en/ 链接）。
 
-在 EdgeOne Pages 上，适配器的静态层**先于** Next.js 服务器处理 `/`（无静态
-文件 → 404），所以 `proxy.ts` 在那里根本不运行。
-[app/route.ts](../../app/route.ts) 是动态兜底处理器，在服务端执行同样的协商
-（`NEXT_LOCALE` cookie → `Accept-Language` 权重 → 默认 `zh`），并以临时重定向
-应答到 `/<locale>/`。
+本地开发（无 edgeone.json）由 [proxy.ts](../../proxy.ts) 的 `intlMiddleware`
+完成同样的改写（cookie `NEXT_LOCALE` → `Accept-Language` 权重 → 默认 `zh`），
+非默认语言的无前缀请求以重定向应答。
 
-**两条路径保持同步**——改动区域协商时必须一起改。
+## 3. 裸根兜底（`/`）
+
+[app/route.ts](../../app/route.ts) 是动态兜底处理器：执行与 intlMiddleware 相同
+的协商（`NEXT_LOCALE` cookie → `Accept-Language` 权重 → 默认 `zh`），以**临时重
+定向**应答到 `/<locale>/`。本地与生产中它通常不可达（middleware / 边缘 rewrites
+先行）——**绝不要在这里用 `NextResponse.rewrite()`**（EdgeOne 上 500），
+保持重定向降级。
 
 ## 4. `app/**` 的 CJK-free 规则
 

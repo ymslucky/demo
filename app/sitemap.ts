@@ -30,11 +30,15 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { path: "/contact", changeFrequency: "yearly", priority: 0.5 },
   ];
 
-  // localePrefix "always" + trailingSlash：每个 URL 都带 locale 前缀、
-  // 以 / 结尾（对应 out/<locale>/<path>/index.html 的静态产物）。
+  // localePrefix "as-needed" + trailingSlash：默认语言 zh 用裸路径（对应
+  // EdgeOne 边缘 rewrites / 本地 middleware 改写），en 保留前缀；
+  // 所有 URL 以 / 结尾（对应 out/<locale>/<path>/index.html 的静态产物）。
   return paths.flatMap(({ path, changeFrequency, priority }) =>
     routing.locales.map((locale) => ({
-      url: `${baseUrl}/${locale}${path}/`,
+      url:
+        locale === routing.defaultLocale
+          ? `${baseUrl}${path}/`
+          : `${baseUrl}/${locale}${path}/`,
       lastModified,
       changeFrequency,
       priority,

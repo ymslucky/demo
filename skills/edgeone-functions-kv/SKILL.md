@@ -11,7 +11,8 @@ description: "EdgeOne Pages 边缘函数与 KV 存储知识：部署模型、Web
 `buildCommand`/`outputDirectory`（`.next`）；[functions/](../../functions/) 随应用
 一同部署。在 EdgeOne Pages 上，请求**先匹配边缘函数路由**，再回落到 Next.js
 服务器——所以 `/api/presence` 等由边缘函数服务，页面路由走 `proxy.ts` 与
-SSR/预渲染。
+SSR/预渲染。同一文件里的 `rewrites` 数组把裸路径边缘改写到 `/zh/…`
+（URL 契约与语法坑见 i18n-locale-routing skill）。
 
 ## 2. 运行时约束（边缘 JS 运行时，不是 Node）
 

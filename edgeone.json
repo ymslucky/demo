@@ -10,8 +10,24 @@
       "destination": "/zh/"
     },
     {
+      "source": "/tools",
+      "destination": "/zh/tools/"
+    },
+    {
+      "source": "/tools/",
+      "destination": "/zh/tools/"
+    },
+    {
       "source": "/tools/*",
       "destination": "/zh/tools/:splat"
+    },
+    {
+      "source": "/blog",
+      "destination": "/zh/blog/"
+    },
+    {
+      "source": "/blog/",
+      "destination": "/zh/blog/"
     },
     {
       "source": "/blog/*",

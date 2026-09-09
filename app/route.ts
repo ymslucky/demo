@@ -4,18 +4,18 @@ import { routing } from "@/i18n/routing";
 /**
  * Root fallback route for the bare "/" path.
  *
- * On EdgeOne Pages a request matches the static layer first; the adapter
- * serves "/" from that layer (404 for a missing file) without ever reaching
- * the Next.js server — so the `intlMiddleware` negotiation inside proxy.ts
- * never runs for the bare root in production. This handler reproduces the
- * same negotiation server-side (NEXT_LOCALE cookie -> Accept-Language
- * weights -> default) and answers with a temporary redirect to the
- * prefixed, trailing-slash URL.
+ * Routing uses `localePrefix: "as-needed"`, so the bare root is the
+ * canonical zh URL. On EdgeOne the edge rewrites in `edgeone.json` answer
+ * "/" with the prerendered "/zh/" page directly (Next-layer rewrites are
+ * unsupported there — route handlers reject them with a 500 and the
+ * middleware drops them silently). This handler only runs where those
+ * rewrites do not apply: locally the intlMiddleware in proxy.ts handles
+ * "/" before a route handler is reached, and on EdgeOne this stays an
+ * inert fallback that degrades to a temporary redirect instead of a
+ * rewrite.
  *
- * Where the proxy does run (local dev), "/" is answered by intlMiddleware
- * before routing reaches this handler, so it stays an inert fallback.
- * Reading cookies/headers off the request keeps the handler dynamic — it is
- * never prerendered at build time.
+ * Reading cookies/headers off the request keeps the handler dynamic — it
+ * is never prerendered at build time.
  */
 
 /** Parse an Accept-Language header and return the best matching locale. */

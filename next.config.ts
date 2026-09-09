@@ -9,8 +9,8 @@ import createNextIntlPlugin from "next-intl/plugin";
  * are kept where they don't get in the way:
  *
  * - `trailingSlash: true` keeps every URL in the directory form
- *   (`/zh/about/`), matching the historical static deployment and the
- *   EdgeOne redirect table in `edgeone.json`.
+ *   (`/zh/about/`, `/tools/`), matching the historical static deployment
+ *   and the edge rewrite table in `edgeone.json`.
  * - `images.unoptimized` keeps `<img>` URLs as authored — no image-optimizer
  *   infrastructure is required (useful on hosts that don't provide one).
  *

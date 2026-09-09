@@ -9,10 +9,10 @@ import { routing } from "./i18n/routing";
  * 1. `clerkMiddleware` — refreshes session tokens and makes auth state
  *    available to server components via `auth()`.
  * 2. `intlMiddleware` — next-intl locale negotiation (`localePrefix:
- *    "always"`): unprefixed URLs like `/` get 302'd to `/zh/…` or `/en/…`
- *    (NEXT_LOCALE cookie → Accept-Language weights → default zh). This
- *    replaces the legacy root-path 302 that used to live in
- *    `functions/index.js`.
+ *    "as-needed"`): bare URLs (the zh default locale) are rewritten to
+ *    their `/zh/…` route (NEXT_LOCALE cookie → Accept-Language weights →
+ *    default zh). On EdgeOne this rewrite is dropped by the adapter, so
+ *    production relies on the edge rewrites in `edgeone.json` instead.
  *
  * All routes are public by default; protect specific routes with
  * `createRouteMatcher` + `auth.protect()` when needed.
