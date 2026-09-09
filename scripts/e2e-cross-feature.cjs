@@ -56,9 +56,8 @@ async function main() {
       page.on("pageerror", (err) => consoleErrors.push(`pageerror: ${err.message}`));
 
       for (const route of ROUTES) {
-        // localePrefix "as-needed": zh (default) lives at the bare path,
-        // en keeps its /en prefix; trailing slash everywhere.
-        const url = BASE + (combo.locale === "zh" ? "" : "/en") + (route === "" ? "/" : route + "/");
+        // Static export: every page lives under /zh/ or /en/ with a trailing slash
+        const url = BASE + (combo.locale === "zh" ? "/zh" : "/en") + (route === "" ? "/" : route + "/");
         await page.goto(url, { waitUntil: "domcontentloaded" });
         await sleep(400);
 
@@ -170,7 +169,7 @@ async function main() {
       }
 
       // screenshot of home page for this combo
-      await page.goto(BASE + (combo.locale === "zh" ? "/" : "/en/"), { waitUntil: "domcontentloaded" });
+      await page.goto(BASE + (combo.locale === "zh" ? "/zh/" : "/en/"), { waitUntil: "domcontentloaded" });
       await sleep(500);
       await page.evaluate((want) => {
         localStorage.setItem("theme", want);
@@ -187,8 +186,8 @@ async function main() {
       const ctx = await browser.newContext({ colorScheme: "light" });
       const page = await ctx.newPage();
       // Start: zh + light (default). Set dark via toggle.
-      // (Under "as-needed" the zh home IS the bare "/" — no /zh/ hop.)
-      await page.goto(BASE + "/", { waitUntil: "domcontentloaded" });
+      // ("/" 307-negotiates via intlMiddleware in proxy.ts; go straight to /zh/.)
+      await page.goto(BASE + "/zh/", { waitUntil: "domcontentloaded" });
       await sleep(400);
       await page.click(".theme-toggle");
       await sleep(200);
@@ -235,7 +234,7 @@ async function main() {
         theme: document.documentElement.getAttribute("data-theme"),
       }));
       check("P4: switch back to zh keeps dark theme",
-        backZh.url === "/" && backZh.lang === "zh" && backZh.theme === "dark",
+        backZh.url === "/zh/" && backZh.lang === "zh" && backZh.theme === "dark",
         JSON.stringify(backZh));
 
       // Toggle back to light: language must stay zh

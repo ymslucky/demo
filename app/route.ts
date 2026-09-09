@@ -9,15 +9,8 @@ import { routing } from "@/i18n/routing";
  * the Next.js server — so the `intlMiddleware` negotiation inside proxy.ts
  * never runs for the bare root in production. This handler reproduces the
  * same negotiation server-side (NEXT_LOCALE cookie -> Accept-Language
- * weights -> default).
- *
- * With `localePrefix: "as-needed"` the default locale (`zh`) is served at
- * the unprefixed path, so a negotiated `zh` is answered with an internal
- * rewrite to the `/zh/` tree — the browser URL stays at "/". Redirecting
- * to `/zh/` instead would loop forever: intlMiddleware normalizes prefixed
- * default-locale URLs back to "/" (308) and this handler would 307 them
- * right back. Non-default locales keep a temporary redirect to their
- * prefixed URL (`/en/`).
+ * weights -> default) and answers with a temporary redirect to the
+ * prefixed, trailing-slash URL.
  *
  * Where the proxy does run (local dev), "/" is answered by intlMiddleware
  * before routing reaches this handler, so it stays an inert fallback.
@@ -60,11 +53,5 @@ export function GET(request: NextRequest) {
       ? cookieLocale
       : negotiateLocale(request.headers.get("accept-language"));
 
-  // Default locale lives at the unprefixed URL: rewrite (not redirect) into
-  // the /zh/ tree so the address bar stays at "/" — a redirect would ping-
-  // pong with intlMiddleware's /zh/ -> / normalization.
-  if (locale === routing.defaultLocale) {
-    return NextResponse.rewrite(new URL(`/${routing.defaultLocale}/`, request.url));
-  }
   return NextResponse.redirect(new URL(`/${locale}/`, request.url));
 }

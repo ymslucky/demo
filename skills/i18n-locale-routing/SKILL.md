@@ -1,18 +1,15 @@
 ---
 name: "i18n-locale-routing"
-description: "本仓库的 next-intl 区域路由知识：localePrefix as-needed（中文无前缀）+ 尾斜杠、proxy.ts 内 cookie/Accept-Language 协商、app/route.ts 裸根兜底、app/ 目录 CJK-free 规则。凡涉及路由、locale、链接、messages 或新增页面时调用。"
+description: "本仓库的 next-intl 区域路由知识：localePrefix always + 尾斜杠、proxy.ts 内 cookie/Accept-Language 协商、app/route.ts 裸根兜底、app/ 目录 CJK-free 规则。凡涉及路由、locale、链接、messages 或新增页面时调用。"
 ---
 
 # i18n 与区域路由
 
 ## 1. URL 契约
 
-[i18n/routing.ts](../../i18n/routing.ts) 使用 `localePrefix: "as-needed"`——默认
-locale（中文）的 URL **不带前缀**（`rdom.cn/…`），英文保留前缀（`rdom.cn/en/…`），
-**一律带尾斜杠**。默认 locale 的带前缀 URL（`/zh/…`）会被 `intlMiddleware`
-规范化重定向回无前缀路径，内部链接不要生成 `/zh/…` 形式；需要区域感知 href
-时用 [i18n/navigation.ts](../../i18n/navigation.ts) 的链接原语（自动跟随前缀
-模式）。
+[i18n/routing.ts](../../i18n/routing.ts) 使用 `localePrefix: "always"`——每个 URL
+都是 `/zh/…` 或 `/en/…`，**带尾斜杠**。所有 E2E 脚本与内部链接必须使用带前缀、
+带尾斜杠的形式。
 
 ## 2. 区域协商（无前缀路径）
 
@@ -22,18 +19,15 @@ locale（中文）的 URL **不带前缀**（`rdom.cn/…`），英文保留前�
 2. `Accept-Language` 权重 →
 3. 默认 `zh`
 
-并以**重定向**应答（永不缓存）：协商得 `zh` 时留在无前缀路径，`en` 时
-307 到 `/en/…`。
+并以**重定向**应答（永不缓存）。
 
 ## 3. 裸根路径例外（`/`）
 
 在 EdgeOne Pages 上，适配器的静态层**先于** Next.js 服务器处理 `/`（无静态
 文件 → 404），所以 `proxy.ts` 在那里根本不运行。
 [app/route.ts](../../app/route.ts) 是动态兜底处理器，在服务端执行同样的协商
-（`NEXT_LOCALE` cookie → `Accept-Language` 权重 → 默认 `zh`）：协商得 `zh`
-时 **rewrite 到 `/zh/` 树**（地址栏保持在 `/`；若 redirect 到 `/zh/` 会与
-intlMiddleware 的 `/zh/`→`/` 规范化互相弹跳死循环）；协商得 `en` 时 307
-重定向到 `/en/`。
+（`NEXT_LOCALE` cookie → `Accept-Language` 权重 → 默认 `zh`），并以临时重定向
+应答到 `/<locale>/`。
 
 **两条路径保持同步**——改动区域协商时必须一起改。
 

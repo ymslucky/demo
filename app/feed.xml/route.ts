@@ -30,10 +30,10 @@ function toRfc822(date: string): string {
 export function GET() {
   const items = posts
     .map((post) => {
-      // post.slug 形如 "/blog/rate-limiter"。localePrefix "as-needed"
-      // 下中文是默认 locale、URL 不带前缀，且以 / 结尾
-      // （对应 out/blog/rate-limiter/index.html）。
-      const link = `${SITE_URL}${post.slug}/`;
+      // post.slug 形如 "/blog/rate-limiter"。静态导出 + localePrefix
+      // "always" 后，文章固定位于 /zh 前缀下，且目录 URL 以 / 结尾
+      // （对应 out/zh/blog/rate-limiter/index.html）。
+      const link = `${SITE_URL}/zh${post.slug}/`;
       return [
         "    <item>",
         `      <title>${escapeXml(post.title)}</title>`,
