@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { ClerkProvider } from "@clerk/nextjs";
 import { zhCN, enUS } from "@clerk/localizations";
-import { NextIntlClientProvider } from "next-intl";
+import { hasLocale, NextIntlClientProvider } from "next-intl";
+import { notFound } from "next/navigation";
 import { getMessages, getTranslations, setRequestLocale } from "next-intl/server";
 import { routing } from "@/i18n/routing";
 import { SITE_URL } from "@/app/lib/site";
@@ -69,6 +70,7 @@ export async function generateMetadata({
   params: Promise<{ locale: string }>;
 }): Promise<Metadata> {
   const { locale } = await params;
+  if (!hasLocale(routing.locales, locale)) notFound();
   const t = await getTranslations({ locale, namespace: "metadata" });
 
   return {
@@ -102,6 +104,12 @@ export default async function LocaleLayout({
   params: Promise<{ locale: string }>;
 }>) {
   const { locale } = await params;
+  // `[locale]` 是动态段，会吞掉任意单层路径段（如 /tools/tools/todo-list/
+  // 的第一个 tools，把 locale 解析成 "tools"）——不在 routing.locales 内的
+  // 一律 404，防止脏 URL 被渲染成页面并被 CDN 长期缓存（Next.js 官方
+  // dynamic-routes 文档的 locale 校验模式，与 i18n/request.ts 的 hasLocale
+  // 用法一致）。
+  if (!hasLocale(routing.locales, locale)) notFound();
   // 为所有已配置的 locale 启用静态渲染。
   setRequestLocale(locale);
 
