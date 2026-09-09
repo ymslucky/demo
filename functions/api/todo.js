@@ -3,10 +3,10 @@
  *
  * 存储模型（EdgeOne Pages KV，官方文档语义）：
  * - 每个登录用户一个 key：todo_user_<归一化 userId>，值为该用户的待办
- *   数组 JSON（[{ id, title, done, createdAt }]，新条目在前）；
- * - KV key 仅允许数字/字母/下划线，userId（Clerk sub）做归一化清洗；
- * - 用户身份来自 Clerk 会话 JWT 验签结果（payload.sub），请求方只能
- *   读写自己的 key——不同账号的数据完全隔离；
+ *   数组 JSON：[{ id, title, note, done, createdAt, completedAt, dueAt,
+ *   remindAt, priority, group }, ...]，新条目在前，数组顺序即拖拽后的
+ *   展示顺序（PUT 端点按 id 顺序重写数组）；所有字段写入前经守卫函数
+ *   清洗（cleanStamp/cleanPriority/cleanGroup/trim 截断）；
  * - 单清单封顶 MAX_ITEMS 条、单条标题截断 MAX_TITLE_LEN 字符，防御
  *   KV 值无限膨胀；
  * - KV 为最终一致（约 60s 全球同步），跨设备同步是近实时的。
@@ -31,7 +31,8 @@
  *
  * 错误语义：401 unauthorized（未登录/会话过期/验签失败，响应附
  * x-auth-fail 诊断头说明失败环节）、400 invalid-json / invalid-title /
- * invalid-id、404 not-found、503 kv-not-configured / kv-unavailable。
+ * invalid-id / invalid-order、404 not-found、503 kv-not-configured /
+ * kv-unavailable。
  *
  * 部署路径：/api/todo（functions/api/todo.js）
  */
@@ -70,10 +71,13 @@ const ALLOWED_ISSUERS = [`https://clerk.${SITE_APEX}`];
 // Clerk SDK 默认 clockSkewInMs = 5000：exp/nbf 判断保持同样的容差，
 // 避免边缘节点与签发方时钟的毫秒级偏移误伤刚签发的会话。
 const CLOCK_SKEW_S = 5;
-// 单用户清单条数上限、单条标题长度上限与单条详情长度上限（防御 KV 值膨胀）。
+// 单用户清单条数上限与各文本字段长度上限（防御 KV 值膨胀）。
 const MAX_ITEMS = 200;
 const MAX_TITLE_LEN = 200;
 const MAX_NOTE_LEN = 2000;
+const MAX_GROUP_LEN = 40;
+// 优先级档位：0 无 / 1 低 / 2 中 / 3 高。
+const MAX_PRIORITY = 3;
 
 /** userId 归一化为合法 KV key（仅数字/字母/下划线，最长 64）。导出仅供测试。 */
 export function todoKey(uid) {
@@ -109,9 +113,27 @@ export function makeItemId(now = Date.now()) {
   return `${now.toString(36)}${Math.random().toString(36).slice(2, 8)}`;
 }
 
+/** 时间戳字段守卫：非法/非正数一律归零（0 = 未设置）。 */
+function cleanStamp(value) {
+  const n = Number(value);
+  return Number.isFinite(n) && n > 0 ? n : 0;
+}
+
+/** 优先级守卫：非整数向下取整并夹取到 [0, MAX_PRIORITY]。 */
+function cleanPriority(value) {
+  const n = Math.floor(Number(value));
+  return Number.isFinite(n) ? Math.min(MAX_PRIORITY, Math.max(0, n)) : 0;
+}
+
+/** 分组名守卫：trim 后截断；非字符串归为默认分组（""）。 */
+function cleanGroup(value) {
+  return typeof value === "string" ? value.trim().slice(0, MAX_GROUP_LEN) : "";
+}
+
 /**
  * 把 KV 原始值（JSON 字符串或已解析值）守卫式归一化为合法条目数组：
  * 非对象/缺 id/标题为空的条目一律丢弃，标题截断到 MAX_TITLE_LEN，
+ * 四要素补充字段（dueAt/remindAt/priority/group）经守卫归一化，
  * 整表截断到最近 MAX_ITEMS 条。任何畸形输入都退化为空数组。
  * 导出仅供测试。
  */
@@ -148,6 +170,11 @@ export function normalizeItems(value) {
               ? createdAt
               : 0
           : 0,
+      // 四要素补充字段：旧数据缺省时归零/归空（0 = 未设置、"" = 默认分组）。
+      dueAt: cleanStamp(entry.dueAt),
+      remindAt: cleanStamp(entry.remindAt),
+      priority: cleanPriority(entry.priority),
+      group: cleanGroup(entry.group),
     });
   }
   return items.slice(0, MAX_ITEMS);
@@ -158,7 +185,11 @@ export function normalizeItems(value) {
  * 队首并保持总数封顶。id/createdAt 可注入（测试用），缺省自动生成。
  * 导出仅供测试。
  */
-export function addTodo(items, title, { id, createdAt, note } = {}) {
+export function addTodo(
+  items,
+  title,
+  { id, createdAt, note, dueAt, remindAt, priority, group } = {},
+) {
   const clean = String(title ?? "").trim().slice(0, MAX_TITLE_LEN);
   if (!clean) return null;
   const at = Number.isFinite(createdAt) ? createdAt : Date.now();
@@ -171,13 +202,17 @@ export function addTodo(items, title, { id, createdAt, note } = {}) {
       done: false,
       createdAt: at,
       completedAt: 0,
+      dueAt: cleanStamp(dueAt),
+      remindAt: cleanStamp(remindAt),
+      priority: cleanPriority(priority),
+      group: cleanGroup(group),
     },
     ...items,
   ].slice(0, MAX_ITEMS);
 }
 
 /**
- * 按 id 更新 done/title/note（存在的字段才生效，标题 trim + 截断）；
+ * 按 id 更新 done/title/note 及四要素（存在的字段才生效，标题 trim + 截断）；
  * done 状态切换联动完成时间（标记完成记录当下，撤销完成清零）。
  * 找不到条目返回 null。不改变原数组。导出仅供测试。
  */
@@ -198,6 +233,16 @@ export function updateTodo(items, id, patch = {}, now = Date.now()) {
     ...(typeof patch.note === "string"
       ? { note: patch.note.trim().slice(0, MAX_NOTE_LEN) }
       : null),
+    // 截止日/提醒时间：数字守卫归一化，0 = 清除；非法输入归零。
+    ...(typeof patch.dueAt === "number" ? { dueAt: cleanStamp(patch.dueAt) } : null),
+    ...(typeof patch.remindAt === "number"
+      ? { remindAt: cleanStamp(patch.remindAt) }
+      : null),
+    ...(typeof patch.priority === "number"
+      ? { priority: cleanPriority(patch.priority) }
+      : null),
+    // 分组允许设为空串（移回默认分组）。
+    ...(typeof patch.group === "string" ? { group: cleanGroup(patch.group) } : null),
   };
   return next;
 }
@@ -209,6 +254,38 @@ export function updateTodo(items, id, patch = {}, now = Date.now()) {
 export function removeTodo(items, id) {
   const next = items.filter((item) => item.id !== id);
   return next.length === items.length ? null : next;
+}
+
+/**
+ * 按 orderedIds 的顺序重排清单，可附带分组改动（groupBy: id -> 分组名）。
+ * 未出现在 orderedIds 中的条目按原相对顺序追加在尾部；orderedIds 为空数组
+ * 视为合法无操作；非法输入（非数组 / 含非字符串 id）或一个 id 都没命中时
+ * 返回 null（由调用方回 400 invalid-order）。不改变原数组。导出仅供测试。
+ */
+export function reorderTodos(items, orderedIds, groupBy = {}) {
+  if (!Array.isArray(orderedIds)) return null;
+  if (orderedIds.some((id) => typeof id !== "string" || !id)) return null;
+  if (orderedIds.length === 0) return items;
+  const byId = new Map(items.map((item) => [item.id, item]));
+  const next = [];
+  const pendingGroups = new Map();
+  for (const id of orderedIds) {
+    const item = byId.get(id);
+    if (!item) continue;
+    if (Object.prototype.hasOwnProperty.call(groupBy, id)) {
+      pendingGroups.set(id, cleanGroup(groupBy[id]));
+    }
+    next.push(item);
+    byId.delete(id);
+  }
+  if (next.length === 0) return null;
+  for (const item of items) {
+    if (byId.has(item.id)) next.push(item);
+  }
+  // 分组改动在顺序确定后统一应用，保证命中同一 id 的多次声明互不干扰。
+  return next.map((item) =>
+    pendingGroups.has(item.id) ? { ...item, group: pendingGroups.get(item.id) } : item,
+  );
 }
 
 /** 读取当前用户的清单（缺失/损坏按空清单起步）。 */
@@ -599,6 +676,10 @@ export async function onRequestPost({ request }) {
     if (!body) return jsonResponse({ error: "invalid-json" }, {}, 400);
     const items = addTodo(await loadItems(kv, uid), body.title, {
       note: body.note,
+      dueAt: body.dueAt,
+      remindAt: body.remindAt,
+      priority: body.priority,
+      group: body.group,
     });
     if (!items) return jsonResponse({ error: "invalid-title" }, {}, 400);
     await saveItems(kv, uid, items);
@@ -608,7 +689,7 @@ export async function onRequestPost({ request }) {
   }
 }
 
-/** PATCH：登录后按 id 更新 done/title/note（done 切换联动完成时间），返回写入后的清单。 */
+/** PATCH：登录后按 id 更新 done/title/note 及四要素（done 切换联动完成时间），返回写入后的清单。 */
 export async function onRequestPatch({ request }) {
   const kv = getKv();
   if (!kv) return jsonResponse({ error: "kv-not-configured" }, { "x-kv": "unbound" }, 503);
@@ -625,8 +706,36 @@ export async function onRequestPatch({ request }) {
     if (typeof body.done === "boolean") patch.done = body.done;
     if (typeof body.title === "string") patch.title = body.title;
     if (typeof body.note === "string") patch.note = body.note;
+    if (typeof body.dueAt === "number") patch.dueAt = body.dueAt;
+    if (typeof body.remindAt === "number") patch.remindAt = body.remindAt;
+    if (typeof body.priority === "number") patch.priority = body.priority;
+    if (typeof body.group === "string") patch.group = body.group;
     const items = updateTodo(await loadItems(kv, uid), id, patch);
     if (!items) return jsonResponse({ error: "not-found" }, {}, 404);
+    await saveItems(kv, uid, items);
+    return jsonResponse({ items });
+  } catch {
+    return jsonResponse({ error: "kv-unavailable" }, {}, 503);
+  }
+}
+
+/** PUT：登录后按提交的 id 顺序重排清单（可附带分组改动），返回写入后的清单。 */
+export async function onRequestPut({ request }) {
+  const kv = getKv();
+  if (!kv) return jsonResponse({ error: "kv-not-configured" }, { "x-kv": "unbound" }, 503);
+  try {
+    const { uid, reason } = await readSessionUid(request);
+    if (!uid) {
+      return jsonResponse({ error: "unauthorized" }, { "x-auth-fail": reason }, 401);
+    }
+    const body = await readJsonBody(request);
+    if (!body) return jsonResponse({ error: "invalid-json" }, {}, 400);
+    const groups =
+      typeof body.groups === "object" && body.groups !== null && !Array.isArray(body.groups)
+        ? body.groups
+        : {};
+    const items = reorderTodos(await loadItems(kv, uid), body.order, groups);
+    if (!items) return jsonResponse({ error: "invalid-order" }, {}, 400);
     await saveItems(kv, uid, items);
     return jsonResponse({ items });
   } catch {

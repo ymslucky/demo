@@ -391,7 +391,22 @@
       "lastSaved": "Last updated {time}",
       "neverSaved": "Not saved yet",
       "localHint": "Guest mode: todos are stored in this browser only. Sign in to write to cloud KV — isolated per account and synced across devices (existing local items stay on this machine).",
-      "kvHint": "Todos live in cloud KV tied to your account — sign in on any device to see the same list."
+      "kvHint": "Todos live in cloud KV tied to your account — sign in on any device to see the same list.",
+      "priorityLabel": "Priority",
+      "priorityNone": "None",
+      "priorityLow": "Low",
+      "priorityMedium": "Medium",
+      "priorityHigh": "High",
+      "keyboardHint": "Drag the handle to reorder, or focus it and press ↑ / ↓ to move.",
+      "defaultGroup": "Default group",
+      "moveItem": "Move \"{title}\" (drag or ↑/↓)",
+      "dueBadge": "Due {date}",
+      "remindBadge": "Remind {time}",
+      "overdueBadge": "Overdue",
+      "dueLabel": "Due date",
+      "remindLabel": "Reminder",
+      "groupLabel": "Group",
+      "groupPlaceholder": "Default group, or type a name…"
     },
     "labels": {
       "jsonInput": "JSON input",

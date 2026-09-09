@@ -391,7 +391,22 @@
       "lastSaved": "最近更新 {time}",
       "neverSaved": "尚未保存",
       "localHint": "未登录模式：待办仅保存在当前浏览器。登录后新增数据写入云端 KV、按账号隔离、多端同步（本地已有数据仍保留在本机）。",
-      "kvHint": "数据保存在云端 KV 并与账号绑定，换设备登录也能看到同一份清单。"
+      "kvHint": "数据保存在云端 KV 并与账号绑定，换设备登录也能看到同一份清单。",
+      "priorityLabel": "优先级",
+      "priorityNone": "无",
+      "priorityLow": "低",
+      "priorityMedium": "中",
+      "priorityHigh": "高",
+      "keyboardHint": "拖动手柄排序，或聚焦手柄后按 ↑ / ↓ 移动。",
+      "defaultGroup": "默认分组",
+      "moveItem": "移动「{title}」（拖动或 ↑/↓）",
+      "dueBadge": "截止 {date}",
+      "remindBadge": "提醒 {time}",
+      "overdueBadge": "已逾期",
+      "dueLabel": "截止日期",
+      "remindLabel": "提醒时间",
+      "groupLabel": "分组",
+      "groupPlaceholder": "默认分组，或输入名称…"
     },
     "labels": {
       "jsonInput": "JSON 输入",

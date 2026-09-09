@@ -1,5 +1,33 @@
 import { describe, it, expect } from "vitest";
-import { normalizeItem, normalizeItems, statsSummary, trend7Days } from "./utils";
+import {
+  applyReorder,
+  formatDateValue,
+  formatDateTimeValue,
+  groupSections,
+  isOverdue,
+  normalizeItem,
+  normalizeItems,
+  parseDateValue,
+  parseDateTimeValue,
+  statsSummary,
+  trend7Days,
+  type TodoItem,
+} from "./utils";
+
+/** 构造完整 TodoItem 的便捷工厂（缺省字段取安全默认值）。 */
+const mk = (id: string, overrides: Partial<TodoItem> = {}): TodoItem => ({
+  id,
+  title: `t-${id}`,
+  note: "",
+  done: false,
+  createdAt: 0,
+  completedAt: 0,
+  dueAt: 0,
+  remindAt: 0,
+  priority: 0,
+  group: "",
+  ...overrides,
+});
 
 describe("normalizeItem", () => {
   it("保留合法条目并归一化字段", () => {
@@ -19,6 +47,10 @@ describe("normalizeItem", () => {
       done: true,
       createdAt: 42,
       completedAt: 99,
+      dueAt: 0,
+      remindAt: 0,
+      priority: 0,
+      group: "",
     });
     expect(normalizeItem({ id: "b", title: "x", done: "yes", createdAt: "7" })).toEqual({
       id: "b",
@@ -27,6 +59,10 @@ describe("normalizeItem", () => {
       done: false,
       createdAt: 7,
       completedAt: 0,
+      dueAt: 0,
+      remindAt: 0,
+      priority: 0,
+      group: "",
     });
   });
 
@@ -62,6 +98,30 @@ describe("normalizeItem", () => {
   });
 });
 
+describe("四要素字段归一化（dueAt/remindAt/priority/group）", () => {
+  it("时间戳非正数或非法回退 0，合法值保留", () => {
+    const bad = normalizeItem({ id: "m", title: "t", dueAt: -5, remindAt: "oops" });
+    expect(bad?.dueAt).toBe(0);
+    expect(bad?.remindAt).toBe(0);
+    const good = normalizeItem({ id: "n", title: "t", dueAt: 100, remindAt: 200 });
+    expect(good?.dueAt).toBe(100);
+    expect(good?.remindAt).toBe(200);
+  });
+
+  it("priority 取整并夹紧到 0..3，非法回退 0", () => {
+    expect(normalizeItem({ id: "o", title: "t", priority: 2.7 })?.priority).toBe(2);
+    expect(normalizeItem({ id: "p", title: "t", priority: 99 })?.priority).toBe(3);
+    expect(normalizeItem({ id: "q", title: "t", priority: -1 })?.priority).toBe(0);
+    expect(normalizeItem({ id: "r", title: "t", priority: "oops" })?.priority).toBe(0);
+  });
+
+  it("group 去首尾空白并截断，非字符串回退默认组", () => {
+    expect(normalizeItem({ id: "s", title: "t", group: "  工作  " })?.group).toBe("工作");
+    expect(normalizeItem({ id: "t", title: "t", group: "g".repeat(50) })?.group).toHaveLength(40);
+    expect(normalizeItem({ id: "u", title: "t", group: 42 })?.group).toBe("");
+  });
+});
+
 describe("normalizeItems", () => {
   it("归一化完整载荷并丢弃垃圾条目", () => {
     expect(
@@ -74,8 +134,30 @@ describe("normalizeItems", () => {
         ],
       }),
     ).toEqual([
-      { id: "a", title: "first", note: "", done: false, createdAt: 1, completedAt: 0 },
-      { id: "b", title: "second", note: "", done: true, createdAt: 2, completedAt: 2 },
+      {
+        id: "a",
+        title: "first",
+        note: "",
+        done: false,
+        createdAt: 1,
+        completedAt: 0,
+        dueAt: 0,
+        remindAt: 0,
+        priority: 0,
+        group: "",
+      },
+      {
+        id: "b",
+        title: "second",
+        note: "",
+        done: true,
+        createdAt: 2,
+        completedAt: 2,
+        dueAt: 0,
+        remindAt: 0,
+        priority: 0,
+        group: "",
+      },
     ]);
   });
 
@@ -91,12 +173,128 @@ describe("normalizeItems", () => {
   });
 });
 
+describe("groupSections", () => {
+  it("默认组置顶，命名组按首次出现顺序排列", () => {
+    const sections = groupSections([
+      mk("a", { group: "工作" }),
+      mk("b"),
+      mk("c", { group: "生活" }),
+      mk("d", { group: "工作" }),
+    ]);
+    expect(sections.map((section) => section.name)).toEqual(["", "工作", "生活"]);
+    expect(sections[0].items.map((item) => item.id)).toEqual(["b"]);
+    expect(sections[1].items.map((item) => item.id)).toEqual(["a", "d"]);
+    expect(sections[2].items.map((item) => item.id)).toEqual(["c"]);
+  });
+
+  it("空清单返回仅含默认组的单节", () => {
+    expect(groupSections([])).toEqual([{ name: "", items: [] }]);
+  });
+});
+
+describe("isOverdue", () => {
+  const now = new Date(2026, 8, 9, 12, 0, 0).getTime();
+
+  it("待办且截止整天（23:59:59.999）已过才算逾期", () => {
+    expect(isOverdue(mk("a", { dueAt: new Date(2026, 8, 8, 9).getTime() }), now)).toBe(true);
+    expect(isOverdue(mk("b", { dueAt: new Date(2026, 8, 9, 0, 1).getTime() }), now)).toBe(false);
+    expect(
+      isOverdue(mk("c", { dueAt: new Date(2026, 8, 9, 23, 59, 59, 999).getTime() }), now),
+    ).toBe(false);
+  });
+
+  it("已完成或未设截止日的条目永不逾期", () => {
+    expect(isOverdue(mk("d", { done: true, dueAt: new Date(2020, 0, 1).getTime() }), now)).toBe(
+      false,
+    );
+    expect(isOverdue(mk("e"), now)).toBe(false);
+  });
+});
+
+describe("日期表单值互转", () => {
+  it("formatDateValue/formatDateTimeValue 输出本地 yyyy-mm-dd（-local 时间）", () => {
+    expect(formatDateValue(0)).toBe("");
+    expect(formatDateValue(new Date(2026, 8, 9, 14, 30).getTime())).toBe("2026-09-09");
+    expect(formatDateTimeValue(0)).toBe("");
+    expect(formatDateTimeValue(new Date(2026, 8, 9, 14, 30).getTime())).toBe("2026-09-09T14:30");
+    expect(formatDateTimeValue(new Date(2026, 0, 2, 7, 5).getTime())).toBe("2026-01-02T07:05");
+  });
+
+  it("parseDateValue/parseDateTimeValue 解析本地值，非法回 0", () => {
+    expect(parseDateValue("")).toBe(0);
+    expect(parseDateValue("2026-09-09")).toBe(new Date(2026, 8, 9).getTime());
+    expect(parseDateValue("junk")).toBe(0);
+    expect(parseDateTimeValue("")).toBe(0);
+    expect(parseDateTimeValue("2026-09-09T14:30")).toBe(new Date(2026, 8, 9, 14, 30).getTime());
+    expect(parseDateTimeValue("junk")).toBe(0);
+  });
+
+  it("格式化后可无损往返", () => {
+    const stamp = new Date(2026, 8, 9, 14, 30).getTime();
+    expect(parseDateValue(formatDateValue(stamp))).toBe(new Date(2026, 8, 9).getTime());
+    expect(parseDateTimeValue(formatDateTimeValue(stamp))).toBe(stamp);
+  });
+});
+
+describe("applyReorder", () => {
+  it("同组向下移动：目标索引按含拖拽项的列表测量", () => {
+    // [A,B,C] 把 A 拖到渲染槽位 2（C 的位置）→ [B,A,C]
+    expect(applyReorder([mk("a"), mk("b"), mk("c")], "a", "", 2)?.map((i) => i.id)).toEqual([
+      "b",
+      "a",
+      "c",
+    ]);
+    // 拖到最底部（槽位 3）→ [B,C,A]
+    expect(applyReorder([mk("a"), mk("b"), mk("c")], "a", "", 3)?.map((i) => i.id)).toEqual([
+      "b",
+      "c",
+      "a",
+    ]);
+  });
+
+  it("同组向上移动", () => {
+    // [A,B,C] 把 C 拖到渲染槽位 0 → [C,A,B]
+    expect(applyReorder([mk("a"), mk("b"), mk("c")], "c", "", 0)?.map((i) => i.id)).toEqual([
+      "c",
+      "a",
+      "b",
+    ]);
+  });
+
+  it("拖到自己原槽位为无操作", () => {
+    expect(applyReorder([mk("a"), mk("b")], "a", "", 0)?.map((i) => i.id)).toEqual(["a", "b"]);
+    expect(applyReorder([mk("a"), mk("b")], "b", "", 1)?.map((i) => i.id)).toEqual(["a", "b"]);
+  });
+
+  it("跨组移动：插入目标组指定位置并改写 group", () => {
+    const items = [mk("a", { group: "工作" }), mk("b", { group: "工作" }), mk("c")];
+    const next = applyReorder(items, "c", "工作", 1);
+    expect(next?.map((item) => item.id)).toEqual(["a", "c", "b"]);
+    expect(next?.find((item) => item.id === "c")?.group).toBe("工作");
+    // 移入空目标组（渲染槽位 0）
+    const into = applyReorder([mk("a"), mk("b", { group: "工作" })], "a", "工作", 0);
+    expect(into?.map((item) => item.id)).toEqual(["a", "b"]);
+    expect(into?.[0].group).toBe("工作");
+  });
+
+  it("未知拖拽 id 返回 null，索引越界夹紧到组末尾", () => {
+    expect(applyReorder([mk("a")], "zz", "", 0)).toBeNull();
+    expect(applyReorder([mk("a"), mk("b")], "a", "", 99)?.map((i) => i.id)).toEqual(["b", "a"]);
+  });
+
+  it("不修改原数组", () => {
+    const items = [mk("a"), mk("b")];
+    applyReorder(items, "a", "", 1);
+    expect(items.map((item) => item.id)).toEqual(["a", "b"]);
+  });
+});
+
 describe("statsSummary", () => {
   it("统计总数、完成数与待办数", () => {
     const items = [
-      { id: "a", title: "t1", note: "", done: true, createdAt: 1, completedAt: 1 },
-      { id: "b", title: "t2", note: "", done: false, createdAt: 2, completedAt: 0 },
-      { id: "c", title: "t3", note: "", done: true, createdAt: 3, completedAt: 3 },
+      mk("a", { done: true, createdAt: 1, completedAt: 1 }),
+      mk("b", { createdAt: 2 }),
+      mk("c", { done: true, createdAt: 3, completedAt: 3 }),
     ];
     expect(statsSummary(items)).toEqual({ total: 3, done: 2, pending: 1 });
   });
@@ -114,11 +312,11 @@ describe("trend7Days", () => {
 
   it("按本地日历日分桶：新增计 createdAt、完成计 completedAt", () => {
     const items = [
-      { id: "a", title: "t", note: "", done: true, createdAt: at(9, 9, 8), completedAt: at(9, 9, 10) },
-      { id: "b", title: "t", note: "", done: false, createdAt: at(9, 8, 9), completedAt: 0 },
-      { id: "c", title: "t", note: "", done: true, createdAt: at(9, 4, 9), completedAt: at(9, 8, 18) },
-      { id: "d", title: "t", note: "", done: true, createdAt: at(9, 1, 9), completedAt: at(9, 2, 9) },
-      { id: "e", title: "t", note: "", done: true, createdAt: at(9, 8, 9), completedAt: 0 },
+      mk("a", { createdAt: at(9, 9, 8), completedAt: at(9, 9, 10), done: true }),
+      mk("b", { createdAt: at(9, 8, 9) }),
+      mk("c", { createdAt: at(9, 4, 9), completedAt: at(9, 8, 18), done: true }),
+      mk("d", { createdAt: at(9, 1, 9), completedAt: at(9, 2, 9), done: true }),
+      mk("e", { createdAt: at(9, 8, 9), done: true }),
     ];
     expect(trend7Days(items, now)).toEqual([
       { added: 0, completed: 0 }, // 09-03
@@ -132,9 +330,7 @@ describe("trend7Days", () => {
   });
 
   it("超出窗口的时间戳被忽略，空清单全 0", () => {
-    const items = [
-      { id: "a", title: "t", note: "", done: true, createdAt: at(8, 1, 9), completedAt: at(8, 2, 9) },
-    ];
+    const items = [mk("a", { createdAt: at(8, 1, 9), completedAt: at(8, 2, 9), done: true })];
     expect(trend7Days(items, now)).toEqual(
       Array.from({ length: 7 }, () => ({ added: 0, completed: 0 })),
     );

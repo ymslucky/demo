@@ -1611,3 +1611,355 @@
     flex: 1;
   }
 }
+
+/* ---- Todo List v2：四要素条目 + 分组 + 拖拽排序 ---- */
+
+/* 快速添加表单：标题 + 优先级 + 提交 */
+.todo-add {
+  display: flex;
+  gap: var(--space-xs);
+  margin-bottom: var(--space-sm);
+}
+
+.todo-add-input {
+  flex: 1;
+  min-width: 0;
+  padding: 0.5rem 0.75rem;
+  border: 3px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: var(--fs-sm);
+  transition: var(--transition);
+}
+
+.todo-add-input::placeholder {
+  color: var(--color-text-muted);
+}
+
+.todo-add-input:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.todo-prio-select {
+  padding: 0.5rem;
+  border: 3px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: var(--fs-sm);
+  font-weight: 700;
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.todo-prio-select:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+/* 拖拽排序操作提示 */
+.todo-dnd-hint {
+  margin: 0 0 var(--space-md);
+  font-size: var(--fs-xs);
+  color: var(--color-text-muted);
+}
+
+/* 分组区块：组头（名称 + 计数）+ 条目列表 */
+.todo-group {
+  margin-bottom: var(--space-md);
+}
+
+.todo-group-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  margin-bottom: var(--space-xs);
+}
+
+.todo-group-name {
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.todo-group-count {
+  min-width: 1.5rem;
+  padding: 0 0.4rem;
+  border: 2px solid var(--color-border);
+  border-radius: 999px;
+  background: var(--color-tag-bg);
+  color: var(--color-tag-text);
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  text-align: center;
+}
+
+.todo-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: var(--space-xs);
+}
+
+/* 条目行：挂载时播放入场动效（重排复用 DOM 节点不会重播） */
+.todo-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: 0.5rem 0.65rem;
+  border: 3px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  transition: var(--transition);
+  animation: todo-item-in 0.28s cubic-bezier(0.175, 0.885, 0.32, 1.275) both;
+}
+
+.todo-item:hover {
+  transform: translate(-1px, -1px);
+  box-shadow: var(--shadow-sm);
+}
+
+/* 拖拽中的条目：抬升 + 虚线边 + 底色提示；关闭过渡保证跟手 */
+.todo-item.todo-item--dragging {
+  opacity: 0.85;
+  border-style: dashed;
+  background: var(--color-tint);
+  box-shadow: var(--shadow-md);
+  transform: scale(1.015);
+  transition: none;
+}
+
+/* 拖拽手柄：touch-action 交给 window 级指针监听，阻止浏览器滚动 */
+.todo-grip {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.6rem;
+  height: 2.2rem;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: grab;
+  touch-action: none;
+  transition: var(--transition);
+}
+
+.todo-grip:hover {
+  color: var(--color-text);
+  background: var(--color-tint);
+}
+
+.todo-grip:active {
+  cursor: grabbing;
+}
+
+.todo-grip:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+/* 完成勾选框：选中时弹跳 + 对勾 */
+.todo-check {
+  flex: none;
+  width: 1.25rem;
+  height: 1.25rem;
+  appearance: none;
+  border: 3px solid var(--color-border);
+  border-radius: 6px;
+  background: var(--color-surface);
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.todo-check:hover {
+  box-shadow: var(--shadow-sm);
+}
+
+.todo-check:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.todo-check:checked {
+  background: var(--color-accent);
+  animation: todo-pop 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.todo-check:checked::after {
+  content: "";
+  display: block;
+  width: 0.3rem;
+  height: 0.6rem;
+  margin: 0.05rem auto 0;
+  border: solid var(--color-on-primary);
+  border-width: 0 3px 3px 0;
+  transform: rotate(45deg);
+}
+
+.todo-item-main {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.todo-item-title {
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.todo-item-title--done {
+  color: var(--color-text-muted);
+  text-decoration: line-through;
+}
+
+.todo-item-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+}
+
+/* 元信息徽标：截止日 / 提醒 / 备注标记 */
+.todo-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 0.45rem;
+  border: 2px solid var(--color-border);
+  border-radius: 999px;
+  background: var(--color-tag-bg);
+  color: var(--color-tag-text);
+  font-size: var(--fs-xs);
+  line-height: 1.4;
+}
+
+.todo-badge--overdue {
+  background: var(--color-err-bg);
+  color: var(--color-err-text);
+  animation: todo-overdue-pulse 1.6s ease-in-out infinite;
+}
+
+/* 优先级徽标：1 低 / 2 中 / 3 高，视觉权重递增 */
+.todo-prio {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 0.45rem;
+  border: 2px solid var(--color-border);
+  border-radius: 999px;
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.todo-prio--1 {
+  background: var(--color-tag-bg);
+  color: var(--color-tag-text);
+}
+
+.todo-prio--2 {
+  background: var(--color-tint-strong);
+  color: var(--color-text);
+}
+
+.todo-prio--3 {
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+}
+
+/* 拖拽落点指示线：主色横线呼吸 */
+.todo-drop-line {
+  display: flex;
+  align-items: center;
+  height: 6px;
+}
+
+.todo-drop-line::before {
+  content: "";
+  width: 100%;
+  height: 3px;
+  border-radius: 999px;
+  background: var(--color-primary);
+  animation: todo-drop-pulse 0.9s ease-in-out infinite;
+}
+
+/* 编辑弹窗四要素字段网格 */
+.todo-modal-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-sm);
+}
+
+/* 新条目入场：上浮 + 过冲回弹（仅挂载时播放一次） */
+@keyframes todo-item-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* 打勾瞬间：小弹跳强调完成 */
+@keyframes todo-pop {
+  0% {
+    transform: scale(1);
+  }
+  45% {
+    transform: scale(1.35);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* 落点指示线：透明度呼吸 */
+@keyframes todo-drop-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
+  }
+}
+
+/* 逾期徽标：整体透明度呼吸（无位移，避免文字抖动） */
+@keyframes todo-overdue-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.65;
+  }
+}
+
+/* 全局 prefers-reduced-motion 规则（base.css）会把这些动画压到 0.01ms，
+   无需在此重复声明。 */
+@media (max-width: 480px) {
+  .todo-add {
+    flex-wrap: wrap;
+  }
+
+  .todo-add-input {
+    flex: 1 1 100%;
+  }
+
+  .todo-prio-select {
+    flex: 1;
+  }
+
+  .todo-modal-grid {
+    grid-template-columns: 1fr;
+  }
+}

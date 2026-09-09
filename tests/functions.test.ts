@@ -8,6 +8,7 @@ import {
   parseTokenPayload,
   readSessionToken,
   removeTodo,
+  reorderTodos,
   siteApex,
   todoKey,
   updateTodo,
@@ -162,8 +163,23 @@ describe("todo normalizeItems", () => {
         done: true,
         createdAt: 123,
         completedAt: 123, // done but no completedAt -> falls back to createdAt
+        dueAt: 0,
+        remindAt: 0,
+        priority: 0,
+        group: "",
       },
-      { id: "c", title: "x", note: "", done: false, createdAt: 0, completedAt: 0 },
+      {
+        id: "c",
+        title: "x",
+        note: "",
+        done: false,
+        createdAt: 0,
+        completedAt: 0,
+        dueAt: 0,
+        remindAt: 0,
+        priority: 0,
+        group: "",
+      },
     ]);
   });
 
@@ -201,6 +217,10 @@ describe("todo addTodo / updateTodo / removeTodo", () => {
       done: false,
       createdAt: 42,
       completedAt: 0,
+      dueAt: 0,
+      remindAt: 0,
+      priority: 0,
+      group: "",
     });
     expect(added[1]).toMatchObject({ id: "k0" });
     expect(addTodo([], "   ")).toBeNull(); // blank titles are rejected
@@ -208,8 +228,28 @@ describe("todo addTodo / updateTodo / removeTodo", () => {
 
   it("updateTodo patches done/title/note immutably and rejects ghost ids", () => {
     const items = [
-      { id: "a", title: "first", note: "", done: false, createdAt: 1 },
-      { id: "b", title: "second", note: "", done: false, createdAt: 2 },
+      {
+        id: "a",
+        title: "first",
+        note: "",
+        done: false,
+        createdAt: 1,
+        dueAt: 0,
+        remindAt: 0,
+        priority: 0,
+        group: "",
+      },
+      {
+        id: "b",
+        title: "second",
+        note: "",
+        done: false,
+        createdAt: 2,
+        dueAt: 0,
+        remindAt: 0,
+        priority: 0,
+        group: "",
+      },
     ];
     const patched = updateTodo(
       items,
@@ -224,6 +264,10 @@ describe("todo addTodo / updateTodo / removeTodo", () => {
       done: true,
       createdAt: 1,
       completedAt: 999,
+      dueAt: 0,
+      remindAt: 0,
+      priority: 0,
+      group: "",
     });
     expect(items[0].done).toBe(false); // original array untouched
 
@@ -274,6 +318,101 @@ describe("todo addTodo / updateTodo / removeTodo", () => {
     ]);
     expect(removeTodo(items, "ghost")).toBeNull();
     expect(items).toHaveLength(2); // original array untouched
+  });
+});
+
+describe("todo four-element fields (dueAt/remindAt/priority/group)", () => {
+  const base = {
+    id: "a",
+    title: "task",
+    note: "",
+    done: false,
+    createdAt: 1,
+    completedAt: 0,
+    dueAt: 0,
+    remindAt: 0,
+    priority: 0,
+    group: "",
+  };
+
+  it("normalizeItems guards the four-element fields on read", () => {
+    expect(
+      normalizeItems([
+        { ...base, dueAt: "oops", remindAt: -5, priority: 9, group: "  work  " },
+      ]),
+    ).toEqual([{ ...base, dueAt: 0, remindAt: 0, priority: 3, group: "work" }]);
+    // Group names are trimmed and truncated to 40 chars.
+    expect(normalizeItems([{ ...base, group: `x`.repeat(50) }])[0].group).toHaveLength(40);
+  });
+
+  it("addTodo accepts the four-element options and clamps them", () => {
+    const item = addTodo([], "task", {
+      id: "n1",
+      createdAt: 1,
+      dueAt: 100,
+      remindAt: 90,
+      priority: 2.7,
+      group: "  home  ",
+    })![0];
+    expect(item).toMatchObject({ dueAt: 100, remindAt: 90, priority: 2, group: "home" });
+  });
+
+  it("updateTodo patches the four-element fields and allows clearing them", () => {
+    const items = [{ ...base, dueAt: 100, remindAt: 90, priority: 2, group: "home" }];
+    const patched = updateTodo(items, "a", {
+      dueAt: 200,
+      remindAt: 0,
+      priority: 1,
+      group: "",
+    })![0];
+    expect(patched).toMatchObject({ dueAt: 200, remindAt: 0, priority: 1, group: "" });
+    // Non-matching types are ignored.
+    expect(updateTodo(items, "a", { priority: "high" as never })[0].priority).toBe(2);
+    expect(items[0].group).toBe("home"); // original array untouched
+  });
+});
+
+describe("todo reorderTodos", () => {
+  const mk = (id: string, group = "") => ({
+    id,
+    title: id,
+    note: "",
+    done: false,
+    createdAt: 1,
+    completedAt: 0,
+    dueAt: 0,
+    remindAt: 0,
+    priority: 0,
+    group,
+  });
+  const items = [mk("a"), mk("b", "work"), mk("c")];
+
+  it("reorders by the submitted id sequence and skips unknown ids", () => {
+    expect(reorderTodos(items, ["c", "zz", "a", "b"])).toEqual([mk("c"), mk("a"), mk("b", "work")]);
+  });
+
+  it("appends uncovered items in their original relative order", () => {
+    expect(reorderTodos(items, ["b"])).toEqual([mk("b", "work"), mk("a"), mk("c")]);
+  });
+
+  it("applies group changes after sequencing (cross-group drops)", () => {
+    const next = reorderTodos(items, ["a", "b", "c"], { a: "  urgent  ", b: "" })!;
+    expect(next.find((i: { id: string }) => i.id === "a")!.group).toBe("urgent");
+    expect(next.find((i: { id: string }) => i.id === "b")!.group).toBe("");
+    expect(next.find((i: { id: string }) => i.id === "c")!.group).toBe("");
+  });
+
+  it("treats an empty order as a no-op and invalid input as null", () => {
+    expect(reorderTodos(items, [])).toBe(items);
+    expect(reorderTodos(items, null as never)).toBeNull();
+    expect(reorderTodos(items, ["a", 42 as never])).toBeNull();
+    expect(reorderTodos(items, ["zz"])).toBeNull(); // no id matched
+  });
+
+  it("does not mutate the original array", () => {
+    const snapshot = JSON.stringify(items);
+    reorderTodos(items, ["c", "b", "a"], { a: "x" });
+    expect(JSON.stringify(items)).toBe(snapshot);
   });
 });
 
