@@ -93,9 +93,8 @@ middleware.ts           # 语言协商 + HTTP 层脚本注入 (next-intl middlew
 | 变量 | 用途 | 未配置时 |
 | --- | --- | --- |
 | `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` / `CLERK_SECRET_KEY` | Clerk 认证（登录、会话） | 认证不可用 |
-| `SITE_DOMAIN` | 站点访问域名；todo 边缘函数的 issuer / azp 白名单由此派生 | `rdom.cn` |
-| `NEXT_PUBLIC_SITE_URL` | 站点对外 URL（RSS feed 的绝对链接前缀） | 代码内默认值 |
-| `GITHUB_LOGIN` / `GITHUB_TOKEN` | 首页 GitHub Contributions 展示 | 代码内默认值 |
+| `SITE_DOMAIN` | 站点主域名；todo 鉴权白名单（issuer / azp）与站点对外 URL（RSS / sitemap / 元数据）均由此派生 | `rdom.cn` |
+| `GITHUB_TOKEN` | 首页 GitHub Contributions 展示（提升 API 配额） | 无贡献图占位 |
 
 ### KV 绑定（EdgeOne 控制台配置，随部署注入边缘函数）
 

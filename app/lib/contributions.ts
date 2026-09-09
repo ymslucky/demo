@@ -7,7 +7,8 @@
  * 降级为 `null`，由调用方渲染"不可用"占位内容。
  */
 
-const LOGIN = process.env.GITHUB_LOGIN ?? "ymslucky";
+// 贡献日历归属的 GitHub 账号（站点作者本人，无需配置）。
+const LOGIN = "ymslucky";
 
 const QUERY = `query($login: String!) {
   user(login: $login) {

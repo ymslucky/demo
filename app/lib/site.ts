@@ -1,3 +1,12 @@
 // 站点对外 URL 的单一事实来源：sitemap / robots / RSS feed / metadataBase。
-// 换域名时只需配置 NEXT_PUBLIC_SITE_URL（见 .env.example），无需改代码。
-export const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.rdom.cn";
+// 由 SITE_DOMAIN 派生为 https://www.<域名>（全站唯一域名变量，见 .env.example），
+// 未配置默认 rdom.cn。
+const SITE_APEX =
+  (process.env.SITE_DOMAIN ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/^https?:\/\//, "")
+    .split("/")[0]
+    .replace(/^www\./, "") || "rdom.cn";
+
+export const SITE_URL = `https://www.${SITE_APEX}`;

@@ -20,8 +20,8 @@
  * - 钉死 issuer：payload.iss 必须命中 ALLOWED_ISSUERS 白名单，JWKS 只从
  *   白名单实例回源——绝不信任 token 内任意 iss（否则攻击者可自造 JWKS
  *   伪造任意身份，构成认证绕过）；
- * - 校验 azp：存在且不在 ALLOWED_AZP 白名单时拒绝（Clerk 官方建议，
- *   防子域 cookie 泄漏攻击；旧实例可能不带 azp，缺失时放行）；
+ * - 校验 azp：存在时其 host 须为本站 apex 或其任意子域（后缀点边界
+ *   匹配，防子域 cookie 泄漏攻击；旧实例可能不带 azp，缺失时放行）；
  * - exp/nbf 均带 CLOCK_SKEW_S（5s）容差（对齐 Clerk SDK clockSkewInMs
  *   默认值）；sts 存在且非 "active" 时拒绝；
  * - JWKS 按 <iss>/.well-known/jwks.json 回源（模块级缓存 1h），按
@@ -57,17 +57,16 @@ export function siteApex(raw) {
   return host.startsWith("www.") ? host.slice(4) : host;
 }
 
-// 会话 JWT 的 issuer / azp（来源 origin）白名单，全部由站点访问域名派生。
+// 会话 JWT 的 issuer 白名单与 azp 判定基准，全部由站点访问域名派生。
 // 钉死 issuer 是 Clerk 官方手动验签清单的硬性要求（防"任意 iss + 自造
 // JWKS"伪造身份）；azp 校验防子域 cookie 泄漏攻击。旧实例可能不带
 // azp——按官方示例，缺失时放行，存在且不匹配才拒绝。
 // 派生规则：issuer 为 Clerk 自定义实例惯例 clerk.<apex>；azp 由 Clerk JS
-// 按页面 origin 签发，apex 与 www 都收录——缺一则从另一 origin 访问的
-// 已登录用户会被误判 401。换域名时只需在部署环境的 .env 配置
-// SITE_DOMAIN，无需改代码；未配置默认 rdom.cn。
+// 按页面 origin 签发，本站 apex 与其任意子域（*.apex）都放行——子域
+// 共享同一身份。换域名时只需在部署环境的 .env 配置 SITE_DOMAIN，
+// 无需改代码；未配置默认 rdom.cn。
 const SITE_APEX = siteApex(globalThis.process?.env?.SITE_DOMAIN) ?? "rdom.cn";
 const ALLOWED_ISSUERS = [`https://clerk.${SITE_APEX}`];
-const ALLOWED_AZP = [`https://${SITE_APEX}`, `https://www.${SITE_APEX}`];
 // Clerk SDK 默认 clockSkewInMs = 5000：exp/nbf 判断保持同样的容差，
 // 避免边缘节点与签发方时钟的毫秒级偏移误伤刚签发的会话。
 const CLOCK_SKEW_S = 5;
@@ -410,9 +409,24 @@ function sanitizeTag(value) {
   return /^[\w.:-]{1,32}$/.test(raw) ? raw : "invalid";
 }
 
-/** issuer/azp 比较前的尾斜杠归一化。 */
+/** issuer 比较前的尾斜杠归一化。 */
 function normalizeIssuer(value) {
   return String(value ?? "").replace(/\/+$/, "");
+}
+
+/**
+ * azp 的来源 origin 是否属于本站：host 等于 apex，或以 ".<apex>" 结尾
+ * （任意子域）。前导点保证边界——仅共享后缀片段的域名不会误匹配。
+ * 导出仅供测试。
+ */
+export function isAllowedAzp(azp, apex = SITE_APEX) {
+  if (typeof azp !== "string" || typeof apex !== "string") return false;
+  const host = azp
+    .trim()
+    .toLowerCase()
+    .replace(/^https?:\/\//, "")
+    .split(/[:/?]/)[0];
+  return !!host && (host === apex || host.endsWith(`.${apex}`));
 }
 
 /**
@@ -430,7 +444,7 @@ function normalizeIssuer(value) {
  * @param {Crypto} [deps.crypto]
  * @param {(issuer: string, opts?: { forceRefresh?: boolean }) => Promise<Array<Record<string, unknown>>>} [deps.fetchJwks]
  * @param {Array<string>} [deps.allowedIssuers]
- * @param {Array<string>} [deps.allowedAzp]
+ * @param {string} [deps.azpApex] azp host 判定基准（apex 及其任意子域放行）
  * @returns {Promise<{ ok: true, payload: Record<string, unknown> } | { ok: false, reason: string }>}
  */
 export async function verifyTokenDetailed(
@@ -441,7 +455,7 @@ export async function verifyTokenDetailed(
     crypto: cryptoObj = globalThis.crypto,
     fetchJwks = getJwks,
     allowedIssuers = ALLOWED_ISSUERS,
-    allowedAzp = ALLOWED_AZP,
+    azpApex = SITE_APEX,
   } = {},
 ) {
   const parsed = parseTokenPayload(token);
@@ -462,12 +476,9 @@ export async function verifyTokenDetailed(
     return { ok: false, reason: "iss" };
   }
 
-  // azp 校验（官方建议，防子域 cookie 泄漏攻击）：与官方示例对齐——
-  // 存在且不匹配才拒绝，缺失放行。
-  if (
-    payload.azp
-    && !allowedAzp.map(normalizeIssuer).includes(normalizeIssuer(payload.azp))
-  ) {
+  // azp 校验（官方建议，防子域 cookie 泄漏攻击）：存在时其 host 须为
+  // 本站 apex 或其任意子域；缺失放行（与官方示例对齐）。
+  if (payload.azp && !isAllowedAzp(payload.azp, azpApex)) {
     return { ok: false, reason: "azp" };
   }
 
@@ -536,8 +547,8 @@ export async function verifySessionToken(token, deps = {}) {
 /**
  * 会话验证 + uid 提取：成功返回 { uid, reason: null }；失败返回
  * { uid: null, reason }（no-cookie / verifyTokenDetailed 失败码 / sub），
- * reason 会进 401 响应的 x-auth-fail 诊断头。issuer / azp 白名单见
- * 模块顶部 ALLOWED_ISSUERS / ALLOWED_AZP（由 SITE_DOMAIN 派生）。
+ * reason 会进 401 响应的 x-auth-fail 诊断头。issuer 白名单与 azp 判定
+ * 基准见模块顶部常量（由 SITE_DOMAIN 派生）。
  */
 async function readSessionUid(request) {
   const token = readSessionToken(request);

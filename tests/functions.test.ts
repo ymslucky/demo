@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   addTodo,
+  isAllowedAzp,
   isTokenFresh,
   makeItemId,
   normalizeItems,
@@ -287,6 +288,18 @@ describe("todo site apex derivation", () => {
   });
 });
 
+describe("todo azp same-party check", () => {
+  it("isAllowedAzp accepts the apex and any subdomain, rejects lookalikes", () => {
+    expect(isAllowedAzp("https://rdom.cn", "rdom.cn")).toBe(true);
+    expect(isAllowedAzp("https://www.rdom.cn", "rdom.cn")).toBe(true);
+    expect(isAllowedAzp("https://app.rdom.cn/zh/", "rdom.cn")).toBe(true);
+    expect(isAllowedAzp("https://APP.RDOM.CN", "rdom.cn")).toBe(true);
+    expect(isAllowedAzp("https://rdom.cn.evil.com", "rdom.cn")).toBe(false);
+    expect(isAllowedAzp("https://notrdom.cn", "rdom.cn")).toBe(false);
+    expect(isAllowedAzp(undefined, "rdom.cn")).toBe(false);
+  });
+});
+
 describe("todo session token helpers", () => {
   const encoder = new TextEncoder();
   // The verifier pins iss/azp allowlists (Clerk manual-verification checklist);
@@ -409,7 +422,7 @@ describe("todo session token helpers", () => {
     const payload = await verifySessionToken(token, {
       jwks: [jwk],
       allowedIssuers: [ISS],
-      allowedAzp: [AZP],
+      azpApex: "test.example.com",
     });
     expect(payload?.sub).toBe("user_abc");
   });
@@ -469,7 +482,7 @@ describe("todo session token helpers", () => {
     const payload = await verifySessionToken(token, {
       jwks: [jwk],
       allowedIssuers: [ISS],
-      allowedAzp: [AZP],
+      azpApex: "test.example.com",
     });
     expect(payload?.sub).toBe("user_rsa");
   });
@@ -558,7 +571,7 @@ describe("todo session token helpers", () => {
       verifyTokenDetailed(token, {
         jwks: [jwk],
         allowedIssuers: [ISS],
-        allowedAzp: [AZP],
+        azpApex: "test.example.com",
         crypto: edgeCrypto,
       }),
     ).resolves.toMatchObject({ ok: true, payload: { sub: "user_edge" } });
@@ -590,7 +603,7 @@ describe("todo session token helpers", () => {
         jwks: [jwk],
         now,
         allowedIssuers: [ISS],
-        allowedAzp: [AZP],
+        azpApex: "test.example.com",
       }),
     ).resolves.toMatchObject({ ok: false, reason: "azp" });
 
@@ -604,9 +617,14 @@ describe("todo session token helpers", () => {
       verifyTokenDetailed(noAzp, { jwks: [jwk], now, allowedIssuers: [ISS] }),
     ).resolves.toMatchObject({ ok: true });
 
-    // Every origin in the allowlist passes (apex + www are both first-party);
-    // a regression that drops one origin logs out users browsing that origin.
-    for (const origin of [AZP, "https://www.app.test.example.com"]) {
+    // Same-party origins pass: the apex itself plus any subdomain depth —
+    // Clerk JS stamps azp with the browsing origin, and all *.apex origins
+    // share one identity. A regression here logs out users on that origin.
+    for (const origin of [
+      "https://test.example.com",
+      AZP,
+      "https://www.app.test.example.com",
+    ]) {
       const token = await buildToken(privateKey, { alg: "ES256", kid: "test-key" }, {
         sub: "u",
         iss: ISS,
@@ -618,10 +636,27 @@ describe("todo session token helpers", () => {
           jwks: [jwk],
           now,
           allowedIssuers: [ISS],
-          allowedAzp: [AZP, "https://www.app.test.example.com"],
+          azpApex: "test.example.com",
         }),
       ).resolves.toMatchObject({ ok: true });
     }
+
+    // A lookalike domain sharing only a suffix fragment stays rejected
+    // (leading-dot boundary prevents ends-with false positives).
+    const lookalike = await buildToken(privateKey, { alg: "ES256", kid: "test-key" }, {
+      sub: "u",
+      iss: ISS,
+      azp: "https://test.example.com.evil.com",
+      exp,
+    });
+    await expect(
+      verifyTokenDetailed(lookalike, {
+        jwks: [jwk],
+        now,
+        allowedIssuers: [ISS],
+        azpApex: "test.example.com",
+      }),
+    ).resolves.toMatchObject({ ok: false, reason: "azp" });
   });
 
   it("verifyTokenDetailed enforces the nbf and sts claims", async () => {
