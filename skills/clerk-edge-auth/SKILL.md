@@ -32,6 +32,27 @@ description: "本仓库的 Clerk 认证知识：proxy.ts 中间件组合、Clerk
 `clerkAppearance`，加上 [app/styles/clerk.css](../../app/styles/clerk.css) 中的
 `auth-*` 类。
 
+### 2.1 退出登录在子页报 "An unexpected response was received from the server."（已打补丁）
+
+- **根因（@clerk/nextjs ^7.9.1 与 clerk-js 的契约裂缝）**：ClerkProvider 在
+  `window.__internal_onBeforeSetActive` 里对 Next 15+ 的 sign-out 做了 noop 短路
+  （登出后由 `__internal_onAfterSetActive` 的 `router.refresh()` 补偿），但短路条件
+  是 `intent === "sign-out"`；而 clerk-js 的 `signOut()` 调用该钩子时**不传参数**
+  （minified 源码 `await i()`）→ 短路永不命中 → 回退执行 `invalidateCacheAction()`
+  （server action POST）。
+- **为什么只有首页正常**：EdgeOne 静态层对**有缓存副本的预渲染页面 URL** 的 POST
+  直接回 200 缓存 HTML（`EO-Cache-Status: Cache Hit`，请求从未到达 Next 服务器）；
+  Next 客户端发现 content-type 非 `text/x-component` 即抛此错。首页 `/zh/` 的 POST
+  恰好穿透静态层（Cache Miss）→ Next 返回 404 + `X-Nextjs-Action-Not-Found: 1`，
+  Next 16 客户端对此优雅处理。同类陷阱：**不要给预渲染页面发 server action POST**
+  （EdgeOne 缓存规则见 `edgeone-functions-kv` skill）。
+- **补丁**：[ClerkSignOutPatch.tsx](../../app/[locale]/components/ClerkSignOutPatch.tsx)
+  在 ClerkProvider 注册钩子后覆盖之（父级 useSafeLayoutEffect 属 layout 阶段、补丁
+  useEffect 属 passive 阶段，顺序由 React 保证；带 cleanup 恢复原实现）——intent 为
+  `undefined` 或 `"sign-out"` 时一律 noop resolve，其余透传。挂在
+  [layout.tsx](../../app/[locale]/layout.tsx) 的 `NextIntlClientProvider` 内。
+  **升级 @clerk/nextjs 时重新评估**：若上游修复了 intent 传参匹配，此补丁与组件可删。
+
 ## 3. 会话 JWT 手动验签清单（官方流程）
 
 按 `verifyTokenDetailed`（[functions/api/todo.js](../../functions/api/todo.js)）实现：

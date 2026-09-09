@@ -12,6 +12,7 @@ import "../globals.css";
 import Nav from "./components/Nav";
 import Footer from "./components/Footer";
 import ThemeSync from "./components/ThemeSync";
+import ClerkSignOutPatch from "./components/ClerkSignOutPatch";
 
 // Clerk 内置组件的 Neo-Brutalism 主题化：
 // - variables 用 "var(--token)" 间接引用项目 CSS 变量，明暗主题切换自动跟随；
@@ -145,6 +146,9 @@ export default async function LocaleLayout({
           localization={locale === "zh" ? zhCN : enUS}
         >
           <NextIntlClientProvider messages={messages} locale={locale}>
+            {/* 修复子页退出登录时 server action POST 被 EdgeOne 静态层
+                缓存 HTML 吃掉的问题（见组件注释与 clerk-edge-auth skill）。 */}
+            <ClerkSignOutPatch />
             <ThemeSync />
             <div className="page">
               <a className="skip-link" href="#main-content">
