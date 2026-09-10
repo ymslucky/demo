@@ -203,6 +203,7 @@ describe("run history", () => {
       ok: true,
       elapsedMs: 100,
       exitCode: 0,
+      code: "print('x')",
       output: [],
     };
   }

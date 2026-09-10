@@ -413,6 +413,9 @@
       "groupPlaceholder": "Default group, or type a name…"
     },
     "sandbox": {
+      "gateTitle": "Sign in to use the code sandbox",
+      "gateHint": "The sandbox is available to signed-in users only, limited to 10 runs per hour.",
+      "gateSignIn": "Sign in / Sign up",
       "languageLabel": "Language / runtime",
       "codeLabel": "Code editor",
       "run": "Run",
@@ -443,9 +446,12 @@
       "historyTitle": "Run history",
       "historyEmpty": "No runs yet",
       "backToLive": "Back to live",
+      "restoreCode": "Restore code",
       "runStarted": "Running {language}…",
       "runFinished": "Finished in {seconds} s",
       "runFailed": "Run failed (HTTP {code})",
+      "runUnauthorized": "Sign in to run code.",
+      "runLimited": "Hourly limit reached (10 runs) — please try again later.",
       "runNetworkError": "Network request failed — please try again later.",
       "invalidResponse": "The server returned an unparseable response.",
       "resetDone": "Sandbox reset — the next run will create a fresh instance.",

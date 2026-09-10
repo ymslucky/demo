@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
 import { useTranslations } from "next-intl";
+import { Show, SignInButton } from "@clerk/nextjs";
 import { Button } from "../../components/ui";
 import { useStickyState } from "../components/useStickyState";
 import {
@@ -245,6 +246,8 @@ export default function CodeSandboxClient() {
   async function run() {
     if (busy || !conversationId || !code.trim()) return;
     setBusy(true);
+    // 终端只保留当前运行：先清掉上一次的实时输出（历史回放不受影响）。
+    setEntries([]);
     const startedAt = Date.now();
     const output: ConsoleEntry[] = [];
     const emit = (kind: ConsoleEntry["kind"], text: string) => {
@@ -272,7 +275,15 @@ export default function CodeSandboxClient() {
           setUnavailable(true);
           setSandboxActive(false);
         }
-        const detail = payload.error === "sandbox-unavailable" ? t("statusUnavailable") : payload.outcome.error || payload.error;
+        // 服务端错误码 → 可读文案：401 未登录 / 429 触发限速优先映射。
+        const detail =
+          payload.error === "sandbox-unavailable"
+            ? t("statusUnavailable")
+            : payload.error === "unauthorized"
+              ? t("runUnauthorized")
+              : payload.error === "rate-limited"
+                ? t("runLimited")
+                : payload.outcome.error || payload.error;
         emit(
           "error",
           detail ? `${t("runFailed", { code: res.status })}\n${detail}` : t("runFailed", { code: res.status }),
@@ -314,6 +325,7 @@ export default function CodeSandboxClient() {
           ok,
           elapsedMs,
           exitCode,
+          code,
           output,
         }),
       );
@@ -418,11 +430,23 @@ export default function CodeSandboxClient() {
     setEntries([]);
   }
 
+  // 历史回放 → 编辑器：恢复该次运行的语言与代码（不离开回放视图）。
+  function restoreRunCode() {
+    if (!viewingRun) return;
+    setLang(viewingRun.language);
+    setCodeMap((prev) => ({ ...prev, [viewingRun.language]: normalizeCode(viewingRun.code) }));
+  }
+
   // 终端展示内容：实时流，或选中历史记录的输出快照（回放）。
   const visibleEntries = viewingRun ? viewingRun.output : entries;
 
+  // 仅登录用户可用：客户端用 Clerk <Show> 门控渲染（页面保持静态预渲染），
+  // 服务端 agents/code-run 对所有动作做真实 JWT 验签（401）——UI 门控只是
+  // 展示层，不构成安全边界。
   return (
-    <div style={workbenchStyle}>
+    <>
+      <Show when="signed-in">
+        <div style={workbenchStyle}>
       {/* 顶栏：沙箱状态 + 实例信息 + 实例操作 */}
       <section
         style={{ ...cardStyle, display: "flex", flexWrap: "wrap", alignItems: "center", gap: "var(--space-sm)" }}
@@ -512,7 +536,10 @@ export default function CodeSandboxClient() {
             <div style={{ display: "flex", alignItems: "center", gap: "var(--space-xs)", flexWrap: "wrap" }}>
               <h2 style={{ margin: 0, fontSize: "var(--fs-xl)" }}>{t("consoleTitle")}</h2>
               {viewingRun ? (
-                <Button onClick={() => setViewingRun(null)}>{t("backToLive")}</Button>
+                <>
+                  <Button onClick={restoreRunCode}>{t("restoreCode")}</Button>
+                  <Button onClick={() => setViewingRun(null)}>{t("backToLive")}</Button>
+                </>
               ) : (
                 <Button onClick={clearTerminal} disabled={busy}>
                   {t("clear")}
@@ -579,6 +606,19 @@ export default function CodeSandboxClient() {
           </section>
         </div>
       </div>
-    </div>
+        </div>
+      </Show>
+      <Show when="signed-out">
+        <section style={cardStyle} aria-label={t("gateTitle")}>
+          <h2 style={{ margin: 0, fontSize: "var(--fs-xl)" }}>{t("gateTitle")}</h2>
+          <p style={{ ...mutedStyle, margin: 0 }}>{t("gateHint")}</p>
+          <div>
+            <SignInButton mode="modal">
+              <Button variant="primary">{t("gateSignIn")}</Button>
+            </SignInButton>
+          </div>
+        </section>
+      </Show>
+    </>
   );
 }

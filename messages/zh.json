@@ -413,6 +413,9 @@
       "groupPlaceholder": "默认分组，或输入名称…"
     },
     "sandbox": {
+      "gateTitle": "登录后使用代码沙箱",
+      "gateHint": "代码沙箱仅对登录用户开放，每小时限 10 次运行。",
+      "gateSignIn": "登录 / 注册",
       "languageLabel": "语言 / 运行环境",
       "codeLabel": "代码编辑器",
       "run": "运行",
@@ -443,9 +446,12 @@
       "historyTitle": "运行历史",
       "historyEmpty": "暂无运行记录",
       "backToLive": "返回实时",
+      "restoreCode": "恢复代码",
       "runStarted": "正在运行 {language} …",
       "runFinished": "运行完成，耗时 {seconds} 秒",
       "runFailed": "运行失败（HTTP {code}）",
+      "runUnauthorized": "请先登录后再运行代码。",
+      "runLimited": "已达每小时运行上限（10 次），请稍后再试。",
       "runNetworkError": "网络请求失败，请稍后重试。",
       "invalidResponse": "服务端返回了无法解析的响应。",
       "resetDone": "沙箱已重置，下次运行将创建全新实例。",

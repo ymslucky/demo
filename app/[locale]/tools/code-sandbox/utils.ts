@@ -242,7 +242,7 @@ export function appendEntries(list: ConsoleEntry[], incoming: ConsoleEntry[]): C
     : merged;
 }
 
-/** 单次运行记录（历史列表 + 终端回放快照）。 */
+/** 单次运行记录（历史列表 + 终端回放快照 + 代码回填）。 */
 export interface RunRecord {
   id: string;
   language: LanguageId;
@@ -250,6 +250,7 @@ export interface RunRecord {
   ok: boolean;
   elapsedMs: number | null;
   exitCode: number | null;
+  code: string;
   output: ConsoleEntry[];
 }
 
