@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { Show, SignInButton } from "@clerk/nextjs";
 import { Button } from "../../components/ui";
 import { useStickyState } from "../components/useStickyState";
+import InstancesPanel from "./InstancesPanel";
 import {
   appendEntries,
   appendRuns,
@@ -14,7 +15,6 @@ import {
   DEFAULT_LIFETIME_MIN,
   DEFAULT_RUN_TIMEOUT_S,
   formatClock,
-  formatDateTime,
   formatElapsedSeconds,
   getOrCreateConversationId,
   LANGUAGES,
@@ -196,13 +196,6 @@ const selectStyle = {
   background: "var(--color-surface)",
   color: "var(--color-text)",
   cursor: "pointer",
-} as const;
-
-// 实例列表卡片：继承工作台卡片骨架，紧凑内边距。
-const instanceCardStyle = {
-  ...cardStyle,
-  padding: "var(--space-sm)",
-  gap: "var(--space-xs)",
 } as const;
 
 export default function CodeSandboxClient() {
@@ -584,102 +577,37 @@ export default function CodeSandboxClient() {
         </div>
       </section>
 
-      {/* Tab 子页切换：工作台 / 实例列表 */}
+      {/* Tab 子页切换：工作台 / 实例列表（Button 原语保证字体/悬停态一致） */}
       <div role="tablist" style={{ display: "flex", gap: "var(--space-xs)", flexWrap: "wrap" }}>
-        <button
-          type="button"
+        <Button
+          variant={tab === "workbench" ? "primary" : "secondary"}
+          size="sm"
           role="tab"
           aria-selected={tab === "workbench"}
-          style={chipStyle(tab === "workbench")}
           onClick={() => setTab("workbench")}
         >
           {t("tabWorkbench")}
-        </button>
-        <button
-          type="button"
+        </Button>
+        <Button
+          variant={tab === "instances" ? "primary" : "secondary"}
+          size="sm"
           role="tab"
           aria-selected={tab === "instances"}
-          style={chipStyle(tab === "instances")}
           onClick={() => setTab("instances")}
         >
           {t("tabInstances")}
-        </button>
+        </Button>
       </div>
 
-      {/* 实例列表子页：当前账号在 KV 中的沙箱实例档案 */}
+      {/* 实例列表子页：当前账号在 KV 中的沙箱实例档案（表格组件，自带外壳） */}
       {tab === "instances" ? (
-        <section style={{ ...cardStyle, minHeight: 0, overflowY: "auto" }} aria-label={t("instancesTitle")}>
-          <div style={{ display: "flex", alignItems: "center", gap: "var(--space-sm)", flexWrap: "wrap" }}>
-            <h2 style={{ margin: 0, fontSize: "var(--fs-xl)" }}>{t("instancesTitle")}</h2>
-            {instances ? <span style={mutedStyle}>{t("instancesCount", { count: instances.length })}</span> : null}
-            <Button onClick={loadInstances} disabled={instancesLoading}>
-              {instancesLoading ? t("instancesLoading") : t("instancesRefresh")}
-            </Button>
-          </div>
-          {instancesError ? (
-            <p style={{ ...mutedStyle, margin: 0 }}>{instancesError}</p>
-          ) : instances && instances.length === 0 ? (
-            <p style={{ ...mutedStyle, margin: 0 }}>{t("instancesEmpty")}</p>
-          ) : null}
-          {instances && instances.length > 0 ? (
-            <div style={{ display: "grid", gap: "var(--space-sm)", alignContent: "start" }}>
-              {instances.map((record) => {
-                const expiresTs = record.expiresAt ? Date.parse(record.expiresAt) : NaN;
-                const alive = Number.isFinite(expiresTs) && expiresTs > now;
-                return (
-                  <div key={record.instanceId} style={instanceCardStyle}>
-                    <div style={{ display: "flex", alignItems: "center", gap: "var(--space-sm)", flexWrap: "wrap" }}>
-                      <span style={statusBadgeStyle(alive ? "ready" : "unavailable")}>
-                        {Number.isFinite(expiresTs) ? (alive ? t("statusReady") : t("expired")) : t("statusIdle")}
-                      </span>
-                      <span style={{ ...monoStyle, fontSize: "var(--fs-sm)", wordBreak: "break-all", fontWeight: 700 }}>
-                        {record.instanceId}
-                      </span>
-                    </div>
-                    <div
-                      style={{
-                        display: "grid",
-                        gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
-                        gap: "var(--space-xs)",
-                      }}
-                    >
-                      <div>
-                        <div style={mutedStyle}>{t("ownerLabel")}</div>
-                        <div style={{ ...monoStyle, fontSize: "var(--fs-sm)", wordBreak: "break-all" }}>{record.uid}</div>
-                      </div>
-                      <div>
-                        <div style={mutedStyle}>{t("expiryLabel")}</div>
-                        <div style={{ fontSize: "var(--fs-sm)", fontWeight: 700 }}>
-                          {Number.isFinite(expiresTs) ? formatDateTime(expiresTs) : "—"}
-                        </div>
-                      </div>
-                      <div>
-                        <div style={mutedStyle}>{t("createdLabel")}</div>
-                        <div style={{ fontSize: "var(--fs-sm)" }}>{formatDateTime(record.createdAt)}</div>
-                      </div>
-                      <div>
-                        <div style={mutedStyle}>{t("updatedLabel")}</div>
-                        <div style={{ fontSize: "var(--fs-sm)" }}>{formatDateTime(record.updatedAt)}</div>
-                      </div>
-                      <div>
-                        <div style={mutedStyle}>{t("externalUrlLabel")}</div>
-                        <div style={{ fontSize: "var(--fs-sm)", wordBreak: "break-all" }}>
-                          {record.externalUrl ? (
-                            <a href={record.externalUrl} target="_blank" rel="noreferrer">
-                              {record.externalUrl}
-                            </a>
-                          ) : (
-                            "—"
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          ) : null}
-        </section>
+        <InstancesPanel
+          records={instances ?? []}
+          loading={instancesLoading}
+          error={instancesError}
+          onRefresh={loadInstances}
+          now={now}
+        />
       ) : (
       /* 工作台主区：左编辑器，右终端 + 运行历史 */
       <div style={mainAreaStyle}>

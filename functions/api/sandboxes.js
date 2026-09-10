@@ -10,9 +10,10 @@
  * - uid 只取自服务端会话验签（payload.sub），绝不信任请求体；
  * - 写入口径：前端在 run / extend / 刷新信息成功后 POST upsert（心跳式
  *   刷新 updatedAt 与到期时间），重置沙箱后 DELETE 释放记录；
- * - KV 无 TTL：已到期与畸形记录在 GET 列表时惰性清除（搭载在请求路径
- *   上的 sweep）；KV 为最终一致（约 60s 全球同步），列表是尽力而为的
- *   近实时视图。
+ * - KV 无 TTL：历史记录保留 30 天（RETENTION_MS）——已到期档案仍返回
+ *   （前端标记状态），仅"过期且超龄"与畸形记录在 GET 列表时惰性清除
+ *   （搭载在请求路径上的 sweep）；KV 为最终一致（约 60s 全球同步），
+ *   列表是尽力而为的近实时视图。
  *
  * 登录验证（Clerk 会话，对齐官方手动验签清单）：与 functions/api/todo.js
  * 同一套实现（函数文件保持自包含、禁止互相 import，故整段移植）——
@@ -33,6 +34,9 @@ const MAX_INSTANCE_ID_LEN = 128;
 const MAX_URL_LEN = 500;
 // KV list 单页最多 256 键，翻页取全。
 const LIST_PAGE_SIZE = 256;
+// 历史记录保留期：已到期（且到期超过保留期）的档案才被惰性清扫，期间
+// GET 列表仍返回它们（前端按状态标记"已到期"），满足"保留一月内记录"。
+const RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
 
 /**
  * 访问域名归一化：剥离协议、路径与 www 前缀，返回裸 apex 域名；空值
@@ -152,8 +156,11 @@ export async function releaseSandbox(kv, uid, instanceId) {
 
 /**
  * 列出全部实例档案：list（前缀翻页取全）→ Promise.all 批量 get → 守卫
- * 归一化。已到期（expiresAt 可解析且已过）与畸形档案剔除，sweep 时把
- * 对应 key 一并惰性删除；结果按 updatedAt 倒序。导出仅供测试。
+ * 归一化。历史记录保留策略：已到期的档案仍返回（前端标记"已到期"），
+ * 仅"过期且超龄"（到期基准超过 RETENTION_MS）或畸形档案进 stale，sweep
+ * 时把对应 key 一并惰性删除。超龄基准取 max(到期时间, 最近更新)——
+ * 缺 expiresAt 的畸形时间戳以 updatedAt 兜底。结果按 updatedAt 倒序。
+ * 导出仅供测试。
  */
 export async function listSandboxes(kv, { now = Date.now(), sweep = false } = {}) {
   const names = [];
@@ -177,7 +184,8 @@ export async function listSandboxes(kv, { now = Date.now(), sweep = false } = {}
       return;
     }
     const expiry = record.expiresAt ? Date.parse(record.expiresAt) : NaN;
-    if (Number.isFinite(expiry) && expiry <= now) {
+    const retireAt = Number.isFinite(expiry) ? expiry : record.updatedAt;
+    if (retireAt > 0 && retireAt <= now - RETENTION_MS) {
       stale.push(name);
       return;
     }
@@ -493,8 +501,9 @@ function cleanOptionalText(value, maxLen) {
 }
 
 /**
- * GET：登录后返回全部在线实例档案（含所属用户），已到期与畸形记录
- * 惰性清除。响应体 { sandboxes: [...] }，按最近更新倒序。
+ * GET：登录后返回 30 天保留期内的全部实例档案（含所属用户），已到期
+ * 记录保留（前端标记状态），仅超龄与畸形记录惰性清除。响应体
+ * { sandboxes: [...] }，按最近更新倒序。
  */
 export async function onRequestGet({ request }) {
   const kv = getKv();

@@ -8,9 +8,9 @@
  *
  * 动作（JSON body.action）：
  * - run    { language, code, timeoutSec?, lifetimeSec? }  执行代码 →
- *          stdout/stderr/results/exitCode；运行前先把实例生命周期续到
- *          lifetimeSec（默认 60s，上限 600s——由 edgeone.json 的
- *          sandbox.timeout 封顶，到点自动回收，超出部分被后端截断）
+ *          stdout/stderr/results/exitCode；运行前保底续期：仅当实例剩余
+ *          寿命不足 lifetimeSec（默认 60s，上限 600s——由 edgeone.json 的
+ *          sandbox.timeout 封顶，到点自动回收）时补足差额，绝不无谓延长
  * - info   {}                               沙箱实例信息（实例 ID / 到期时间 / 外部访问地址）
  * - extend { seconds }                      续期实例（extendTimeout）
  * - kill   {}                               销毁实例（重置会话时调用）
@@ -79,7 +79,8 @@ const DEFAULT_TIMEOUT_S = 30;
 const MAX_TIMEOUT_S = 60;
 const HOST_PORT = 8080;
 
-// 实例生命周期（秒）：运行前把寿命续到用户设定值。上限必须与 edgeone.json
+// 实例生命周期（秒）：运行前的保底寿命下限（剩余不足时补差额，实例已比
+// 设定更长寿时不缩短——SDK 只有续期语义）。上限必须与 edgeone.json
 // 的 sandbox.timeout 一致（到点自动回收，真实生效时长以后端返回为准，
 // 超出上限的部分被截断）；改这里时须同步 edgeone.json。
 const MIN_LIFETIME_S = 60;
@@ -703,14 +704,24 @@ export async function onRequest(context: AgentContext): Promise<Response> {
         });
       }
 
-      // 运行前把实例生命周期续到用户设定值：extendTimeout 会懒创建实例并
-      // 按后端返回的真实到期时间更新 SDK 缓存（真实生效时长以后端为准，
-      // 超出 sandbox.timeout 的部分被截断）。失败不阻断本次运行——实例
-      // 可能仍按既有寿命存在，execute 会按需懒创建。
+      // 运行前保底续期：extendTimeout 只有"续期"（在现有寿命上延长）语义，
+      // 无法缩短平台给懒创建实例的默认寿命。历史 BUG：无条件 extendTimeout(60)
+      // 会把默认约 5 分钟的实例反向加长（用户选 1 分钟实际得到约 6 分钟）。
+      // 因此先读剩余寿命，仅在不足用户设定时补足差额；剩余未知（实例尚未
+      // 创建）时按设定值续期并懒创建。失败不阻断本次运行——execute 会按需
+      // 懒创建，真实到期时间以后端返回为准（超出 sandbox.timeout 被截断）。
       try {
-        await sandbox.extendTimeout?.(lifetimeSec);
+        const info = (await sandbox.getInfo?.()) ?? null;
+        const expMs = Date.parse(asText(info?.expiresAt ?? info?.expires_at ?? ""));
+        const remainingSec = Number.isFinite(expMs) ? (expMs - Date.now()) / 1000 : null;
+        if (remainingSec === null || remainingSec < lifetimeSec) {
+          const topUpSec = remainingSec === null
+            ? lifetimeSec
+            : Math.max(1, Math.ceil(lifetimeSec - remainingSec));
+          await sandbox.extendTimeout?.(topUpSec);
+        }
       } catch {
-        // 续期失败不阻断运行。
+        // 保底续期失败不阻断运行。
       }
 
       const outcome = await execute(sandbox, language as LanguageId, code, timeoutSec);

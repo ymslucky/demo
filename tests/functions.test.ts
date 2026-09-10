@@ -963,20 +963,45 @@ describe("sandboxes releaseSandbox", () => {
 });
 
 describe("sandboxes listSandboxes", () => {
-  it("drops expired and malformed records, sweeps them on request, sorts by updatedAt desc", async () => {
+  const DAY_MS = 24 * 60 * 60 * 1000;
+
+  it("keeps recently expired records, sorts by updatedAt desc", async () => {
     const NOW = 10_000_000;
     const iso = (offsetMs: number) => new Date(NOW + offsetMs).toISOString();
     const kv = fakeKv([
       ["sb_alive1", JSON.stringify({ instanceId: "a1", uid: "u1", createdAt: 1, updatedAt: 300, expiresAt: iso(60_000) })],
       ["sb_alive2", JSON.stringify({ instanceId: "a2", uid: "u2", createdAt: 1, updatedAt: 500, expiresAt: iso(1) })],
+      // Expired 5 minutes ago: still listed (the UI marks it "expired"),
+      // within the 30-day retention window.
       ["sb_expired", JSON.stringify({ instanceId: "e1", uid: "u1", createdAt: 1, updatedAt: 900, expiresAt: iso(-1) })],
+    ]);
+    expect((await listSandboxes(kv, { now: NOW })).map((r) => r.instanceId)).toEqual(["e1", "a2", "a1"]);
+    expect(kv.store.has("sb_expired")).toBe(true);
+  });
+
+  it("sweeps only records expired beyond the 30-day retention window, plus malformed entries", async () => {
+    // Real-epoch scale: -30d/+31d offsets must stay positive timestamps so the
+    // `retireAt > 0` guard (which protects all-zero malformed records) passes.
+    const NOW = Date.parse("2026-03-15T12:00:00Z");
+    const iso = (offsetMs: number) => new Date(NOW + offsetMs).toISOString();
+    const RETENTION = 30 * DAY_MS;
+    const kv = fakeKv([
+      // Expired 29 days ago: within retention, kept and listed.
+      ["sb_kept", JSON.stringify({ instanceId: "k1", uid: "u1", createdAt: 1, updatedAt: 100, expiresAt: iso(-(RETENTION - DAY_MS)) })],
+      // Expired 31 days ago: beyond retention — excluded from the list even
+      // without sweep, deleted from KV only when sweep is requested.
+      ["sb_old", JSON.stringify({ instanceId: "o1", uid: "u1", createdAt: 1, updatedAt: 100, expiresAt: iso(-(RETENTION + DAY_MS)) })],
+      // Missing expiresAt: falls back to updatedAt as the retire basis.
+      ["sb_noxp", JSON.stringify({ instanceId: "n1", uid: "u2", createdAt: 1, updatedAt: NOW - (RETENTION + DAY_MS) })],
       ["sb_junk", "not-json"],
     ]);
-    // Without sweep the stale entries are only filtered out of the listing.
-    expect((await listSandboxes(kv, { now: NOW })).map((r) => r.instanceId)).toEqual(["a2", "a1"]);
-    // With sweep they are lazily deleted from KV as well.
-    expect((await listSandboxes(kv, { now: NOW, sweep: true })).map((r) => r.instanceId)).toEqual(["a2", "a1"]);
-    expect(kv.store.has("sb_expired")).toBe(false);
+    expect((await listSandboxes(kv, { now: NOW })).map((r) => r.instanceId)).toEqual(["k1"]);
+    // No sweep yet: the 31-day-old record still sits in KV untouched.
+    expect(kv.store.has("sb_old")).toBe(true);
+    expect((await listSandboxes(kv, { now: NOW, sweep: true })).map((r) => r.instanceId)).toEqual(["k1"]);
+    expect(kv.store.has("sb_kept")).toBe(true);
+    expect(kv.store.has("sb_old")).toBe(false);
+    expect(kv.store.has("sb_noxp")).toBe(false);
     expect(kv.store.has("sb_junk")).toBe(false);
   });
 });
