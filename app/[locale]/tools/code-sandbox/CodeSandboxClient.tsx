@@ -64,7 +64,7 @@ const monoStyle = {
   fontFamily: "var(--font-mono)",
 } as const;
 
-// 工作台骨架：顶栏自适应高度 + 主区吃掉剩余视口（铺满屏幕）。
+// 工作台骨架：Tab 行自适应高度 + 子页内容吃掉剩余视口（铺满屏幕）。
 const workbenchStyle = {
   display: "grid",
   gridTemplateRows: "auto minmax(420px, 1fr)",
@@ -93,6 +93,33 @@ const chipStyle = (active: boolean) =>
     background: active ? "var(--color-primary)" : "var(--color-surface)",
     color: active ? "var(--color-on-primary)" : "var(--color-text)",
     boxShadow: "var(--shadow-sm)",
+  }) as const;
+
+// Tab 分段控件：外框包住两个 tab（active 反白主色），与语言 chips 同一视觉
+// 语言。原生 button 不继承字体，必须显式 fontFamily: "inherit"。
+const tablistStyle = {
+  display: "inline-flex",
+  gap: "var(--space-xs)",
+  padding: "0.25rem",
+  border: "3px solid var(--color-border)",
+  borderRadius: "var(--radius-md)",
+  background: "var(--color-bg)",
+  boxShadow: "var(--shadow-sm)",
+  width: "fit-content",
+} as const;
+
+const tabButtonStyle = (active: boolean) =>
+  ({
+    fontFamily: "inherit",
+    fontSize: "var(--fs-sm)",
+    fontWeight: 800,
+    padding: "0.35rem 0.9rem",
+    border: "3px solid var(--color-border)",
+    borderRadius: "var(--radius-sm)",
+    cursor: "pointer",
+    background: active ? "var(--color-primary)" : "var(--color-surface)",
+    color: active ? "var(--color-on-primary)" : "var(--color-text)",
+    boxShadow: active ? "var(--shadow-sm)" : "none",
   }) as const;
 
 const editorStyle = {
@@ -535,6 +562,40 @@ export default function CodeSandboxClient() {
     <>
       <Show when="signed-in">
         <div style={workbenchStyle}>
+      {/* Tab 子页切换：分段控件（外框 + active 反白主色），固定在网格首行不被拉伸 */}
+      <div role="tablist" style={tablistStyle}>
+        <button
+          type="button"
+          role="tab"
+          style={tabButtonStyle(tab === "workbench")}
+          aria-selected={tab === "workbench"}
+          onClick={() => setTab("workbench")}
+        >
+          {t("tabWorkbench")}
+        </button>
+        <button
+          type="button"
+          role="tab"
+          style={tabButtonStyle(tab === "instances")}
+          aria-selected={tab === "instances"}
+          onClick={() => setTab("instances")}
+        >
+          {t("tabInstances")}
+        </button>
+      </div>
+
+      {/* 实例列表子页：当前账号在 KV 中的沙箱实例档案（表格组件，自带外壳）；
+          工作台子页 = 顶栏 + 主区，顶栏只在本 tab 展示（不全局渲染）。 */}
+      {tab === "instances" ? (
+        <InstancesPanel
+          records={instances ?? []}
+          loading={instancesLoading}
+          error={instancesError}
+          onRefresh={loadInstances}
+          now={now}
+        />
+      ) : (
+        <div style={{ display: "grid", gridTemplateRows: "auto minmax(0, 1fr)", gap: "var(--space-md)", minHeight: 0 }}>
       {/* 顶栏：沙箱状态 + 实例信息 + 实例操作 */}
       <section
         style={{ ...cardStyle, display: "flex", flexWrap: "wrap", alignItems: "center", gap: "var(--space-sm)" }}
@@ -577,39 +638,7 @@ export default function CodeSandboxClient() {
         </div>
       </section>
 
-      {/* Tab 子页切换：工作台 / 实例列表（Button 原语保证字体/悬停态一致） */}
-      <div role="tablist" style={{ display: "flex", gap: "var(--space-xs)", flexWrap: "wrap" }}>
-        <Button
-          variant={tab === "workbench" ? "primary" : "secondary"}
-          size="sm"
-          role="tab"
-          aria-selected={tab === "workbench"}
-          onClick={() => setTab("workbench")}
-        >
-          {t("tabWorkbench")}
-        </Button>
-        <Button
-          variant={tab === "instances" ? "primary" : "secondary"}
-          size="sm"
-          role="tab"
-          aria-selected={tab === "instances"}
-          onClick={() => setTab("instances")}
-        >
-          {t("tabInstances")}
-        </Button>
-      </div>
-
-      {/* 实例列表子页：当前账号在 KV 中的沙箱实例档案（表格组件，自带外壳） */}
-      {tab === "instances" ? (
-        <InstancesPanel
-          records={instances ?? []}
-          loading={instancesLoading}
-          error={instancesError}
-          onRefresh={loadInstances}
-          now={now}
-        />
-      ) : (
-      /* 工作台主区：左编辑器，右终端 + 运行历史 */
+      {/* 工作台主区：左编辑器，右终端 + 运行历史 */}
       <div style={mainAreaStyle}>
         <section
           style={{ ...cardStyle, display: "flex", flexDirection: "column", minHeight: 0 }}
@@ -643,22 +672,40 @@ export default function CodeSandboxClient() {
             <Button onClick={insertSample} disabled={busy}>
               {t("insertSample")}
             </Button>
-            {/* 运行前设定实例生命周期：默认 1 分钟，可选 1-10 分钟（上限由 edgeone.json sandbox.timeout 封顶）。 */}
-            <label htmlFor="sandbox-lifetime" style={mutedStyle}>
-              {t("lifetimeLabel")}
-            </label>
-            <select
-              id="sandbox-lifetime"
-              style={selectStyle}
-              value={lifetimeMin}
-              onChange={(event) => setLifetimeMin(Number(event.target.value))}
+            {/* 运行前设定实例寿命：懒创建默认寿命由 edgeone.json sandbox.timeout
+                （60s，到点自动回收）决定；选择更长时间时服务端在运行前按差额续期。 */}
+            <div
+              role="group"
+              aria-label={t("lifetimeLabel")}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "var(--space-xs)",
+                border: "3px solid var(--color-border)",
+                borderRadius: "var(--radius-sm)",
+                background: "var(--color-bg)",
+                padding: "0.25rem 0.6rem",
+              }}
             >
-              {LIFETIME_CHOICES_MIN.map((minutes) => (
-                <option key={minutes} value={minutes}>
-                  {t("lifetimeMinutes", { count: minutes })}
-                </option>
-              ))}
-            </select>
+              <label
+                htmlFor="sandbox-lifetime"
+                style={{ fontSize: "var(--fs-xs)", fontWeight: 800, color: "var(--color-text-muted)", whiteSpace: "nowrap" }}
+              >
+                {t("lifetimeLabel")}
+              </label>
+              <select
+                id="sandbox-lifetime"
+                style={{ ...selectStyle, border: "2px solid var(--color-border)", padding: "0.15rem 0.35rem" }}
+                value={lifetimeMin}
+                onChange={(event) => setLifetimeMin(Number(event.target.value))}
+              >
+                {LIFETIME_CHOICES_MIN.map((minutes) => (
+                  <option key={minutes} value={minutes}>
+                    {t("lifetimeMinutes", { count: minutes })}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
           <p style={{ ...mutedStyle, margin: 0 }}>{t("hint")}</p>
         </section>
@@ -744,6 +791,7 @@ export default function CodeSandboxClient() {
           </section>
         </div>
       </div>
+        </div>
       )}
         </div>
       </Show>

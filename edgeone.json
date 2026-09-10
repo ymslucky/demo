@@ -9,7 +9,7 @@
     "externalNodeModules": ["undici"]
   },
   "sandbox": {
-    "timeout": 600
+    "timeout": 60
   },
   "rewrites": [
     {
