@@ -5,6 +5,8 @@ description: "本仓库的 Clerk 认证知识：proxy.ts 中间件组合、Clerk
 
 # Clerk 边缘认证
 
+> **铁则**：边缘函数验证会话只认 §3 的八步清单；RS256 验签只用纯 JS `verifyRs256`——绝不"简化"回 `crypto.subtle.verify`。
+
 以下每条规则都可在源码中验证。标准实现在
 [functions/api/counter.js](../../functions/api/counter.js)；测试固定在
 [tests/functions.test.ts](../../tests/functions.test.ts)。
@@ -107,3 +109,22 @@ parse | alg:<x> | iss | azp | nbf | exp | sts | kid | sig | crypto | no-cookie |
 kid 强制刷新，以及一条 **broken-subtle 回归**（crypto 桩：`importKey`/`verify`
 抛异常但 `digest` 可用——模拟边缘环境——RS256 仍须验签通过）。修改导出签名必须
 在同一提交中更新该测试。
+
+## 7. 红旗信号
+
+- 在边缘函数里对 RS256 调用 `crypto.subtle.importKey`/`verify`——立刻停（生产事故根源，见 §4）。
+- 把验签逻辑挪进 `app/api/**` 或 Next.js 层"复用"——两层各司其职（§1）。
+- 用 token 里的 `iss` 直接构造 JWKS URL 而不经允许列表——认证绕过（§3.3）。
+- 验签八步清单跳步——每步对应一类攻击面（iss 伪造、kid 混淆、时间窗重放……）。
+- 升级 `@clerk/nextjs` 时顺手删除 ClerkSignOutPatch——必须先验证上游已修复 intent 传参（§2.1）。
+- 新增/修改函数导出签名而未在同一提交更新 [tests/functions.test.ts](../../tests/functions.test.ts)。
+
+## 8. 合理化防止表
+
+| 借口 | 现实 |
+|---|---|
+| "本地/CI 测试全绿，边缘环境一定也一样" | 正是这个想法放过了一次生产事故（§4）。测试桩必须模拟边缘缺口——broken-subtle 回归就是为此存在。 |
+| "钉死一种签名算法更简单" | Clerk 实例不统一：dev/test 签 ES256，生产签 RS256（§3.2）。按 `header.alg` 分派。 |
+| "kid 未命中就直接 401 吧" | 必须强制刷新 JWKS 一次再重试——这是密钥轮换的自愈路径（§3.7）。 |
+| "token 的 iss 说它是谁就是谁" | `iss` 必须钉死在允许列表（§3.3）——token 可控的 iss 会把 JWKS 指向攻击者。 |
+| "八步清单太长，挑关键的做" | 每一步都对应一次真实攻击面或真实故障；§5 的 `x-auth-fail` 头就是逐关设计的。 |

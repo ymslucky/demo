@@ -5,6 +5,8 @@ description: "本仓库的 UI 约定：Neo-Brutalism CSS token（实心位移阴
 
 # Neo-Brutalism UI、动效与主题
 
+> **铁则**：深度只用实心位移阴影（禁模糊）；根布局是 `app/` 中唯一的 `<script>` 渲染者；零运行时动效/图标/CSS 依赖。
+
 ## 1. 视觉语言
 
 硬朗 3px 边框、实心位移 `box-shadow`（2–4px 位移量）、`#ea580c` 橙色强调色、
@@ -62,3 +64,24 @@ description: "本仓库的 UI 约定：Neo-Brutalism CSS token（实心位移阴
    若重现该测试同样失败。
 4. `<html>` 上的 `suppressHydrationWarning` 仅用于吞掉水合前脚本造成的
    `data-theme` 属性不匹配；与 script 元素本身无关。
+
+## 6. 红旗信号
+
+- 写出第三、四个长度值非 0 的 `box-shadow`（模糊）——视觉契约违反（§2）。
+- 在根布局之外渲染任何 `<script>`——`tests/theme-i18n.test.ts` 会失败（§5.3）。
+- 把主题脚本换成 `next/script` 或 `<template>`——分别触发 React 19 警告 / 惰性不执行（§5.2）。
+- 引入 framer-motion / lucide-react 等运行时依赖——零运行时是设计约束（§3）。
+- 新增导航元素却无视 880px / 640px 断点（§2）。
+- 改客户端组件后没有检查 `npm run build` 的 chunk 表（§3）。
+- 硬编码颜色/阴影/圆角而没有用 `--color-*` / `--shadow-*` / `--radius-*` token（§2）。
+
+## 7. 合理化防止表
+
+| 借口 | 现实 |
+|---|---|
+| "加一点模糊阴影更精致" | Neo-Brutalism 的深度 = 实心位移像素块（§2）；要层次就加大位移量，永不加模糊。 |
+| "用 next/script 加载主题脚本更规范" | `beforeInteractive` 仍创建客户端 VDOM script 节点 → React 19 警告（§5.2）。保持 `dangerouslySetInnerHTML`。 |
+| "动效用 framer-motion 十分钟搞定" | 手写 CSS keyframes 是契约不是将就（§3）。 |
+| "container 上限缩到 80rem 排版更舒服" | 2K/4K 超宽屏需要充足边距（§2）——不要动 `100rem`。 |
+| "调参常量改小一点手感更好" | 源码常量即已成文的手感（§4）；要调先向用户说明并确认。 |
+| "这个组件里放个 `<script>` 最方便" | 根布局是唯一渲染者（§5.3）——这是测试强制的，不是建议。 |

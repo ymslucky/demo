@@ -5,6 +5,8 @@ description: "EdgeOne Pages 边缘函数与 KV 存储知识：部署模型、Web
 
 # EdgeOne 边缘函数与 KV 存储
 
+> **铁则**：KV 逻辑只存在于 `functions/`（绝不进 `app/api/**`）；所有函数响应 `cache-control: no-store`；含认证 UI 的页面永不边缘缓存。
+
 ## 1. 部署模型与路由优先级
 
 [edgeone.json](../../edgeone.json) 为 Next.js SSR 适配器设置
@@ -72,3 +74,24 @@ todo → 变量名 `TODO_LIST`（独立命名空间）。
   `/feed.xml` → `s-maxage=3600`。
 - 博客点赞/表情功能是**有意删除**的——不要复活 `/api/reactions`、
   `reaction-store` 或 `PostReactions`。
+
+## 6. 红旗信号
+
+- 在 `app/api/**` Route Handler 里读/写 KV——违反铁则（KV 集成点只在边缘函数）。
+- 新建 `functions/index.js` 处理根路径——会遮蔽 Next.js 层（§2）。
+- 函数之间出现 import——破坏自包含约束（§2）；引入共享模块属于设计决策，先向用户确认。
+- 用 `context.env` / `process.env` 找 KV 命名空间——它是裸全局标识符（§4）。
+- 给页面路由加 `s-maxage` 之类的边缘缓存头——跨用户缓存泄漏，已移除的配置不要加回（§5）。
+- UI 文案承诺"精确在线人数/总数"——KV 最终一致，只允许近似表述（§4）。
+- 导出签名变更未在同一提交更新 [tests/functions.test.ts](../../tests/functions.test.ts)（§2）。
+
+## 7. 合理化防止表
+
+| 借口 | 现实 |
+|---|---|
+| "抽个共享 util 模块，符合 DRY" | 函数文件必须自包含（§2）——部署模型如此，DRY 让位于自包含。 |
+| "顺手把 HTML 也缓存一下，性能更好" | 页面含认证状态 UI → 跨用户缓存泄漏（§5）。禁。 |
+| "`list()` 返回的字段一般都叫 `name`" | 实际是 `key`（§4）。按官方语义写，不按直觉。 |
+| "KV 不可用时让请求 500 吧" | 优雅降级：503 + 明确 error 码，UI 提供重试（§4）。 |
+| "加个后台定时任务清理过期键" | 边缘函数没有后台任务——清扫搭载在写路径上（惰性清扫，§4）。 |
+| "KV 没了，用 `process.env.TODO_LIST` 取一下" | KV 是裸全局标识符，环境变量与 KV 是两套注入机制（§2、§4）。 |
