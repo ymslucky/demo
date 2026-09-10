@@ -18,6 +18,7 @@ const tools = [
   { id: "color-picker", icon: "rgb", key: "color" },
   { id: "http-check", icon: "http", key: "httpCheck" },
   { id: "todo-list", icon: "✓", key: "todo" },
+  { id: "code-sandbox", icon: ">_", key: "sandbox" },
 ];
 
 /** 每张卡片的装饰性活体预览 —— 纯 CSS 动画，运行时零 JS。 */
