@@ -33,6 +33,14 @@
  * 校验通过后计数，失败运行同样消耗额度；超限返回 429 rate-limited（附
  * retry-after）。
  *
+ * RBAC（basic-rbac 教程模式）：角色存于用户 publicMetadata，经 Clerk
+ * Dashboard 的 session token 定制（Sessions → Customize session token：
+ * metadata = user.public_metadata）注入会话 claims.metadata，随 JWT 一并
+ * 签名——八步验签通过后直读 payload.metadata.role 即可信。与 admin 角色
+ * 匹配则跳过全部限速（管理员不限次）。未配置 token 定制时无该 claim →
+ * 一律按普通用户限速，fail-closed。配额与角色名可由环境变量覆盖：
+ * SANDBOX_RUN_QUOTA / SANDBOX_BROWSER_QUOTA / SANDBOX_ADMIN_ROLE。
+ *
  * issuer 白名单 / azp 判定基准由 context.env.SITE_DOMAIN 在请求时派生
  * （Makers 运行时无 process.env），未配置默认 rdom.cn。
  *
@@ -767,24 +775,38 @@ export async function verifyAgentSession(
 }
 
 /**
- * 会话验证 + uid 提取：成功 { uid, reason: null }；失败
- * { uid: null, reason }（no-cookie / 验签失败码 / sub），reason 进 401 的
- * x-auth-fail 诊断头。apex 从 env.SITE_DOMAIN 请求时派生。
+ * 会话验证 + uid / 角色提取：成功 { uid, role, reason: null }；失败
+ * { uid: null, role: "", reason }（no-cookie / 验签失败码 / sub），reason
+ * 进 401 的 x-auth-fail 诊断头。role 来自 claims.metadata.role（session
+ * token 定制注入，随 JWT 签名可信；未配置时为空串）。apex 从
+ * env.SITE_DOMAIN 请求时派生。
  */
 export async function readAgentSessionUid(
   headers: Record<string, unknown> | undefined,
   env: Record<string, string> | undefined,
   deps: AgentVerifyDeps = {},
-): Promise<{ uid: string | null; reason: string | null }> {
+): Promise<{ uid: string | null; role: string; reason: string | null }> {
   const token = readCookieToken(headers);
-  if (!token) return { uid: null, reason: "no-cookie" };
+  if (!token) return { uid: null, role: "", reason: "no-cookie" };
   const apex = deps.azpApex ?? siteApex(env?.SITE_DOMAIN) ?? DEFAULT_SITE_APEX;
   const result = await verifyAgentSession(token, { ...deps, azpApex: apex });
-  if (!result.ok) return { uid: null, reason: result.reason };
+  if (!result.ok) return { uid: null, role: "", reason: result.reason };
   const sub = result.payload?.sub;
   return typeof sub === "string" && sub.length > 0
-    ? { uid: sub, reason: null }
-    : { uid: null, reason: "sub" };
+    ? { uid: sub, role: roleFromClaims(result.payload), reason: null }
+    : { uid: null, role: "", reason: "sub" };
+}
+
+/**
+ * 会话 claims → 角色名：session token 定制把 publicMetadata 注入
+ * claims.metadata.role（随 JWT 签名，验签后可信）；缺失/畸形返回空串。
+ * 导出仅供测试。
+ */
+export function roleFromClaims(payload: Record<string, unknown> | null | undefined): string {
+  const metadata = payload?.metadata;
+  if (!metadata || typeof metadata !== "object") return "";
+  const role = (metadata as Record<string, unknown>).role;
+  return typeof role === "string" ? role : "";
 }
 
 // ---------------------------------------------------------------------------
@@ -802,6 +824,39 @@ const runQuotaBuckets = new Map<string, number[]>();
 // browser 动作独立配额桶（60 次/小时，按请求数计——前端逐条发送队列步骤）。
 const BROWSER_QUOTA_LIMIT = 60;
 const browserQuotaBuckets = new Map<string, number[]>();
+
+// ---------------------------------------------------------------------------
+// 配额与角色策略：默认值 + 环境变量覆盖（SANDBOX_RUN_QUOTA /
+// SANDBOX_BROWSER_QUOTA / SANDBOX_ADMIN_ROLE）。管理员（角色匹配 adminRole）
+// 跳过全部限速。导出仅供测试。
+// ---------------------------------------------------------------------------
+
+const DEFAULT_ADMIN_ROLE = "admin";
+
+export type QuotaPolicy = {
+  runLimit: number;
+  browserLimit: number;
+  adminRole: string;
+};
+
+function positiveInt(value: unknown, fallback: number): number {
+  const n =
+    typeof value === "string" && value.trim() !== ""
+      ? Number(value)
+      : typeof value === "number"
+        ? value
+        : NaN;
+  if (!Number.isFinite(n) || n < 1) return fallback;
+  return Math.floor(n);
+}
+
+export function resolveQuotaPolicy(env: Record<string, string> | undefined): QuotaPolicy {
+  return {
+    runLimit: positiveInt(env?.SANDBOX_RUN_QUOTA, RUN_QUOTA_LIMIT),
+    browserLimit: positiveInt(env?.SANDBOX_BROWSER_QUOTA, BROWSER_QUOTA_LIMIT),
+    adminRole: asText(env?.SANDBOX_ADMIN_ROLE).trim() || DEFAULT_ADMIN_ROLE,
+  };
+}
 
 /**
  * 滑动窗口配额：剪除过期时间戳后不足 limit 则记一笔放行；达到上限则拒绝
@@ -864,6 +919,10 @@ export async function onRequest(context: AgentContext): Promise<Response> {
     return json({ ok: false, error: "sandbox-unavailable" }, 503);
   }
 
+  // RBAC：角色随会话 JWT 签名下发（claims.metadata.role），管理员不限次。
+  const policy = resolveQuotaPolicy(context.env);
+  const isAdmin = session.role === policy.adminRole;
+
   try {
     if (action === "run") {
       const language = asText(body.language);
@@ -905,13 +964,15 @@ export async function onRequest(context: AgentContext): Promise<Response> {
       }
       const steps = parseBrowserSteps(body.steps);
       if (!steps) return json({ ok: false, error: "invalid-steps" }, 400);
-      const quota = consumeRunQuota(browserQuotaBuckets, session.uid, Date.now(), {
-        limit: BROWSER_QUOTA_LIMIT,
-      });
-      if (!quota.allowed) {
-        return json({ ok: false, error: "rate-limited" }, 429, {
-          "retry-after": String(quota.retryAfterSec),
+      if (!isAdmin) {
+        const quota = consumeRunQuota(browserQuotaBuckets, session.uid, Date.now(), {
+          limit: policy.browserLimit,
         });
+        if (!quota.allowed) {
+          return json({ ok: false, error: "rate-limited" }, 429, {
+            "retry-after": String(quota.retryAfterSec),
+          });
+        }
       }
       const stepResults = await executeBrowserSteps(sandbox, steps);
       // liveUrl / cdpUrl 可能是懒初始化 getter，防御式读取（失败置空）。

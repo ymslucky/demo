@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { useTranslations } from "next-intl";
-import { SignInButton, SignUpButton, Show, UserButton } from "@clerk/nextjs";
+import { SignInButton, SignUpButton, Show, UserButton, useUser } from "@clerk/nextjs";
 import { Link, usePathname } from "@/i18n/navigation";
 import LanguageSwitcher from "./LanguageSwitcher";
 import ThemeToggle from "./ThemeToggle";
@@ -18,6 +18,12 @@ export default function Nav() {
   const dockRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const itemRefs = useRef<Array<HTMLAnchorElement | null>>([]);
+
+  // RBAC 入口：publicMetadata.role === "admin" 时展示管理后台链接（仅
+  // 展示层便利；/admin 页面在服务端用会话 claims 重新门控，此处不构成
+  // 安全边界）。
+  const { user } = useUser();
+  const isAdmin = user?.publicMetadata?.role === "admin";
 
   const activeIndex = navItems.findIndex((item) =>
     item.href === "/" ? currentPath === "/" : currentPath.startsWith(item.href)
@@ -83,6 +89,11 @@ export default function Nav() {
           </div>
           <span className="dock-divider" aria-hidden="true" />
           <div className="dock-tools">
+            {isAdmin ? (
+              <Link href="/admin" className="dock-auth-btn" prefetch={false}>
+                {t("adminLink")}
+              </Link>
+            ) : null}
             <LanguageSwitcher />
             <ThemeToggle />
             {/* Auth controls: sign-in / sign-up while signed out, avatar

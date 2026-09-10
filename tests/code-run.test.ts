@@ -9,6 +9,8 @@ import {
   onRequest,
   parseBrowserSteps,
   readAgentSessionUid,
+  resolveQuotaPolicy,
+  roleFromClaims,
   siteApex,
   verifyAgentSession,
 } from "../agents/code-run/index";
@@ -455,14 +457,74 @@ describe("readAgentSessionUid: cookie + env wiring", () => {
       { SITE_DOMAIN: "https://www.example.com" },
       { jwks: [keys.jwk], now },
     );
-    expect(out).toEqual({ uid: "user_123", reason: null });
+    // No metadata claim in the default token -> empty role (fail-closed).
+    expect(out).toEqual({ uid: "user_123", role: "", reason: null });
+  });
+
+  it("surfaces the admin role from the customized metadata claim", async () => {
+    const now = Date.now();
+    const keys = await generateSigningKey("ES256");
+    const token = await signJwt("ES256", keys, {
+      ...sessionPayload(now),
+      metadata: { role: "admin" },
+    });
+    const out = await readAgentSessionUid(
+      { cookie: `__session=${token}` },
+      { SITE_DOMAIN: "https://www.example.com" },
+      { jwks: [keys.jwk], now },
+    );
+    expect(out).toEqual({ uid: "user_123", role: "admin", reason: null });
   });
 
   it("reports no-cookie when the headers carry no session token", async () => {
     expect(await readAgentSessionUid({}, undefined)).toEqual({
       uid: null,
+      role: "",
       reason: "no-cookie",
     });
+  });
+});
+
+describe("roleFromClaims: role extraction from the signed metadata claim", () => {
+  it("reads metadata.role when present and well-formed", () => {
+    expect(roleFromClaims({ metadata: { role: "admin" } })).toBe("admin");
+    expect(roleFromClaims({ metadata: { role: "moderator" } })).toBe("moderator");
+    expect(roleFromClaims({ metadata: {} })).toBe("");
+  });
+
+  it("returns empty string for missing or malformed claims", () => {
+    expect(roleFromClaims(null)).toBe("");
+    expect(roleFromClaims(undefined)).toBe("");
+    expect(roleFromClaims({})).toBe("");
+    expect(roleFromClaims({ metadata: "admin" })).toBe("");
+    expect(roleFromClaims({ metadata: { role: 42 } })).toBe("");
+    expect(roleFromClaims({ metadata: { role: null } })).toBe("");
+  });
+});
+
+describe("resolveQuotaPolicy: defaults + env overrides", () => {
+  it("returns the built-in defaults without env config", () => {
+    expect(resolveQuotaPolicy(undefined)).toEqual({
+      runLimit: 10,
+      browserLimit: 60,
+      adminRole: "admin",
+    });
+  });
+
+  it("applies positive integer overrides and falls back on garbage", () => {
+    expect(resolveQuotaPolicy({ SANDBOX_RUN_QUOTA: "5", SANDBOX_BROWSER_QUOTA: "120" })).toEqual({
+      runLimit: 5,
+      browserLimit: 120,
+      adminRole: "admin",
+    });
+    expect(resolveQuotaPolicy({ SANDBOX_RUN_QUOTA: "0", SANDBOX_BROWSER_QUOTA: "-3" }).runLimit).toBe(10);
+    expect(resolveQuotaPolicy({ SANDBOX_RUN_QUOTA: "abc", SANDBOX_BROWSER_QUOTA: "" }).browserLimit).toBe(60);
+    expect(resolveQuotaPolicy({ SANDBOX_RUN_QUOTA: "7.9" }).runLimit).toBe(7);
+  });
+
+  it("overrides the admin role name but falls back to admin on blanks", () => {
+    expect(resolveQuotaPolicy({ SANDBOX_ADMIN_ROLE: "root" }).adminRole).toBe("root");
+    expect(resolveQuotaPolicy({ SANDBOX_ADMIN_ROLE: "   " }).adminRole).toBe("admin");
   });
 });
 
