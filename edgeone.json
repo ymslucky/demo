@@ -4,6 +4,9 @@
   "installCommand": "npm install",
   "outputDirectory": ".next",
   "nodeVersion": "22.11.0",
+  "agents": {
+    "framework": "claude-agent-sdk"
+  },
   "rewrites": [
     {
       "source": "/",

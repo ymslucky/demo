@@ -314,6 +314,10 @@
       "todo": {
         "name": "TODO List",
         "description": "个人待办清单：登录后数据写入云端 KV，按账号隔离、多端同步；未登录也可使用，数据仅保存在本机浏览器。"
+      },
+      "sandbox": {
+        "name": "Code Sandbox",
+        "description": "基于 EdgeOne 沙箱的在线代码运行器：支持 Python、JavaScript、Bash、Go、Java，实时控制台输出与沙箱实例信息。"
       }
     },
     "actions": {
@@ -407,6 +411,49 @@
       "remindLabel": "提醒时间",
       "groupLabel": "分组",
       "groupPlaceholder": "默认分组，或输入名称…"
+    },
+    "sandbox": {
+      "languageLabel": "语言 / 运行环境",
+      "codeLabel": "代码编辑器",
+      "run": "运行",
+      "running": "运行中…",
+      "insertSample": "插入示例",
+      "clear": "清空控制台",
+      "reset": "重置沙箱",
+      "extend": "续期 10 分钟",
+      "refreshInfo": "刷新实例信息",
+      "infoTitle": "沙箱信息",
+      "statusLabel": "当前状态",
+      "statusIdle": "未创建",
+      "statusReady": "就绪",
+      "statusBusy": "执行中",
+      "statusUnavailable": "不可用",
+      "instanceLabel": "实例 ID",
+      "expiryLabel": "到期时间",
+      "minutesLeft": "{count} 分钟后到期",
+      "expired": "已到期",
+      "runtimeLabel": "运行环境",
+      "runtimeKernel": "Jupyter 内核",
+      "runtimeShell": "Shell",
+      "runtimeToolchain": "编译工具链",
+      "externalUrlLabel": "外部访问地址",
+      "externalUrlHint": "沙箱就绪后可通过端口 {port} 对外暴露服务",
+      "elapsedLabel": "最近耗时",
+      "elapsedValue": "{seconds} 秒",
+      "exitCodeLabel": "退出码 {code}",
+      "consoleTitle": "控制台",
+      "consoleEmpty": "控制台暂无输出，点击「运行」查看结果。",
+      "runStarted": "正在运行 {language} …",
+      "runFinished": "运行完成，耗时 {seconds} 秒",
+      "runFailed": "运行失败（HTTP {code}）",
+      "runNetworkError": "网络请求失败，请稍后重试。",
+      "invalidResponse": "服务端返回了无法解析的响应。",
+      "resetDone": "沙箱已重置，下次运行将创建全新实例。",
+      "resetFailed": "重置沙箱失败（HTTP {code}）",
+      "extendDone": "已为沙箱实例续期 10 分钟。",
+      "extendFailed": "续期失败（HTTP {code}）",
+      "infoUnavailable": "暂时无法获取沙箱实例信息（本地开发或实例未创建时属正常现象）。",
+      "hint": "提示：沙箱实例按浏览器会话复用；Python / JavaScript 在 Jupyter 内核中执行，Bash 直接跑命令，Go / Java 写入源文件后调用工具链。"
     },
     "labels": {
       "jsonInput": "JSON 输入",

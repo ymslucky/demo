@@ -86,6 +86,7 @@ function ShowcasePreview({ id }: { id: string }) {
     base64: ["Aa", "QQ=="],
     "unit-converter": ["1 m", "3.28 ft"],
     "case-converter": ["hello", "HELLO"],
+    "code-sandbox": ["print(1)", "=> 2"],
   };
   const [front, back] = faces[id] ?? ["", ""];
   return (
