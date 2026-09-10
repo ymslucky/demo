@@ -50,7 +50,7 @@ export const MAX_RUN_TIMEOUT_S = 60;
 export const DEFAULT_RUN_TIMEOUT_S = 30;
 export const MAX_CODE_LEN = 20_000;
 export const MAX_CONSOLE_ENTRIES = 400;
-export const HOST_PORT = 8080;
+export const MAX_RUN_HISTORY = 30;
 
 /** localStorage 键：编辑器内容与会话 ID（会话 ID 换新 = 新沙箱实例）。 */
 export const CODE_STORAGE_KEY = "lucky-sandbox-code-v1";
@@ -240,4 +240,28 @@ export function appendEntries(list: ConsoleEntry[], incoming: ConsoleEntry[]): C
   return merged.length > MAX_CONSOLE_ENTRIES
     ? merged.slice(merged.length - MAX_CONSOLE_ENTRIES)
     : merged;
+}
+
+/** 单次运行记录（历史列表 + 终端回放快照）。 */
+export interface RunRecord {
+  id: string;
+  language: LanguageId;
+  at: number;
+  ok: boolean;
+  elapsedMs: number | null;
+  exitCode: number | null;
+  output: ConsoleEntry[];
+}
+
+/** 插入最新记录到队首并封顶（历史列表最新在上）。 */
+export function appendRuns(list: RunRecord[], record: RunRecord): RunRecord[] {
+  const merged = [record, ...list];
+  return merged.length > MAX_RUN_HISTORY ? merged.slice(0, MAX_RUN_HISTORY) : merged;
+}
+
+/** 24 小时制 HH:MM:SS（历史列表时间列）。 */
+export function formatClock(ts: number): string {
+  const d = new Date(ts);
+  const part = (n: number) => String(n).padStart(2, "0");
+  return `${part(d.getHours())}:${part(d.getMinutes())}:${part(d.getSeconds())}`;
 }

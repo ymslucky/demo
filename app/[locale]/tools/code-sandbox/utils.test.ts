@@ -3,8 +3,11 @@ import {
   LANGUAGES,
   MAX_CODE_LEN,
   MAX_CONSOLE_ENTRIES,
+  MAX_RUN_HISTORY,
   appendEntries,
+  appendRuns,
   clampTimeoutSec,
+  formatClock,
   formatElapsedSeconds,
   getOrCreateConversationId,
   isLanguageId,
@@ -15,6 +18,7 @@ import {
   remainingMs,
   rotateConversationId,
   sanitizeLanguage,
+  type RunRecord,
   type StorageLike,
 } from "./utils";
 
@@ -187,5 +191,41 @@ describe("console entries", () => {
     const list = [makeEntry("stdout", "a", 1), makeEntry("stdout", "b", 2)];
     const merged = appendEntries(list, [makeEntry("stdout", "c", 3)]);
     expect(merged.map((entry) => entry.text)).toEqual(["a", "b", "c"]);
+  });
+});
+
+describe("run history", () => {
+  function makeRun(id: string): RunRecord {
+    return {
+      id,
+      language: "python",
+      at: 1000,
+      ok: true,
+      elapsedMs: 100,
+      exitCode: 0,
+      output: [],
+    };
+  }
+
+  it("inserts the newest run at the front", () => {
+    const merged = appendRuns([makeRun("a")], makeRun("b"));
+    expect(merged.map((run) => run.id)).toEqual(["b", "a"]);
+  });
+
+  it("caps the list at MAX_RUN_HISTORY", () => {
+    let list: RunRecord[] = [];
+    for (let i = 0; i < MAX_RUN_HISTORY + 5; i += 1) {
+      list = appendRuns(list, makeRun(`r${i}`));
+    }
+    expect(list.length).toBe(MAX_RUN_HISTORY);
+    expect(list[0].id).toBe(`r${MAX_RUN_HISTORY + 4}`);
+    expect(list[MAX_RUN_HISTORY - 1].id).toBe("r5");
+  });
+});
+
+describe("formatClock", () => {
+  it("formats a local timestamp as zero-padded HH:MM:SS", () => {
+    expect(formatClock(new Date(2026, 0, 2, 3, 4, 5).getTime())).toBe("03:04:05");
+    expect(formatClock(new Date(2026, 10, 2, 13, 45, 59).getTime())).toBe("13:45:59");
   });
 });
