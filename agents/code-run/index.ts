@@ -84,20 +84,64 @@ function asText(value: unknown): string {
   }
 }
 
-/** runCode 的 logs 可能是字符串数组或 {text}/{output} 对象数组，统一拼为文本。 */
-function flattenLogs(logs: unknown): string {
-  if (!Array.isArray(logs)) return asText(logs);
-  return logs
-    .map((item) => {
-      if (typeof item === "string") return item;
-      if (item && typeof item === "object") {
-        const obj = item as Record<string, unknown>;
-        return asText(obj.text ?? obj.output ?? obj.message);
+/**
+ * runCode 返回 → (stdout, stderr, 富结果)。
+ * 内核的流输出既可能在 logs，也可能藏在 results 元素的流回执块
+ * {stdout: string[], stderr: string[]}（\n 保留在字符串内，join 即还原换行）；
+ * 其余对象（表格 / 图片 / {text} 等富结果）原样保留给前端渲染。
+ */
+function flattenKernelOutput(out: { results?: unknown; logs?: unknown } | null | undefined): {
+  stdout: string;
+  stderr: string;
+  results: unknown[];
+} {
+  const stdoutParts: string[] = [];
+  const stderrParts: string[] = [];
+  const richResults: unknown[] = [];
+
+  const visit = (entries: unknown, fromLogs: boolean): void => {
+    const list = Array.isArray(entries) ? entries : entries == null ? [] : [entries];
+    for (const item of list) {
+      if (typeof item === "string") {
+        if (item.length === 0) continue;
+        (fromLogs ? stdoutParts : richResults).push(item);
+        continue;
       }
-      return "";
-    })
-    .filter((line) => line.length > 0)
-    .join("\n");
+      if (!item || typeof item !== "object") continue;
+      const obj = item as Record<string, unknown>;
+      if (Array.isArray(obj.stdout) || Array.isArray(obj.stderr)) {
+        if (Array.isArray(obj.stdout)) stdoutParts.push(obj.stdout.map(asText).join(""));
+        if (Array.isArray(obj.stderr)) stderrParts.push(obj.stderr.map(asText).join(""));
+        continue;
+      }
+      const text = obj.text ?? obj.output ?? obj.message;
+      if (fromLogs && text !== undefined) {
+        stdoutParts.push(asText(text));
+        continue;
+      }
+      richResults.push(item);
+    }
+  };
+
+  visit(out?.logs, true);
+  visit(out?.results, false);
+  return { stdout: stdoutParts.join(""), stderr: stderrParts.join(""), results: richResults };
+}
+
+/** error 可能是字符串或 {name,message,traceback} 对象，统一为可读文本。 */
+function errorText(value: unknown): string {
+  if (value == null || value === "") return "";
+  if (typeof value === "string") return value;
+  if (typeof value === "object") {
+    const obj = value as Record<string, unknown>;
+    const name = asText(obj.name);
+    const message = asText(obj.message);
+    const traceback = asText(obj.traceback);
+    const head = name && message ? `${name}: ${message}` : name || message;
+    if (head && traceback) return `${head}\n${traceback}`;
+    return head || traceback || asText(value);
+  }
+  return String(value);
 }
 
 /** timeoutSec 白名单化：仅接受正数，clamp 到 [1, MAX_TIMEOUT_S]。 */
@@ -167,9 +211,11 @@ async function execute(
 
   if (language === "python" || language === "javascript") {
     const out = await sandbox.runCode?.(code, { language, timeout: timeoutSec });
-    stdout = flattenLogs(out?.logs);
-    results = Array.isArray(out?.results) ? out.results : [];
-    const err = asText(out?.error);
+    const kernel = flattenKernelOutput(out);
+    stdout = kernel.stdout;
+    stderr = kernel.stderr;
+    results = kernel.results;
+    const err = errorText(out?.error);
     if (err) {
       stderr = err;
       error = err;
