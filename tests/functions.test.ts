@@ -17,6 +17,13 @@ import {
 } from "../functions/api/todo.js";
 import { countOnline, sessionKey } from "../functions/api/presence.js";
 import { extractClientIp } from "../functions/api/echo.js";
+import {
+  listSandboxes,
+  normalizeSandboxRecord,
+  releaseSandbox,
+  sandboxKey,
+  upsertSandbox,
+} from "../functions/api/sandboxes.js";
 
 /**
  * Unit coverage for the EdgeOne edge functions in functions/. Each module is
@@ -866,5 +873,110 @@ describe("extractClientIp", () => {
   it("ignores unusable values", () => {
     expect(extractClientIp({ "x-real-ip": "unknown" })).toBeNull();
     expect(extractClientIp({})).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// functions/api/sandboxes.js (sandbox instance registry backed by the
+// SANDBOX KV namespace; auth helpers are ported verbatim from todo.js and
+// already covered by the todo describes above — not repeated here).
+// ---------------------------------------------------------------------------
+
+describe("sandboxes sandboxKey", () => {
+  it("normalizes instance ids into the KV-safe charset under the sb_ prefix", () => {
+    expect(sandboxKey("i-abc/123")).toBe("sb_i_abc_123");
+    expect(sandboxKey("plain")).toBe("sb_plain");
+  });
+
+  it("caps the normalized id at 128 chars", () => {
+    const key = sandboxKey("x".repeat(200));
+    expect(key.startsWith("sb_")).toBe(true);
+    expect(key.length).toBe("sb_".length + 128);
+  });
+});
+
+describe("sandboxes normalizeSandboxRecord", () => {
+  it("parses KV JSON strings and fills defaults for optional fields", () => {
+    const record = normalizeSandboxRecord(
+      JSON.stringify({
+        instanceId: "i-1",
+        uid: "user_1",
+        createdAt: 100,
+        updatedAt: 200,
+        expiresAt: "2026-01-01T00:10:00Z",
+        externalUrl: "https://x.example.com",
+      }),
+    );
+    expect(record).toEqual({
+      instanceId: "i-1",
+      uid: "user_1",
+      createdAt: 100,
+      updatedAt: 200,
+      expiresAt: "2026-01-01T00:10:00Z",
+      externalUrl: "https://x.example.com",
+    });
+  });
+
+  it("rejects records without instanceId/uid or unparsable input", () => {
+    expect(normalizeSandboxRecord('{"instanceId":"i-1"}')).toBeNull();
+    expect(normalizeSandboxRecord('{"uid":"u"}')).toBeNull();
+    expect(normalizeSandboxRecord("not-json")).toBeNull();
+    expect(normalizeSandboxRecord(42)).toBeNull();
+    expect(normalizeSandboxRecord(null)).toBeNull();
+  });
+});
+
+describe("sandboxes upsertSandbox", () => {
+  const NOW = 1_000_000;
+
+  it("creates a record and preserves createdAt on subsequent updates", async () => {
+    const kv = fakeKv();
+    const created = await upsertSandbox(kv, "user_1", { instanceId: "i-1", expiresAt: "e1" }, NOW);
+    expect(created).toMatchObject({ uid: "user_1", instanceId: "i-1", createdAt: NOW, updatedAt: NOW });
+
+    const updated = await upsertSandbox(kv, "user_1", { instanceId: "i-1", expiresAt: "e2" }, NOW + 50);
+    expect(updated?.createdAt).toBe(NOW);
+    expect(updated?.updatedAt).toBe(NOW + 50);
+    expect(updated?.expiresAt).toBe("e2");
+    // Payload may omit externalUrl: the existing value survives the update.
+    const touched = await upsertSandbox(kv, "user_1", { instanceId: "i-1" }, NOW + 60);
+    expect(touched?.expiresAt).toBe("e2");
+  });
+
+  it("refuses to overwrite a record owned by another user (403 mapping)", async () => {
+    const kv = fakeKv();
+    await upsertSandbox(kv, "user_1", { instanceId: "i-1" }, NOW);
+    expect(await upsertSandbox(kv, "user_2", { instanceId: "i-1" }, NOW + 1)).toBeNull();
+  });
+});
+
+describe("sandboxes releaseSandbox", () => {
+  it("lets only the owner delete a record", async () => {
+    const kv = fakeKv();
+    await upsertSandbox(kv, "user_1", { instanceId: "i-1" }, 1000);
+    expect(await releaseSandbox(kv, "user_2", "i-1")).toBe(false);
+    expect(kv.store.has("sb_i_1")).toBe(true);
+    expect(await releaseSandbox(kv, "user_1", "i-1")).toBe(true);
+    expect(kv.store.has("sb_i_1")).toBe(false);
+    expect(await releaseSandbox(kv, "user_1", "i-1")).toBe(false);
+  });
+});
+
+describe("sandboxes listSandboxes", () => {
+  it("drops expired and malformed records, sweeps them on request, sorts by updatedAt desc", async () => {
+    const NOW = 10_000_000;
+    const iso = (offsetMs: number) => new Date(NOW + offsetMs).toISOString();
+    const kv = fakeKv([
+      ["sb_alive1", JSON.stringify({ instanceId: "a1", uid: "u1", createdAt: 1, updatedAt: 300, expiresAt: iso(60_000) })],
+      ["sb_alive2", JSON.stringify({ instanceId: "a2", uid: "u2", createdAt: 1, updatedAt: 500, expiresAt: iso(1) })],
+      ["sb_expired", JSON.stringify({ instanceId: "e1", uid: "u1", createdAt: 1, updatedAt: 900, expiresAt: iso(-1) })],
+      ["sb_junk", "not-json"],
+    ]);
+    // Without sweep the stale entries are only filtered out of the listing.
+    expect((await listSandboxes(kv, { now: NOW })).map((r) => r.instanceId)).toEqual(["a2", "a1"]);
+    // With sweep they are lazily deleted from KV as well.
+    expect((await listSandboxes(kv, { now: NOW, sweep: true })).map((r) => r.instanceId)).toEqual(["a2", "a1"]);
+    expect(kv.store.has("sb_expired")).toBe(false);
+    expect(kv.store.has("sb_junk")).toBe(false);
   });
 });

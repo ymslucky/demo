@@ -52,6 +52,10 @@ export const MAX_CODE_LEN = 20_000;
 export const MAX_CONSOLE_ENTRIES = 400;
 export const MAX_RUN_HISTORY = 30;
 
+/** 沙箱生命周期（分钟）：默认 1 分钟，可选 1-10 分钟，运行前设定。 */
+export const LIFETIME_CHOICES_MIN: readonly number[] = [1, 2, 3, 5, 10];
+export const DEFAULT_LIFETIME_MIN = 1;
+
 /** localStorage 键：编辑器内容与会话 ID（会话 ID 换新 = 新沙箱实例）。 */
 export const CODE_STORAGE_KEY = "lucky-sandbox-code-v1";
 export const CONVERSATION_KEY = "lucky-sandbox-conversation-v1";
@@ -207,6 +211,14 @@ export function remainingMs(expiresAt: string | undefined, now: number): number 
   return Math.max(time - now, 0);
 }
 
+/** 本地时区 YYYY-MM-DD HH:MM:SS（实例列表时间列）；非法时间戳返回 "—"。 */
+export function formatDateTime(ts: number): string {
+  if (!Number.isFinite(ts) || ts <= 0) return "—";
+  const d = new Date(ts);
+  const part = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${part(d.getMonth() + 1)}-${part(d.getDate())} ${part(d.getHours())}:${part(d.getMinutes())}:${part(d.getSeconds())}`;
+}
+
 /** 运行耗时展示（秒，两位小数）。 */
 export function formatElapsedSeconds(ms: number): string {
   return (ms / 1000).toFixed(2);
@@ -265,4 +277,43 @@ export function formatClock(ts: number): string {
   const d = new Date(ts);
   const part = (n: number) => String(n).padStart(2, "0");
   return `${part(d.getHours())}:${part(d.getMinutes())}:${part(d.getSeconds())}`;
+}
+
+/** 实例列表条目（/api/sandboxes 返回的 KV 记录，含所属用户与生命周期）。 */
+export interface SandboxInstanceRecord {
+  uid: string;
+  instanceId: string;
+  createdAt: number;
+  updatedAt: number;
+  expiresAt?: string;
+  externalUrl?: string;
+}
+
+/**
+ * 防御式解析 /api/sandboxes 列表响应：非对象/缺 sandboxes 数组返回 null
+ * （区别于合法空列表），条目缺 instanceId/uid 的丢弃，数值字段守卫。
+ */
+export function normalizeInstanceRecords(raw: unknown): SandboxInstanceRecord[] | null {
+  if (!raw || typeof raw !== "object") return null;
+  const list = (raw as Record<string, unknown>).sandboxes;
+  if (!Array.isArray(list)) return null;
+  const records: SandboxInstanceRecord[] = [];
+  for (const entry of list) {
+    if (!entry || typeof entry !== "object") continue;
+    const obj = entry as Record<string, unknown>;
+    const instanceId = typeof obj.instanceId === "string" ? obj.instanceId : "";
+    const uid = typeof obj.uid === "string" ? obj.uid : "";
+    if (!instanceId || !uid) continue;
+    const createdAt = typeof obj.createdAt === "number" && Number.isFinite(obj.createdAt) ? obj.createdAt : 0;
+    const updatedAt = typeof obj.updatedAt === "number" && Number.isFinite(obj.updatedAt) ? obj.updatedAt : 0;
+    records.push({
+      instanceId,
+      uid,
+      createdAt,
+      updatedAt,
+      expiresAt: typeof obj.expiresAt === "string" && obj.expiresAt ? obj.expiresAt : undefined,
+      externalUrl: typeof obj.externalUrl === "string" && obj.externalUrl ? obj.externalUrl : undefined,
+    });
+  }
+  return records;
 }

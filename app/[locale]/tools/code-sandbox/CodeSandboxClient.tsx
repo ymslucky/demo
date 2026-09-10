@@ -11,14 +11,18 @@ import {
   clampTimeoutSec,
   CODE_STORAGE_KEY,
   CONVERSATION_KEY,
+  DEFAULT_LIFETIME_MIN,
   DEFAULT_RUN_TIMEOUT_S,
   formatClock,
+  formatDateTime,
   formatElapsedSeconds,
   getOrCreateConversationId,
   LANGUAGES,
+  LIFETIME_CHOICES_MIN,
   languageDef,
   makeEntry,
   normalizeCode,
+  normalizeInstanceRecords,
   normalizeRunPayload,
   randomId,
   remainingMs,
@@ -26,6 +30,7 @@ import {
   type ConsoleEntry,
   type LanguageId,
   type RunRecord,
+  type SandboxInstanceRecord,
   type SandboxSnapshot,
 } from "./utils";
 
@@ -182,6 +187,24 @@ const historyItemStyle = (active: boolean) =>
     color: "var(--color-text)",
   }) as const;
 
+const selectStyle = {
+  ...monoStyle,
+  fontSize: "var(--fs-sm)",
+  padding: "0.35rem 0.5rem",
+  border: "3px solid var(--color-border)",
+  borderRadius: "var(--radius-sm)",
+  background: "var(--color-surface)",
+  color: "var(--color-text)",
+  cursor: "pointer",
+} as const;
+
+// 实例列表卡片：继承工作台卡片骨架，紧凑内边距。
+const instanceCardStyle = {
+  ...cardStyle,
+  padding: "var(--space-sm)",
+  gap: "var(--space-xs)",
+} as const;
+
 export default function CodeSandboxClient() {
   const t = useTranslations("tools.sandbox");
   const [lang, setLang] = useState<LanguageId>("python");
@@ -195,6 +218,13 @@ export default function CodeSandboxClient() {
   const [unavailable, setUnavailable] = useState(false);
   const [conversationId, setConversationId] = useState("");
   const [now, setNow] = useState(() => Date.now());
+  // 运行前设定的实例生命周期（分钟），服务端 clamp 到 1-10 分钟。
+  const [lifetimeMin, setLifetimeMin] = useState<number>(DEFAULT_LIFETIME_MIN);
+  // Tab 子页：工作台 / 实例列表。
+  const [tab, setTab] = useState<"workbench" | "instances">("workbench");
+  const [instances, setInstances] = useState<SandboxInstanceRecord[] | null>(null);
+  const [instancesLoading, setInstancesLoading] = useState(false);
+  const [instancesError, setInstancesError] = useState<string | null>(null);
   const terminalRef = useRef<HTMLDivElement>(null);
 
   // 会话 ID 挂载时生成/复用（localStorage）；换 ID = 新沙箱实例。
@@ -204,13 +234,13 @@ export default function CodeSandboxClient() {
     setConversationId(getOrCreateConversationId(window.localStorage, CONVERSATION_KEY));
   }, []);
 
-  // 到期倒计时：15s 心跳足够（分钟级展示）。
   const expiresAt = info?.expiresAt;
+  // 到期倒计时：15s 心跳足够（分钟级展示）；实例列表子页也靠它刷新存活状态。
   useEffect(() => {
-    if (!expiresAt) return;
+    if (!expiresAt && tab !== "instances") return;
     const timer = window.setInterval(() => setNow(Date.now()), 15_000);
     return () => window.clearInterval(timer);
-  }, [expiresAt]);
+  }, [expiresAt, tab]);
 
   // 终端自动滚底（实时流更新或历史回放切换时）。
   useEffect(() => {
@@ -243,6 +273,53 @@ export default function CodeSandboxClient() {
     }));
   }, []);
 
+  // 实例档案上报（fire-and-forget）：运行 / 续期 / 刷新成功后把快照写入
+  // KV（/api/sandboxes upsert），重置成功后传 null 发 DELETE 释放。
+  // 失败静默——列表子页有手动刷新兜底，不能阻塞工作台主流程。
+  const reportSandbox = useCallback(
+    async (instanceId: string, payload: { expiresAt?: string; externalUrl?: string } | null) => {
+      try {
+        await fetch("/api/sandboxes", {
+          method: payload ? "POST" : "DELETE",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(payload ? { instanceId, ...payload } : { instanceId }),
+        });
+      } catch {
+        // 静默：上报失败不影响运行。
+      }
+    },
+    [],
+  );
+
+  // 实例列表子页：拉取当前用户在 KV 中的实例档案（服务端验签 + 惰性清扫）。
+  const loadInstances = useCallback(async () => {
+    setInstancesLoading(true);
+    setInstancesError(null);
+    try {
+      const res = await fetch("/api/sandboxes", { cache: "no-store" });
+      const raw: unknown = res.ok ? await res.json().catch(() => null) : null;
+      const records = normalizeInstanceRecords(raw);
+      if (!res.ok || records === null) {
+        setInstances(null);
+        setInstancesError(t("instancesLoadFailed", { code: res.status }));
+        return;
+      }
+      setInstances(records);
+      setNow(Date.now());
+    } catch {
+      setInstances(null);
+      setInstancesError(t("instancesLoadFailed", { code: 0 }));
+    } finally {
+      setInstancesLoading(false);
+    }
+  }, [t]);
+
+  // 切到实例列表子页时自动拉取一次。
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- 拉取动作自带 loading 置位
+    if (tab === "instances") void loadInstances();
+  }, [tab, loadInstances]);
+
   async function run() {
     if (busy || !conversationId || !code.trim()) return;
     setBusy(true);
@@ -261,7 +338,8 @@ export default function CodeSandboxClient() {
     try {
       emit("system", t("runStarted", { language: LANGUAGE_LABELS[lang] }));
       const res = await post(
-        { action: "run", language: lang, code, timeoutSec },
+        // lifetimeSec：运行前把实例生命周期续到用户设定值（服务端 clamp 1-10 分钟）。
+        { action: "run", language: lang, code, timeoutSec, lifetimeSec: lifetimeMin * 60 },
         conversationId,
       );
       const raw: unknown = await res.json().catch(() => null);
@@ -293,6 +371,13 @@ export default function CodeSandboxClient() {
       setUnavailable(false);
       setSandboxActive(true);
       mergeSnapshot(payload.sandbox);
+      // 同步实例档案到 KV（实例列表子页数据源）。
+      if (payload.sandbox.instanceId) {
+        void reportSandbox(payload.sandbox.instanceId, {
+          expiresAt: payload.sandbox.expiresAt,
+          externalUrl: payload.sandbox.externalUrl,
+        });
+      }
       ok = true;
       elapsedMs = payload.outcome.elapsedMs;
       exitCode = payload.outcome.exitCode;
@@ -336,9 +421,12 @@ export default function CodeSandboxClient() {
   async function reset() {
     if (busy || !conversationId) return;
     setBusy(true);
+    // 销毁前记下当前实例：成功后同步从 KV 档案中删除。
+    const instanceId = info?.instanceId;
     try {
       const res = await post({ action: "kill" }, conversationId);
       if (res.ok) {
+        if (instanceId) void reportSandbox(instanceId, null);
         pushEntries([makeEntry("system", t("resetDone"), Date.now(), randomId())]);
       } else {
         pushEntries([makeEntry("error", t("resetFailed", { code: res.status }), Date.now(), randomId())]);
@@ -366,6 +454,13 @@ export default function CodeSandboxClient() {
         mergeSnapshot(payload.sandbox);
         setSandboxActive(true);
         setUnavailable(false);
+        // 续期后到期时间变了，同步 KV 档案。
+        if (payload.sandbox.instanceId) {
+          void reportSandbox(payload.sandbox.instanceId, {
+            expiresAt: payload.sandbox.expiresAt,
+            externalUrl: payload.sandbox.externalUrl,
+          });
+        }
         pushEntries([makeEntry("system", t("extendDone"), Date.now(), randomId())]);
       } else {
         pushEntries([makeEntry("error", t("extendFailed", { code: res.status }), Date.now(), randomId())]);
@@ -388,6 +483,13 @@ export default function CodeSandboxClient() {
         mergeSnapshot(payload.sandbox);
         setSandboxActive(true);
         setUnavailable(false);
+        // 刷新到实例信息时顺带同步 KV 档案。
+        if (payload.sandbox.instanceId) {
+          void reportSandbox(payload.sandbox.instanceId, {
+            expiresAt: payload.sandbox.expiresAt,
+            externalUrl: payload.sandbox.externalUrl,
+          });
+        }
       } else {
         pushEntries([makeEntry("system", t("infoUnavailable"), Date.now(), randomId())]);
       }
@@ -428,13 +530,6 @@ export default function CodeSandboxClient() {
 
   function clearTerminal() {
     setEntries([]);
-  }
-
-  // 历史回放 → 编辑器：恢复该次运行的语言与代码（不离开回放视图）。
-  function restoreRunCode() {
-    if (!viewingRun) return;
-    setLang(viewingRun.language);
-    setCodeMap((prev) => ({ ...prev, [viewingRun.language]: normalizeCode(viewingRun.code) }));
   }
 
   // 终端展示内容：实时流，或选中历史记录的输出快照（回放）。
@@ -489,7 +584,104 @@ export default function CodeSandboxClient() {
         </div>
       </section>
 
-      {/* 工作台主区：左编辑器，右终端 + 运行历史 */}
+      {/* Tab 子页切换：工作台 / 实例列表 */}
+      <div role="tablist" style={{ display: "flex", gap: "var(--space-xs)", flexWrap: "wrap" }}>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={tab === "workbench"}
+          style={chipStyle(tab === "workbench")}
+          onClick={() => setTab("workbench")}
+        >
+          {t("tabWorkbench")}
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={tab === "instances"}
+          style={chipStyle(tab === "instances")}
+          onClick={() => setTab("instances")}
+        >
+          {t("tabInstances")}
+        </button>
+      </div>
+
+      {/* 实例列表子页：当前账号在 KV 中的沙箱实例档案 */}
+      {tab === "instances" ? (
+        <section style={{ ...cardStyle, minHeight: 0, overflowY: "auto" }} aria-label={t("instancesTitle")}>
+          <div style={{ display: "flex", alignItems: "center", gap: "var(--space-sm)", flexWrap: "wrap" }}>
+            <h2 style={{ margin: 0, fontSize: "var(--fs-xl)" }}>{t("instancesTitle")}</h2>
+            {instances ? <span style={mutedStyle}>{t("instancesCount", { count: instances.length })}</span> : null}
+            <Button onClick={loadInstances} disabled={instancesLoading}>
+              {instancesLoading ? t("instancesLoading") : t("instancesRefresh")}
+            </Button>
+          </div>
+          {instancesError ? (
+            <p style={{ ...mutedStyle, margin: 0 }}>{instancesError}</p>
+          ) : instances && instances.length === 0 ? (
+            <p style={{ ...mutedStyle, margin: 0 }}>{t("instancesEmpty")}</p>
+          ) : null}
+          {instances && instances.length > 0 ? (
+            <div style={{ display: "grid", gap: "var(--space-sm)", alignContent: "start" }}>
+              {instances.map((record) => {
+                const expiresTs = record.expiresAt ? Date.parse(record.expiresAt) : NaN;
+                const alive = Number.isFinite(expiresTs) && expiresTs > now;
+                return (
+                  <div key={record.instanceId} style={instanceCardStyle}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "var(--space-sm)", flexWrap: "wrap" }}>
+                      <span style={statusBadgeStyle(alive ? "ready" : "unavailable")}>
+                        {Number.isFinite(expiresTs) ? (alive ? t("statusReady") : t("expired")) : t("statusIdle")}
+                      </span>
+                      <span style={{ ...monoStyle, fontSize: "var(--fs-sm)", wordBreak: "break-all", fontWeight: 700 }}>
+                        {record.instanceId}
+                      </span>
+                    </div>
+                    <div
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+                        gap: "var(--space-xs)",
+                      }}
+                    >
+                      <div>
+                        <div style={mutedStyle}>{t("ownerLabel")}</div>
+                        <div style={{ ...monoStyle, fontSize: "var(--fs-sm)", wordBreak: "break-all" }}>{record.uid}</div>
+                      </div>
+                      <div>
+                        <div style={mutedStyle}>{t("expiryLabel")}</div>
+                        <div style={{ fontSize: "var(--fs-sm)", fontWeight: 700 }}>
+                          {Number.isFinite(expiresTs) ? formatDateTime(expiresTs) : "—"}
+                        </div>
+                      </div>
+                      <div>
+                        <div style={mutedStyle}>{t("createdLabel")}</div>
+                        <div style={{ fontSize: "var(--fs-sm)" }}>{formatDateTime(record.createdAt)}</div>
+                      </div>
+                      <div>
+                        <div style={mutedStyle}>{t("updatedLabel")}</div>
+                        <div style={{ fontSize: "var(--fs-sm)" }}>{formatDateTime(record.updatedAt)}</div>
+                      </div>
+                      <div>
+                        <div style={mutedStyle}>{t("externalUrlLabel")}</div>
+                        <div style={{ fontSize: "var(--fs-sm)", wordBreak: "break-all" }}>
+                          {record.externalUrl ? (
+                            <a href={record.externalUrl} target="_blank" rel="noreferrer">
+                              {record.externalUrl}
+                            </a>
+                          ) : (
+                            "—"
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : null}
+        </section>
+      ) : (
+      /* 工作台主区：左编辑器，右终端 + 运行历史 */
       <div style={mainAreaStyle}>
         <section
           style={{ ...cardStyle, display: "flex", flexDirection: "column", minHeight: 0 }}
@@ -516,13 +708,29 @@ export default function CodeSandboxClient() {
             spellCheck={false}
             aria-label={t("codeLabel")}
           />
-          <div style={{ display: "flex", gap: "var(--space-xs)", flexWrap: "wrap" }}>
+          <div style={{ display: "flex", gap: "var(--space-xs)", flexWrap: "wrap", alignItems: "center" }}>
             <Button variant="primary" onClick={run} disabled={busy || !conversationId || !code.trim()}>
               {busy ? t("running") : t("run")}
             </Button>
             <Button onClick={insertSample} disabled={busy}>
               {t("insertSample")}
             </Button>
+            {/* 运行前设定实例生命周期：默认 1 分钟，可选 1-10 分钟（上限由 edgeone.json sandbox.timeout 封顶）。 */}
+            <label htmlFor="sandbox-lifetime" style={mutedStyle}>
+              {t("lifetimeLabel")}
+            </label>
+            <select
+              id="sandbox-lifetime"
+              style={selectStyle}
+              value={lifetimeMin}
+              onChange={(event) => setLifetimeMin(Number(event.target.value))}
+            >
+              {LIFETIME_CHOICES_MIN.map((minutes) => (
+                <option key={minutes} value={minutes}>
+                  {t("lifetimeMinutes", { count: minutes })}
+                </option>
+              ))}
+            </select>
           </div>
           <p style={{ ...mutedStyle, margin: 0 }}>{t("hint")}</p>
         </section>
@@ -536,10 +744,7 @@ export default function CodeSandboxClient() {
             <div style={{ display: "flex", alignItems: "center", gap: "var(--space-xs)", flexWrap: "wrap" }}>
               <h2 style={{ margin: 0, fontSize: "var(--fs-xl)" }}>{t("consoleTitle")}</h2>
               {viewingRun ? (
-                <>
-                  <Button onClick={restoreRunCode}>{t("restoreCode")}</Button>
-                  <Button onClick={() => setViewingRun(null)}>{t("backToLive")}</Button>
-                </>
+                <Button onClick={() => setViewingRun(null)}>{t("backToLive")}</Button>
               ) : (
                 <Button onClick={clearTerminal} disabled={busy}>
                   {t("clear")}
@@ -585,7 +790,12 @@ export default function CodeSandboxClient() {
                     key={record.id}
                     type="button"
                     style={historyItemStyle(viewingRun?.id === record.id)}
-                    onClick={() => setViewingRun(record)}
+                    onClick={() => {
+                      // 点击历史 = 直接把该次运行的语言与代码替换进编辑器，并回放输出。
+                      setLang(record.language);
+                      setCodeMap((prev) => ({ ...prev, [record.language]: normalizeCode(record.code) }));
+                      setViewingRun(record);
+                    }}
                   >
                     <span style={runBadgeStyle(record.ok)} aria-hidden="true">
                       {record.ok ? "✓" : "✗"}
@@ -606,6 +816,7 @@ export default function CodeSandboxClient() {
           </section>
         </div>
       </div>
+      )}
         </div>
       </Show>
       <Show when="signed-out">

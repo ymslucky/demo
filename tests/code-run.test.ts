@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  clampLifetime,
   consumeRunQuota,
   errorText,
   execute,
@@ -164,6 +165,24 @@ describe("consumeRunQuota: 10 runs per hour, sliding window", () => {
     expect(bucket.get("u1")).toEqual([later]);
     // A different user starts from an empty window.
     expect(consumeRunQuota(bucket, "u2", start).allowed).toBe(true);
+  });
+});
+
+describe("clampLifetime: instance lifetime whitelist (1-10 min)", () => {
+  it("rounds positive numbers and clamps into [60, 600]", () => {
+    expect(clampLifetime(60)).toBe(60);
+    expect(clampLifetime(600)).toBe(600);
+    expect(clampLifetime(90.4)).toBe(90);
+    expect(clampLifetime(30)).toBe(60);
+    expect(clampLifetime(3600)).toBe(600);
+  });
+
+  it("falls back to the 60s default on missing or non-numeric input", () => {
+    expect(clampLifetime(undefined)).toBe(60);
+    expect(clampLifetime("120")).toBe(60);
+    expect(clampLifetime(NaN)).toBe(60);
+    expect(clampLifetime(0)).toBe(60);
+    expect(clampLifetime(-5)).toBe(60);
   });
 });
 

@@ -7,7 +7,10 @@
  * 更换 ID 即得到全新沙箱（重置按钮的实现原理）。
  *
  * 动作（JSON body.action）：
- * - run    { language, code, timeoutSec? }  执行代码 → stdout/stderr/results/exitCode
+ * - run    { language, code, timeoutSec?, lifetimeSec? }  执行代码 →
+ *          stdout/stderr/results/exitCode；运行前先把实例生命周期续到
+ *          lifetimeSec（默认 60s，上限 600s——由 edgeone.json 的
+ *          sandbox.timeout 封顶，到点自动回收，超出部分被后端截断）
  * - info   {}                               沙箱实例信息（实例 ID / 到期时间 / 外部访问地址）
  * - extend { seconds }                      续期实例（extendTimeout）
  * - kill   {}                               销毁实例（重置会话时调用）
@@ -75,6 +78,13 @@ const MAX_CODE_LEN = 20_000;
 const DEFAULT_TIMEOUT_S = 30;
 const MAX_TIMEOUT_S = 60;
 const HOST_PORT = 8080;
+
+// 实例生命周期（秒）：运行前把寿命续到用户设定值。上限必须与 edgeone.json
+// 的 sandbox.timeout 一致（到点自动回收，真实生效时长以后端返回为准，
+// 超出上限的部分被截断）；改这里时须同步 edgeone.json。
+const MIN_LIFETIME_S = 60;
+const MAX_LIFETIME_S = 600;
+const DEFAULT_LIFETIME_S = 60;
 
 /** 手工序列化 JSON 响应（no-store：响应随会话/实例状态变化，绝不缓存）。 */
 function json(
@@ -170,6 +180,16 @@ function clampTimeout(value: unknown): number | null {
     return typeof value === "undefined" || value === null ? DEFAULT_TIMEOUT_S : null;
   }
   return Math.min(Math.max(Math.round(value), 1), MAX_TIMEOUT_S);
+}
+
+/**
+ * lifetimeSec 白名单化：正数四舍五入后 clamp 到 [60, 600]；缺省/非法回退
+ * 默认 60s（即"默认 1 分钟、可选 1-10 分钟"）。上限见顶部常量注释
+ * （与 edgeone.json sandbox.timeout 对齐）。导出仅供测试。
+ */
+export function clampLifetime(value: unknown): number {
+  if (typeof value !== "number" || !Number.isFinite(value)) return DEFAULT_LIFETIME_S;
+  return Math.min(Math.max(Math.round(value), MIN_LIFETIME_S), MAX_LIFETIME_S);
 }
 
 /** getInfo() 快照 → 前端信息面板所需的稳定字段。 */
@@ -673,6 +693,7 @@ export async function onRequest(context: AgentContext): Promise<Response> {
       if (code.length > MAX_CODE_LEN) return json({ ok: false, error: "invalid-code" }, 400);
       const timeoutSec = clampTimeout(body.timeoutSec);
       if (timeoutSec === null) return json({ ok: false, error: "invalid-timeout" }, 400);
+      const lifetimeSec = clampLifetime(body.lifetimeSec);
 
       // 限速：参数合法的运行才计数（失败运行同样消耗额度）。
       const quota = consumeRunQuota(runQuotaBuckets, session.uid, Date.now());
@@ -680,6 +701,16 @@ export async function onRequest(context: AgentContext): Promise<Response> {
         return json({ ok: false, error: "rate-limited" }, 429, {
           "retry-after": String(quota.retryAfterSec),
         });
+      }
+
+      // 运行前把实例生命周期续到用户设定值：extendTimeout 会懒创建实例并
+      // 按后端返回的真实到期时间更新 SDK 缓存（真实生效时长以后端为准，
+      // 超出 sandbox.timeout 的部分被截断）。失败不阻断本次运行——实例
+      // 可能仍按既有寿命存在，execute 会按需懒创建。
+      try {
+        await sandbox.extendTimeout?.(lifetimeSec);
+      } catch {
+        // 续期失败不阻断运行。
       }
 
       const outcome = await execute(sandbox, language as LanguageId, code, timeoutSec);

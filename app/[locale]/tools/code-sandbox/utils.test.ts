@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   LANGUAGES,
+  LIFETIME_CHOICES_MIN,
   MAX_CODE_LEN,
   MAX_CONSOLE_ENTRIES,
   MAX_RUN_HISTORY,
@@ -8,12 +9,14 @@ import {
   appendRuns,
   clampTimeoutSec,
   formatClock,
+  formatDateTime,
   formatElapsedSeconds,
   getOrCreateConversationId,
   isLanguageId,
   languageDef,
   makeEntry,
   normalizeCode,
+  normalizeInstanceRecords,
   normalizeRunPayload,
   remainingMs,
   rotateConversationId,
@@ -228,5 +231,76 @@ describe("formatClock", () => {
   it("formats a local timestamp as zero-padded HH:MM:SS", () => {
     expect(formatClock(new Date(2026, 0, 2, 3, 4, 5).getTime())).toBe("03:04:05");
     expect(formatClock(new Date(2026, 10, 2, 13, 45, 59).getTime())).toBe("13:45:59");
+  });
+});
+
+describe("formatDateTime", () => {
+  it("formats a local timestamp as YYYY-MM-DD HH:MM:SS", () => {
+    const ts = new Date(2026, 0, 2, 3, 4, 5).getTime();
+    expect(formatDateTime(ts)).toBe("2026-01-02 03:04:05");
+    expect(formatDateTime(new Date(2026, 10, 12, 13, 45, 59).getTime())).toBe("2026-11-12 13:45:59");
+  });
+
+  it("returns a placeholder for invalid or missing timestamps", () => {
+    expect(formatDateTime(NaN)).toBe("—");
+    expect(formatDateTime(0)).toBe("—");
+    expect(formatDateTime(-5)).toBe("—");
+  });
+});
+
+describe("lifetime choices", () => {
+  it("offer 1-10 minute presets with a 1-minute default shape", () => {
+    expect(LIFETIME_CHOICES_MIN[0]).toBe(1);
+    expect(LIFETIME_CHOICES_MIN[LIFETIME_CHOICES_MIN.length - 1]).toBe(10);
+    expect([...LIFETIME_CHOICES_MIN]).toEqual([...new Set(LIFETIME_CHOICES_MIN)].sort((a, b) => a - b));
+  });
+});
+
+describe("normalizeInstanceRecords", () => {
+  it("parses a well-formed list response and coerces numeric fields", () => {
+    const records = normalizeInstanceRecords({
+      sandboxes: [
+        {
+          instanceId: "i-abc-123",
+          uid: "user_1",
+          createdAt: 1000,
+          updatedAt: 2000,
+          expiresAt: "2026-01-01T00:10:00Z",
+          externalUrl: "https://x.example.com",
+        },
+        { instanceId: "i-2", uid: "user_2" },
+      ],
+    });
+    expect(records).not.toBeNull();
+    expect(records).toHaveLength(2);
+    expect(records?.[0]).toEqual({
+      instanceId: "i-abc-123",
+      uid: "user_1",
+      createdAt: 1000,
+      updatedAt: 2000,
+      expiresAt: "2026-01-01T00:10:00Z",
+      externalUrl: "https://x.example.com",
+    });
+    // Missing optional fields stay undefined; malformed numerics fall back to 0.
+    expect(records?.[1]).toEqual({
+      instanceId: "i-2",
+      uid: "user_2",
+      createdAt: 0,
+      updatedAt: 0,
+      expiresAt: undefined,
+      externalUrl: undefined,
+    });
+  });
+
+  it("drops entries without instanceId or uid and returns null for non-list input", () => {
+    const records = normalizeInstanceRecords({
+      sandboxes: [{ instanceId: "", uid: "u" }, { instanceId: "i", uid: "" }, "junk", null],
+    });
+    expect(records).toEqual([]);
+
+    expect(normalizeInstanceRecords(null)).toBeNull();
+    expect(normalizeInstanceRecords("nope")).toBeNull();
+    expect(normalizeInstanceRecords({})).toBeNull();
+    expect(normalizeInstanceRecords({ sandboxes: "not-an-array" })).toBeNull();
   });
 });
