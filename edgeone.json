@@ -5,7 +5,8 @@
   "outputDirectory": ".next",
   "nodeVersion": "22.11.0",
   "agents": {
-    "framework": "claude-agent-sdk"
+    "framework": "claude-agent-sdk",
+    "externalNodeModules": ["undici"]
   },
   "rewrites": [
     {
