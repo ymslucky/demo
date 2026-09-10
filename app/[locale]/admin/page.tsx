@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { auth, clerkClient } from "@clerk/nextjs/server";
+import { clerkClient } from "@clerk/nextjs/server";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { Badge, Button, Card } from "../components/ui";
 import { isAdminClaims } from "@/app/lib/rbac";
+import { readSessionClaims } from "@/app/lib/session";
 import { removeRole, setRole } from "./_actions";
 import { SearchUsers } from "./SearchUsers";
 
@@ -73,12 +74,13 @@ export default async function AdminPage({
   setRequestLocale(locale);
   const t = await getTranslations("admin");
 
-  // 门控：角色来自会话 claims（session token 定制注入）；未配置定制或
-  // 角色不匹配一律重定向（fail-closed）。
-  const { userId, sessionClaims } = await auth();
-  if (!userId || !isAdminClaims(sessionClaims)) {
+  // 门控：角色来自已验签的会话 claims（session token 定制注入）；未配置
+  // 定制、未登录或角色不匹配一律重定向（fail-closed）。
+  const claims = await readSessionClaims();
+  if (!isAdminClaims(claims)) {
     redirect(`/${locale}`);
   }
+  const userId = typeof claims?.sub === "string" ? claims.sub : "";
 
   const query = ((await searchParams).search ?? "").trim();
   let users: AdminUserRow[] = [];

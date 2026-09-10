@@ -51,6 +51,10 @@
     {
       "source": "/contact*",
       "destination": "/zh/contact/"
+    },
+    {
+      "source": "/favicon.ico",
+      "destination": "/favicon.svg"
     }
   ],
   "headers": [

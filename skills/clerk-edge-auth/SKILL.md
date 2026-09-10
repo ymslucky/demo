@@ -20,6 +20,18 @@ description: "本仓库的 Clerk 认证知识：proxy.ts 中间件组合、Clerk
   会话（手动 JWT 验签；该环境没有 Clerk SDK 可用）。绝不要把该逻辑挪进
   `app/api/**` Route Handlers。
 
+### 1.1 EdgeOne 生产：SSR 页面禁用 `auth()`（2026-09 生产事故）
+
+EdgeOne 适配器**不透传 clerkMiddleware 的请求装饰**（与 intl 重写被丢弃同源）：
+生产 SSR 页面 / server action 里调用 `auth()` 必抛 "Clerk can't detect usage of
+clerkMiddleware()" → 500；本地 `next dev` 完全正常（纯环境差异，三门禁测不出）。
+客户端组件（`<Show>` / `useUser`）不受影响（走 ClerkProvider + Frontend API）。
+
+- 服务端需要会话时用 [app/lib/session.ts](../../app/lib/session.ts) 的
+  `readSessionClaims()`：直接读 `__session` cookie 并按 §3 八步清单验签
+  （Next SSR 是 Node 22，RS256 可走标准 `subtle.verify`，无需 §4 纯 JS 路径）。
+- 先例：admin 页面门控与角色 server actions 均走该路径。
+
 ## 2. Clerk v7 组件 API（相对旧版为破坏性变更）
 
 `SignedIn` / `SignedOut` 在 Clerk v7 中**已移除**。改用 `<Show>`：
@@ -112,6 +124,7 @@ kid 强制刷新，以及一条 **broken-subtle 回归**（crypto 桩：`importK
 
 ## 7. 红旗信号
 
+- 生产 SSR 页面 / server action 里调用 `auth()`——EdgeOne 不透传 clerkMiddleware，改用 `readSessionClaims()`（§1.1）。
 - 在边缘函数里对 RS256 调用 `crypto.subtle.importKey`/`verify`——立刻停（生产事故根源，见 §4）。
 - 把验签逻辑挪进 `app/api/**` 或 Next.js 层"复用"——两层各司其职（§1）。
 - 用 token 里的 `iss` 直接构造 JWKS URL 而不经允许列表——认证绕过（§3.3）。
