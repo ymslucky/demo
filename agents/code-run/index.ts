@@ -7,14 +7,18 @@
  * 更换 ID 即得到全新沙箱（重置按钮的实现原理）。
  *
  * 动作（JSON body.action）：
- * - run    { language, code, timeoutSec?, lifetimeSec? }  执行代码 →
- *          stdout/stderr/results/exitCode；运行前寿命检查：懒创建实例的
- *          默认寿命 = edgeone.json sandbox.timeout（60s，到点自动回收），
- *          剩余不足 lifetimeSec（默认 60s、clamp 到 [60, 600]）时补足差额，
- *          绝不无谓延长（用户选 1 分钟 → 实例 1 分钟后回收）
- * - info   {}                               沙箱实例信息（实例 ID / 到期时间 / 外部访问地址）
- * - extend { seconds }                      续期实例（extendTimeout）
- * - kill   {}                               销毁实例（重置会话时调用）
+ * - run     { language, code, timeoutSec? } 执行代码 →
+ *           stdout/stderr/results/exitCode。实例寿命不做任何隐藏续期：
+ *           懒创建实例的默认寿命 = edgeone.json sandbox.timeout（60s，到点
+ *           自动回收），需要更长时间时由用户显式 extend。
+ * - browser { steps }                       浏览器操作队列（CDP 驱动内置
+ *           Chromium，原子 API 见 context.sandbox.browser.*）：goto / click /
+ *           type / evaluate / getContent / screenshot / close，逐步执行，
+ *           交互步骤（goto/click/type）成功后自动补拍视口截图，任一步失败
+ *           即中止（前端逐条发送队列步骤，实现实时进度回填）。
+ * - info    {}                              沙箱实例信息（实例 ID / 到期时间 / 外部访问地址）
+ * - extend  { seconds }                     续期实例（extendTimeout）
+ * - kill    {}                              销毁实例（重置会话时调用）
  *
  * 登录门控（全动作生效）：仅登录用户可用。读取 __session cookie 中的
  * Clerk 会话 JWT 并完整验签（八步清单；RS256 走纯 JS BigInt 实现——边缘
@@ -22,10 +26,12 @@
  * 401 unauthorized 并附 x-auth-fail 诊断头。认证函数自
  * functions/api/todo.js 移植为 TS，本文件保持自包含（零 import）。
  *
- * run 动作限速：每用户每小时 10 次，模块级内存滑动窗口（Makers agents
- * 运行时无 KV——KV 仅边缘函数可用；实例内存只在实例存活期间连续计数，
- * 重启或多实例部署各计各的，属尽力而为的近似限速）。参数校验通过后
- * 计数，失败运行同样消耗额度；超限返回 429 rate-limited（附 retry-after）。
+ * run 动作限速：每用户每小时 10 次；browser 动作独立配额每用户每小时
+ * 60 次（前端逐条发送队列步骤，一次队列会消耗多条）。模块级内存滑动窗口
+ * （Makers agents 运行时无 KV——KV 仅边缘函数可用；实例内存只在实例存活
+ * 期间连续计数，重启或多实例部署各计各的，属尽力而为的近似限速）。参数
+ * 校验通过后计数，失败运行同样消耗额度；超限返回 429 rate-limited（附
+ * retry-after）。
  *
  * issuer 白名单 / azp 判定基准由 context.env.SITE_DOMAIN 在请求时派生
  * （Makers 运行时无 process.env），未配置默认 rdom.cn。
@@ -53,6 +59,19 @@ type SandboxLike = {
     ) => Promise<{ stdout?: unknown; stderr?: unknown; exitCode?: unknown } | null | undefined>;
   };
   files?: { write?: (path: string, content: string) => Promise<unknown> };
+  browser?: {
+    goto?: (
+      url: string,
+    ) => Promise<{ url?: unknown; title?: unknown; status?: unknown } | null | undefined>;
+    click?: (selector: string) => Promise<unknown>;
+    type?: (selector: string, text: string) => Promise<unknown>;
+    evaluate?: (script: string) => Promise<unknown>;
+    getContent?: () => Promise<{ content?: unknown } | null | undefined>;
+    screenshot?: (opts?: { fullPage?: boolean }) => Promise<{ base64Image?: unknown } | null | undefined>;
+    close?: () => Promise<unknown>;
+    cdpUrl?: unknown;
+    liveUrl?: unknown;
+  };
   getInfo?: () => Promise<Record<string, unknown> | null | undefined>;
   getHost?: (port: number) => Promise<unknown>;
   extendTimeout?: (seconds: number) => Promise<unknown>;
@@ -80,13 +99,13 @@ const DEFAULT_TIMEOUT_S = 30;
 const MAX_TIMEOUT_S = 60;
 const HOST_PORT = 8080;
 
-// 实例生命周期（秒）：用户可选寿命的 clamp 边界（默认 1 分钟、可选 1-10
-// 分钟）。懒创建实例的平台默认寿命由 edgeone.json sandbox.timeout（60s，
-// 到点自动回收）决定——SDK 只有续期语义、无法缩短，用户选 1 分钟时依赖
-// 该默认值精确生效；选择更长寿命时 run 前按剩余差额续期。
-const MIN_LIFETIME_S = 60;
-const MAX_LIFETIME_S = 600;
-const DEFAULT_LIFETIME_S = 60;
+// 浏览器操作队列的入参上限：步骤数与各字段长度（防御式白名单截断）。
+const MAX_BROWSER_STEPS = 12;
+const MAX_BROWSER_URL = 2_000;
+const MAX_BROWSER_SELECTOR = 500;
+const MAX_BROWSER_TEXT = 2_000;
+const MAX_BROWSER_SCRIPT = 8_000;
+const MAX_BROWSER_CONTENT = 20_000;
 
 /** 手工序列化 JSON 响应（no-store：响应随会话/实例状态变化，绝不缓存）。 */
 function json(
@@ -184,14 +203,9 @@ function clampTimeout(value: unknown): number | null {
   return Math.min(Math.max(Math.round(value), 1), MAX_TIMEOUT_S);
 }
 
-/**
- * lifetimeSec 白名单化：正数四舍五入后 clamp 到 [60, 600]；缺省/非法回退
- * 默认 60s（即"默认 1 分钟、可选 1-10 分钟"）。平台默认寿命与续期策略见
- * 顶部常量注释（edgeone.json sandbox.timeout = 60s）。导出仅供测试。
- */
-export function clampLifetime(value: unknown): number {
-  if (typeof value !== "number" || !Number.isFinite(value)) return DEFAULT_LIFETIME_S;
-  return Math.min(Math.max(Math.round(value), MIN_LIFETIME_S), MAX_LIFETIME_S);
+/** 长文本封顶加省略号（summary / content 展示用）。 */
+function truncate(text: string, max: number): string {
+  return text.length > max ? `${text.slice(0, max)}...` : text;
 }
 
 /** getInfo() 快照 → 前端信息面板所需的稳定字段。 */
@@ -278,6 +292,162 @@ export async function execute(
   }
 
   return { exitCode, stdout, stderr, results, error, elapsedMs: Date.now() - startedAt };
+}
+
+// ---------------------------------------------------------------------------
+// 浏览器操作队列（context.sandbox.browser.*，CDP 驱动内置 Chromium）
+// ---------------------------------------------------------------------------
+
+export type BrowserStepOp =
+  | "goto"
+  | "click"
+  | "type"
+  | "evaluate"
+  | "getContent"
+  | "screenshot"
+  | "close";
+
+export type BrowserStep = {
+  op: BrowserStepOp;
+  url?: string;
+  selector?: string;
+  text?: string;
+  script?: string;
+  fullPage?: boolean;
+};
+
+export type BrowserStepResult = {
+  op: BrowserStepOp;
+  ok: boolean;
+  summary: string;
+  error: string;
+  /** evaluate / getContent 的返回内容（封顶 MAX_BROWSER_CONTENT）。 */
+  content?: string;
+  /** 步骤截图（交互步骤自动补拍；screenshot 步骤本身即产出）。 */
+  base64Image?: string;
+  elapsedMs: number;
+};
+
+function isBrowserStepOp(value: unknown): value is BrowserStepOp {
+  return (
+    value === "goto" ||
+    value === "click" ||
+    value === "type" ||
+    value === "evaluate" ||
+    value === "getContent" ||
+    value === "screenshot" ||
+    value === "close"
+  );
+}
+
+/**
+ * body.steps 白名单化：数组（1-12 条）逐条校验 op 与必填字段（goto 要
+ * url、click/type 要 selector、evaluate 要 script），字符串字段超长截断；
+ * 任何结构性畸形整体拒绝（400 invalid-steps）。导出仅供测试。
+ */
+export function parseBrowserSteps(value: unknown): BrowserStep[] | null {
+  if (!Array.isArray(value) || value.length === 0 || value.length > MAX_BROWSER_STEPS) {
+    return null;
+  }
+  const steps: BrowserStep[] = [];
+  for (const raw of value) {
+    if (!raw || typeof raw !== "object") return null;
+    const obj = raw as Record<string, unknown>;
+    if (!isBrowserStepOp(obj.op)) return null;
+    const step: BrowserStep = { op: obj.op };
+    if (typeof obj.url === "string") step.url = obj.url.slice(0, MAX_BROWSER_URL);
+    if (typeof obj.selector === "string") step.selector = obj.selector.slice(0, MAX_BROWSER_SELECTOR);
+    if (typeof obj.text === "string") step.text = obj.text.slice(0, MAX_BROWSER_TEXT);
+    if (typeof obj.script === "string") step.script = obj.script.slice(0, MAX_BROWSER_SCRIPT);
+    if (obj.fullPage === true) step.fullPage = true;
+    if (step.op === "goto" && !step.url) return null;
+    if ((step.op === "click" || step.op === "type") && !step.selector) return null;
+    if (step.op === "evaluate" && !step.script) return null;
+    steps.push(step);
+  }
+  return steps;
+}
+
+/**
+ * 逐步执行浏览器操作队列：每步产出结果；交互步骤（goto / click / type）
+ * 成功后自动补拍一张视口截图（前端"每步操作流程截图"的数据源）；任一步
+ * 失败即中止（后续步骤不再执行）。导出仅供测试（注入假 browser）。
+ */
+export async function executeBrowserSteps(
+  sandbox: SandboxLike,
+  steps: BrowserStep[],
+): Promise<BrowserStepResult[]> {
+  const browser = sandbox.browser ?? null;
+  const results: BrowserStepResult[] = [];
+  for (const step of steps) {
+    const startedAt = Date.now();
+    let ok = true;
+    let error = "";
+    let summary = "";
+    let content: string | undefined;
+    let base64Image: string | undefined;
+    try {
+      if (!browser) throw new Error("browser-unavailable");
+      if (step.op === "goto") {
+        const out = (await browser.goto?.(step.url ?? "")) ?? {};
+        const obj = out as Record<string, unknown>;
+        const parts = [step.url ?? ""];
+        if (typeof obj.status === "number") parts.push(`HTTP ${obj.status}`);
+        const title = asText(obj.title);
+        if (title) parts.push(title);
+        summary = parts.join(" - ");
+      } else if (step.op === "click") {
+        await browser.click?.(step.selector ?? "");
+        summary = step.selector ?? "";
+      } else if (step.op === "type") {
+        await browser.type?.(step.selector ?? "", step.text ?? "");
+        summary = `${step.selector ?? ""} <= "${truncate(step.text ?? "", 60)}"`;
+      } else if (step.op === "evaluate") {
+        const out = await browser.evaluate?.(step.script ?? "");
+        const text = asText(out);
+        content = truncate(text, MAX_BROWSER_CONTENT);
+        summary = truncate(text, 200);
+      } else if (step.op === "getContent") {
+        const out = (await browser.getContent?.()) ?? {};
+        const html = asText((out as Record<string, unknown>).content);
+        content = truncate(html, MAX_BROWSER_CONTENT);
+        summary = `${html.length} chars`;
+      } else if (step.op === "screenshot") {
+        const out = (await browser.screenshot?.({ fullPage: step.fullPage === true })) ?? {};
+        base64Image = asText((out as Record<string, unknown>).base64Image);
+        if (!base64Image) throw new Error("empty-screenshot");
+        summary = step.fullPage === true ? "full page" : "viewport";
+      } else {
+        await browser.close?.();
+        summary = "closed";
+      }
+      if (step.op === "goto" || step.op === "click" || step.op === "type") {
+        // 交互步骤成功后自动补拍视口截图；补拍失败静默（截图是增强信息）。
+        try {
+          const out = (await browser.screenshot?.({ fullPage: false })) ?? {};
+          const img = asText((out as Record<string, unknown>).base64Image);
+          if (img) base64Image = img;
+        } catch {
+          // 自动截图失败不影响步骤结果。
+        }
+      }
+    } catch (err) {
+      ok = false;
+      error = errorText(err);
+    }
+    const result: BrowserStepResult = {
+      op: step.op,
+      ok,
+      summary,
+      error,
+      elapsedMs: Date.now() - startedAt,
+    };
+    if (content !== undefined) result.content = content;
+    if (base64Image !== undefined) result.base64Image = base64Image;
+    results.push(result);
+    if (!ok) break;
+  }
+  return results;
 }
 
 // ---------------------------------------------------------------------------
@@ -629,6 +799,10 @@ const RUN_QUOTA_LIMIT = 10;
 const RUN_QUOTA_WINDOW_MS = 3_600_000;
 const runQuotaBuckets = new Map<string, number[]>();
 
+// browser 动作独立配额桶（60 次/小时，按请求数计——前端逐条发送队列步骤）。
+const BROWSER_QUOTA_LIMIT = 60;
+const browserQuotaBuckets = new Map<string, number[]>();
+
 /**
  * 滑动窗口配额：剪除过期时间戳后不足 limit 则记一笔放行；达到上限则拒绝
  * 并按最早一笔给出解禁秒数。bucket 由调用方持有（生产传 runQuotaBuckets，
@@ -661,7 +835,13 @@ export async function onRequest(context: AgentContext): Promise<Response> {
   const body = (context.request?.body ?? {}) as Record<string, unknown>;
   const action = asText(body.action) || "run";
 
-  if (action !== "run" && action !== "info" && action !== "extend" && action !== "kill") {
+  if (
+    action !== "run" &&
+    action !== "browser" &&
+    action !== "info" &&
+    action !== "extend" &&
+    action !== "kill"
+  ) {
     return json({ ok: false, error: "invalid-action" }, 400);
   }
 
@@ -695,7 +875,6 @@ export async function onRequest(context: AgentContext): Promise<Response> {
       if (code.length > MAX_CODE_LEN) return json({ ok: false, error: "invalid-code" }, 400);
       const timeoutSec = clampTimeout(body.timeoutSec);
       if (timeoutSec === null) return json({ ok: false, error: "invalid-timeout" }, 400);
-      const lifetimeSec = clampLifetime(body.lifetimeSec);
 
       // 限速：参数合法的运行才计数（失败运行同样消耗额度）。
       const quota = consumeRunQuota(runQuotaBuckets, session.uid, Date.now());
@@ -703,26 +882,6 @@ export async function onRequest(context: AgentContext): Promise<Response> {
         return json({ ok: false, error: "rate-limited" }, 429, {
           "retry-after": String(quota.retryAfterSec),
         });
-      }
-
-      // 运行前寿命检查：懒创建实例的默认寿命由 edgeone.json sandbox.timeout
-      // （60s，到点自动回收）决定；extendTimeout 只有"续期"语义、无法缩短，
-      // 用户选 1 分钟时依赖该默认值精确生效（历史 BUG：timeout=600 时选
-      // 1 分钟实际得到约 6 分钟）。剩余寿命不足用户设定时补足差额；剩余
-      // 未知（实例尚未创建）时按设定值续期并懒创建。失败不阻断本次运行
-      // ——execute 会按需懒创建，真实到期时间以后端返回为准。
-      try {
-        const info = (await sandbox.getInfo?.()) ?? null;
-        const expMs = Date.parse(asText(info?.expiresAt ?? info?.expires_at ?? ""));
-        const remainingSec = Number.isFinite(expMs) ? (expMs - Date.now()) / 1000 : null;
-        if (remainingSec === null || remainingSec < lifetimeSec) {
-          const topUpSec = remainingSec === null
-            ? lifetimeSec
-            : Math.max(1, Math.ceil(lifetimeSec - remainingSec));
-          await sandbox.extendTimeout?.(topUpSec);
-        }
-      } catch {
-        // 保底续期失败不阻断运行。
       }
 
       const outcome = await execute(sandbox, language as LanguageId, code, timeoutSec);
@@ -738,6 +897,45 @@ export async function onRequest(context: AgentContext): Promise<Response> {
         if (url) snapshot.externalUrl = url;
       }
       return json({ ok: true, action: "run", language, ...outcome, sandbox: snapshot });
+    }
+
+    if (action === "browser") {
+      if (!sandbox.browser) {
+        return json({ ok: false, error: "browser-unavailable" }, 503);
+      }
+      const steps = parseBrowserSteps(body.steps);
+      if (!steps) return json({ ok: false, error: "invalid-steps" }, 400);
+      const quota = consumeRunQuota(browserQuotaBuckets, session.uid, Date.now(), {
+        limit: BROWSER_QUOTA_LIMIT,
+      });
+      if (!quota.allowed) {
+        return json({ ok: false, error: "rate-limited" }, 429, {
+          "retry-after": String(quota.retryAfterSec),
+        });
+      }
+      const stepResults = await executeBrowserSteps(sandbox, steps);
+      // liveUrl / cdpUrl 可能是懒初始化 getter，防御式读取（失败置空）。
+      let liveUrl = "";
+      let cdpUrl = "";
+      try {
+        liveUrl = asText(sandbox.browser.liveUrl);
+        cdpUrl = asText(sandbox.browser.cdpUrl);
+      } catch {
+        // 读取失败不阻断响应。
+      }
+      let info: Record<string, unknown> | null = null;
+      try {
+        info = (await sandbox.getInfo?.()) ?? null;
+      } catch {
+        info = null;
+      }
+      return json({
+        ok: true,
+        action: "browser",
+        steps: stepResults,
+        browser: { liveUrl, cdpUrl },
+        sandbox: sandboxSnapshot(info),
+      });
     }
 
     if (action === "info") {

@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { Show, SignInButton } from "@clerk/nextjs";
 import { Button } from "../../components/ui";
 import { useStickyState } from "../components/useStickyState";
+import BrowserPanel from "./BrowserPanel";
 import InstancesPanel from "./InstancesPanel";
 import {
   appendEntries,
@@ -12,13 +13,11 @@ import {
   clampTimeoutSec,
   CODE_STORAGE_KEY,
   CONVERSATION_KEY,
-  DEFAULT_LIFETIME_MIN,
   DEFAULT_RUN_TIMEOUT_S,
   formatClock,
   formatElapsedSeconds,
   getOrCreateConversationId,
   LANGUAGES,
-  LIFETIME_CHOICES_MIN,
   languageDef,
   makeEntry,
   normalizeCode,
@@ -164,11 +163,11 @@ const terminalEntryStyle: Record<ConsoleEntry["kind"], CSSProperties> = {
   error: { color: "var(--color-primary-light)", fontWeight: 700 },
 };
 
-function statusBadgeStyle(kind: "idle" | "ready" | "busy" | "unavailable") {
+function statusBadgeStyle(kind: "idle" | "ready" | "busy" | "unavailable" | "expired") {
   const palette =
     kind === "ready"
       ? { bg: "var(--color-info-bg)", fg: "var(--color-info-text)" }
-      : kind === "unavailable"
+      : kind === "unavailable" || kind === "expired"
         ? { bg: "var(--color-err-bg)", fg: "var(--color-err-text)" }
         : kind === "busy"
           ? { bg: "var(--color-tint-strong)", fg: "var(--color-text)" }
@@ -214,17 +213,6 @@ const historyItemStyle = (active: boolean) =>
     color: "var(--color-text)",
   }) as const;
 
-const selectStyle = {
-  ...monoStyle,
-  fontSize: "var(--fs-sm)",
-  padding: "0.35rem 0.5rem",
-  border: "3px solid var(--color-border)",
-  borderRadius: "var(--radius-sm)",
-  background: "var(--color-surface)",
-  color: "var(--color-text)",
-  cursor: "pointer",
-} as const;
-
 export default function CodeSandboxClient() {
   const t = useTranslations("tools.sandbox");
   const [lang, setLang] = useState<LanguageId>("python");
@@ -238,10 +226,8 @@ export default function CodeSandboxClient() {
   const [unavailable, setUnavailable] = useState(false);
   const [conversationId, setConversationId] = useState("");
   const [now, setNow] = useState(() => Date.now());
-  // 运行前设定的实例生命周期（分钟），服务端 clamp 到 1-10 分钟。
-  const [lifetimeMin, setLifetimeMin] = useState<number>(DEFAULT_LIFETIME_MIN);
-  // Tab 子页：工作台 / 实例列表。
-  const [tab, setTab] = useState<"workbench" | "instances">("workbench");
+  // Tab 子页：代码工作台 / 浏览器工作台 / 实例列表。
+  const [tab, setTab] = useState<"code" | "browser" | "instances">("code");
   const [instances, setInstances] = useState<SandboxInstanceRecord[] | null>(null);
   const [instancesLoading, setInstancesLoading] = useState(false);
   const [instancesError, setInstancesError] = useState<string | null>(null);
@@ -357,11 +343,9 @@ export default function CodeSandboxClient() {
     let exitCode: number | null = null;
     try {
       emit("system", t("runStarted", { language: LANGUAGE_LABELS[lang] }));
-      const res = await post(
-        // lifetimeSec：运行前把实例生命周期续到用户设定值（服务端 clamp 1-10 分钟）。
-        { action: "run", language: lang, code, timeoutSec, lifetimeSec: lifetimeMin * 60 },
-        conversationId,
-      );
+      // 实例寿命不做隐藏续期：默认寿命由 edgeone.json sandbox.timeout 决定，
+      // 需要更长时间时用户手动「续期」。
+      const res = await post({ action: "run", language: lang, code, timeoutSec }, conversationId);
       const raw: unknown = await res.json().catch(() => null);
       const payload = normalizeRunPayload(raw);
       if (!payload) {
@@ -521,21 +505,28 @@ export default function CodeSandboxClient() {
   }
 
   const minutesLeft = info?.expiresAt ? remainingMs(info.expiresAt, now) : null;
-  const statusKey: "idle" | "ready" | "busy" | "unavailable" = busy
+  // 到期判定以倒计时为准：sandboxActive 只记录"曾创建成功"，实例过期后
+  // 不得继续显示"就绪"。
+  const expiredNow = minutesLeft !== null && minutesLeft <= 0;
+  const statusKey: "idle" | "ready" | "busy" | "unavailable" | "expired" = busy
     ? "busy"
     : unavailable
       ? "unavailable"
-      : sandboxActive
-        ? "ready"
-        : "idle";
+      : expiredNow
+        ? "expired"
+        : sandboxActive
+          ? "ready"
+          : "idle";
   const statusTextKey =
     statusKey === "busy"
       ? "statusBusy"
       : statusKey === "unavailable"
         ? "statusUnavailable"
-        : statusKey === "ready"
-          ? "statusReady"
-          : "statusIdle";
+        : statusKey === "expired"
+          ? "statusExpired"
+          : statusKey === "ready"
+            ? "statusReady"
+            : "statusIdle";
   const runtime = languageDef(lang).runtime;
   const runtimeKey =
     runtime === "kernel" ? "runtimeKernel" : runtime === "shell" ? "runtimeShell" : "runtimeToolchain";
@@ -567,11 +558,20 @@ export default function CodeSandboxClient() {
         <button
           type="button"
           role="tab"
-          style={tabButtonStyle(tab === "workbench")}
-          aria-selected={tab === "workbench"}
-          onClick={() => setTab("workbench")}
+          style={tabButtonStyle(tab === "code")}
+          aria-selected={tab === "code"}
+          onClick={() => setTab("code")}
         >
-          {t("tabWorkbench")}
+          {t("tabCode")}
+        </button>
+        <button
+          type="button"
+          role="tab"
+          style={tabButtonStyle(tab === "browser")}
+          aria-selected={tab === "browser"}
+          onClick={() => setTab("browser")}
+        >
+          {t("tabBrowser")}
         </button>
         <button
           type="button"
@@ -585,7 +585,7 @@ export default function CodeSandboxClient() {
       </div>
 
       {/* 实例列表子页：当前账号在 KV 中的沙箱实例档案（表格组件，自带外壳）；
-          工作台子页 = 顶栏 + 主区，顶栏只在本 tab 展示（不全局渲染）。 */}
+          代码 / 浏览器子页共享顶栏（沙箱状态与实例操作），主区按 tab 切换。 */}
       {tab === "instances" ? (
         <InstancesPanel
           records={instances ?? []}
@@ -638,7 +638,15 @@ export default function CodeSandboxClient() {
         </div>
       </section>
 
-      {/* 工作台主区：左编辑器，右终端 + 运行历史 */}
+      {/* 浏览器工作台子页：指令队列编排 + 逐步执行 + 截图查看器（自带两列布局）。 */}
+      {tab === "browser" ? (
+        <BrowserPanel
+          conversationId={conversationId}
+          post={post}
+          mergeSnapshot={mergeSnapshot}
+          reportSandbox={reportSandbox}
+        />
+      ) : (
       <div style={mainAreaStyle}>
         <section
           style={{ ...cardStyle, display: "flex", flexDirection: "column", minHeight: 0 }}
@@ -672,40 +680,6 @@ export default function CodeSandboxClient() {
             <Button onClick={insertSample} disabled={busy}>
               {t("insertSample")}
             </Button>
-            {/* 运行前设定实例寿命：懒创建默认寿命由 edgeone.json sandbox.timeout
-                （60s，到点自动回收）决定；选择更长时间时服务端在运行前按差额续期。 */}
-            <div
-              role="group"
-              aria-label={t("lifetimeLabel")}
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "var(--space-xs)",
-                border: "3px solid var(--color-border)",
-                borderRadius: "var(--radius-sm)",
-                background: "var(--color-bg)",
-                padding: "0.25rem 0.6rem",
-              }}
-            >
-              <label
-                htmlFor="sandbox-lifetime"
-                style={{ fontSize: "var(--fs-xs)", fontWeight: 800, color: "var(--color-text-muted)", whiteSpace: "nowrap" }}
-              >
-                {t("lifetimeLabel")}
-              </label>
-              <select
-                id="sandbox-lifetime"
-                style={{ ...selectStyle, border: "2px solid var(--color-border)", padding: "0.15rem 0.35rem" }}
-                value={lifetimeMin}
-                onChange={(event) => setLifetimeMin(Number(event.target.value))}
-              >
-                {LIFETIME_CHOICES_MIN.map((minutes) => (
-                  <option key={minutes} value={minutes}>
-                    {t("lifetimeMinutes", { count: minutes })}
-                  </option>
-                ))}
-              </select>
-            </div>
           </div>
           <p style={{ ...mutedStyle, margin: 0 }}>{t("hint")}</p>
         </section>
@@ -791,6 +765,7 @@ export default function CodeSandboxClient() {
           </section>
         </div>
       </div>
+      )}
         </div>
       )}
         </div>

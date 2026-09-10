@@ -25,6 +25,8 @@ import {
  */
 
 // 与工作台卡片同族的表格外壳（3px 边框 + 硬阴影），窄屏横向滚动。
+// alignContent: start —— 容器被父网格拉高时行不随 stretch 撑开（历史
+// BUG：标题块被 auto 行拉伸导致高度失控）。
 const panelStyle = {
   background: "var(--color-surface)",
   border: "3px solid var(--color-border)",
@@ -33,6 +35,7 @@ const panelStyle = {
   padding: "var(--space-lg)",
   display: "grid",
   gap: "var(--space-sm)",
+  alignContent: "start",
   gridColumn: "1 / -1",
   minHeight: 0,
 } as const;
@@ -178,20 +181,8 @@ export default function InstancesPanel({ records, loading, error, onRefresh, now
 
   return (
     <section style={panelStyle} aria-label={t("instancesTitle")}>
-      <div style={{ display: "flex", alignItems: "center", gap: "var(--space-sm)", flexWrap: "wrap" }}>
-        <h2 style={{ margin: 0, fontSize: "var(--fs-xl)" }}>{t("instancesTitle")}</h2>
-        {records.length > 0 ? (
-          <span style={mutedStyle}>{t("instancesCount", { count: records.length })}</span>
-        ) : null}
-        {filtersActive ? (
-          <span style={mutedStyle}>{t("instancesFilteredCount", { count: sorted.length })}</span>
-        ) : null}
-        <Button onClick={onRefresh} disabled={loading}>
-          {loading ? t("instancesLoading") : t("instancesRefresh")}
-        </Button>
-      </div>
-
-      {/* 工具条：文本搜索 / 状态 / 创建日期区间 / 分组（全部本地即时生效） */}
+      {/* 工具条：文本搜索 / 状态 / 创建日期区间 / 分组 / 刷新（全部本地即时
+          生效；原标题块已并入此工具条与表格底部的统计行）。 */}
       <div role="search" style={{ display: "flex", gap: "var(--space-xs)", flexWrap: "wrap", alignItems: "center" }}>
         <input
           type="search"
@@ -245,6 +236,9 @@ export default function InstancesPanel({ records, loading, error, onRefresh, now
             <option value="status">{t("instancesGroupStatus")}</option>
           </select>
         </span>
+        <Button onClick={onRefresh} disabled={loading}>
+          {loading ? t("instancesLoading") : t("instancesRefresh")}
+        </Button>
       </div>
 
       {error ? (
@@ -297,6 +291,25 @@ export default function InstancesPanel({ records, loading, error, onRefresh, now
                 />
               ))}
             </tbody>
+            <tfoot>
+              {/* 统计行：总数 + 筛选命中数（筛选生效时一并展示）。 */}
+              <tr>
+                <td
+                  colSpan={8}
+                  style={{
+                    ...tdStyle,
+                    background: "var(--color-tint)",
+                    fontWeight: 800,
+                    whiteSpace: "nowrap",
+                    borderBottom: "none",
+                  }}
+                >
+                  {filtersActive
+                    ? `${t("instancesCount", { count: records.length })} · ${t("instancesFilteredCount", { count: sorted.length })}`
+                    : t("instancesCount", { count: records.length })}
+                </td>
+              </tr>
+            </tfoot>
           </table>
         </div>
       )}

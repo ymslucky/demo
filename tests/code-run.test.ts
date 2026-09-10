@@ -1,12 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
-  clampLifetime,
   consumeRunQuota,
   errorText,
   execute,
+  executeBrowserSteps,
   flattenKernelOutput,
   isAllowedAzp,
   onRequest,
+  parseBrowserSteps,
   readAgentSessionUid,
   siteApex,
   verifyAgentSession,
@@ -168,21 +169,131 @@ describe("consumeRunQuota: 10 runs per hour, sliding window", () => {
   });
 });
 
-describe("clampLifetime: instance lifetime whitelist (1-10 min)", () => {
-  it("rounds positive numbers and clamps into [60, 600]", () => {
-    expect(clampLifetime(60)).toBe(60);
-    expect(clampLifetime(600)).toBe(600);
-    expect(clampLifetime(90.4)).toBe(90);
-    expect(clampLifetime(30)).toBe(60);
-    expect(clampLifetime(3600)).toBe(600);
+describe("parseBrowserSteps: browser queue whitelist", () => {
+  it("accepts a well-formed multi-step queue and keeps only known fields", () => {
+    const steps = parseBrowserSteps([
+      { op: "goto", url: "https://example.com" },
+      { op: "type", selector: "input[name=q]", text: "hi", extra: "dropped" },
+      { op: "click", selector: "button" },
+      { op: "screenshot", fullPage: true },
+      { op: "getContent" },
+      { op: "evaluate", script: "1 + 1" },
+      { op: "close" },
+    ]);
+    expect(steps).not.toBeNull();
+    expect(steps?.map((s) => s.op)).toEqual([
+      "goto",
+      "type",
+      "click",
+      "screenshot",
+      "getContent",
+      "evaluate",
+      "close",
+    ]);
+    expect(steps?.[1].text).toBe("hi");
+    expect(steps?.[3].fullPage).toBe(true);
+    expect("extra" in (steps?.[1] ?? {})).toBe(false);
   });
 
-  it("falls back to the 60s default on missing or non-numeric input", () => {
-    expect(clampLifetime(undefined)).toBe(60);
-    expect(clampLifetime("120")).toBe(60);
-    expect(clampLifetime(NaN)).toBe(60);
-    expect(clampLifetime(0)).toBe(60);
-    expect(clampLifetime(-5)).toBe(60);
+  it("rejects structurally invalid queues", () => {
+    expect(parseBrowserSteps(undefined)).toBeNull();
+    expect(parseBrowserSteps([])).toBeNull();
+    expect(parseBrowserSteps("goto")).toBeNull();
+    expect(parseBrowserSteps(Array.from({ length: 13 }, () => ({ op: "close" })))).toBeNull();
+    expect(parseBrowserSteps([{ op: "reload" }])).toBeNull();
+    expect(parseBrowserSteps([{ op: "goto" }])).toBeNull();
+    expect(parseBrowserSteps([{ op: "click" }])).toBeNull();
+    expect(parseBrowserSteps([{ op: "type", selector: "input" }, null])).toBeNull();
+    expect(parseBrowserSteps([{ op: "evaluate", selector: "x" }])).toBeNull();
+  });
+
+  it("truncates overlong string fields to their caps", () => {
+    const steps = parseBrowserSteps([{ op: "goto", url: "https://x.com/" + "a".repeat(5_000) }]);
+    expect(steps?.[0].url?.length).toBe(2_000);
+  });
+});
+
+describe("executeBrowserSteps: sequential browser ops with auto screenshots", () => {
+  function browserSandbox(log: string[]) {
+    return {
+      browser: {
+        goto: async (url: string) => {
+          log.push(`goto:${url}`);
+          return { url, title: "Example", status: 200 };
+        },
+        click: async (selector: string) => {
+          log.push(`click:${selector}`);
+          if (selector === "button[type=missing]") throw new Error("element not found");
+        },
+        type: async (selector: string, text: string) => {
+          log.push(`type:${selector}=${text}`);
+        },
+        evaluate: async (script: string) => {
+          log.push(`evaluate:${script}`);
+          return { value: 42 };
+        },
+        getContent: async () => ({ content: "<html>hello</html>" }),
+        screenshot: async (opts?: { fullPage?: boolean }) => {
+          log.push(`shot:${opts?.fullPage === true ? "full" : "viewport"}`);
+          return { base64Image: opts?.fullPage === true ? "FULLB64" : "VIEWB64" };
+        },
+        close: async () => {
+          log.push("close");
+        },
+      },
+      getInfo: async (): Promise<Record<string, unknown>> => ({}),
+    };
+  }
+
+  it("runs ops in order, auto-captures viewport shots after goto/click/type only", async () => {
+    const log: string[] = [];
+    const sandbox = browserSandbox(log);
+    const results = await executeBrowserSteps(sandbox, [
+      { op: "goto", url: "https://example.com" },
+      { op: "type", selector: "input[name=q]", text: "hi" },
+      { op: "screenshot", fullPage: true },
+      { op: "getContent" },
+      { op: "close" },
+    ]);
+    expect(results.map((r) => r.ok)).toEqual([true, true, true, true, true]);
+    // goto + type each get one auto viewport shot; the screenshot step itself
+    // asks for a full-page shot; getContent/close get no auto shot.
+    expect(log).toEqual([
+      "goto:https://example.com",
+      "shot:viewport",
+      "type:input[name=q]=hi",
+      "shot:viewport",
+      "shot:full",
+      "close",
+    ]);
+    expect(results[0].summary).toBe("https://example.com - HTTP 200 - Example");
+    expect(results[0].base64Image).toBe("VIEWB64");
+    expect(results[2].base64Image).toBe("FULLB64");
+    expect(results[3].summary).toBe("18 chars");
+    expect(results[3].content).toBe("<html>hello</html>");
+    expect(results[3].base64Image).toBeUndefined();
+  });
+
+  it("stops the queue on the first failing step and reports the error", async () => {
+    const log: string[] = [];
+    const sandbox = browserSandbox(log);
+    const results = await executeBrowserSteps(sandbox, [
+      { op: "click", selector: "button[type=missing]" },
+      { op: "goto", url: "https://example.com" },
+    ]);
+    expect(results).toHaveLength(1);
+    expect(results[0].ok).toBe(false);
+    expect(results[0].error).toContain("element not found");
+    // The queued goto after the failure was never executed, and the failing
+    // step produced no auto screenshot (the throw skips the capture block).
+    expect(log).toEqual(["click:button[type=missing]"]);
+  });
+
+  it("marks every step failed when the sandbox has no browser capability", async () => {
+    const results = await executeBrowserSteps({}, [{ op: "goto", url: "https://x.com" }]);
+    expect(results).toHaveLength(1);
+    expect(results[0].ok).toBe(false);
+    expect(results[0].error).toContain("browser-unavailable");
   });
 });
 
