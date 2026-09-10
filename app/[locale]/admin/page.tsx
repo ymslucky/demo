@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { auth, clerkClient } from "@clerk/nextjs/server";
 import { getTranslations, setRequestLocale } from "next-intl/server";
-import { Button } from "../components/ui";
+import { Badge, Button, Card } from "../components/ui";
 import { isAdminClaims } from "@/app/lib/rbac";
 import { removeRole, setRole } from "./_actions";
 import { SearchUsers } from "./SearchUsers";
@@ -11,6 +11,9 @@ import { SearchUsers } from "./SearchUsers";
  * 管理后台（basic-rbac 教程模式）：服务端读取会话 claims.metadata.role，
  * 非管理员（含未登录）重定向回区域首页——安全边界在服务端，导航入口的
  * 隐藏只是展示层。页面随认证状态动态渲染（不做静态预览/HTML 缓存）。
+ *
+ * 用户检索只在带 ?search= 时初始化 clerkClient（需要部署环境
+ * CLERK_SECRET_KEY）；初始化/请求失败降级为可读文案而不是 500。
  */
 
 export async function generateMetadata({
@@ -24,16 +27,16 @@ export async function generateMetadata({
   return { title: t("title"), robots: { index: false, follow: false } };
 }
 
-// 与工具页同族的 Neo-Brutalism 卡片（内联样式，不新增全局容器类）。
-const cardStyle = {
-  background: "var(--color-surface)",
-  border: "3px solid var(--color-border)",
-  borderRadius: "var(--radius-md)",
-  boxShadow: "var(--shadow-sm)",
-  padding: "var(--space-lg)",
-  display: "grid",
-  gap: "var(--space-sm)",
-} as const;
+// 检索结果的渲染字段（Clerk UserResource 的结构子集，避免引入传递依赖类型）。
+type AdminUserRow = {
+  id: string;
+  firstName: string | null;
+  lastName: string | null;
+  username: string | null;
+  primaryEmailAddressId: string | null;
+  emailAddresses: { id: string; emailAddress: string }[];
+  publicMetadata: { role?: string | null };
+};
 
 const mutedStyle = {
   fontSize: "var(--fs-sm)",
@@ -59,17 +62,6 @@ const tdStyle = {
   wordBreak: "break-all" as const,
 } as const;
 
-const roleBadgeStyle = {
-  display: "inline-block",
-  border: "2px solid var(--color-border)",
-  borderRadius: "var(--radius-sm)",
-  padding: "0.1rem 0.5rem",
-  fontSize: "var(--fs-xs)",
-  fontWeight: 800,
-  background: "var(--color-tint-strong)",
-  whiteSpace: "nowrap",
-} as const;
-
 export default async function AdminPage({
   params,
   searchParams,
@@ -89,10 +81,19 @@ export default async function AdminPage({
   }
 
   const query = ((await searchParams).search ?? "").trim();
-  const client = await clerkClient();
-  const users = query ? (await client.users.getUserList({ query })).data : [];
+  let users: AdminUserRow[] = [];
+  let usersError = false;
+  if (query) {
+    try {
+      const client = await clerkClient();
+      users = (await client.users.getUserList({ query })).data;
+    } catch {
+      // 缺 CLERK_SECRET_KEY / Backend API 不可达：降级为文案，不炸页面。
+      usersError = true;
+    }
+  }
 
-  const roleLabel = (role: unknown): string =>
+  const roleLabel = (role: string | null | undefined): string =>
     role === "admin" ? t("roleAdmin") : role === "moderator" ? t("roleModerator") : t("roleNone");
 
   return (
@@ -103,26 +104,26 @@ export default async function AdminPage({
       </div>
 
       {/* 当前管理员 */}
-      <section style={cardStyle} aria-label={t("currentCard")}>
+      <Card as="section" aria-label={t("currentCard")}>
         <h2 style={{ margin: 0, fontSize: "var(--fs-xl)" }}>{t("currentCard")}</h2>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--space-md)" }}>
+        <div className="tool-row" style={{ flexWrap: "wrap", gap: "var(--space-md)" }}>
           <div>
-            <div style={mutedStyle}>{t("userIdLabel")}</div>
+            <div className="tool-label">{t("userIdLabel")}</div>
             <div style={{ ...monoStyle, fontSize: "var(--fs-sm)", wordBreak: "break-all" }}>
               {userId}
             </div>
           </div>
           <div>
-            <div style={mutedStyle}>{t("roleLabel")}</div>
+            <div className="tool-label">{t("roleLabel")}</div>
             <div>
-              <span style={roleBadgeStyle}>{t("roleAdmin")}</span>
+              <Badge>{t("roleAdmin")}</Badge>
             </div>
           </div>
         </div>
-      </section>
+      </Card>
 
       {/* 沙箱工具限制策略 */}
-      <section style={cardStyle} aria-label={t("policyTitle")}>
+      <Card as="section" aria-label={t("policyTitle")}>
         <h2 style={{ margin: 0, fontSize: "var(--fs-xl)" }}>{t("policyTitle")}</h2>
         <ul style={{ margin: 0, paddingLeft: "1.2rem", display: "grid", gap: "0.25rem" }}>
           <li>{t("policyRun", { count: 10 })}</li>
@@ -131,14 +132,16 @@ export default async function AdminPage({
         </ul>
         <p style={{ ...mutedStyle, margin: 0 }}>{t("policyConfigHint")}</p>
         <p style={{ ...mutedStyle, margin: 0 }}>{t("tokenHint")}</p>
-      </section>
+      </Card>
 
       {/* 用户角色管理 */}
-      <section style={cardStyle} aria-label={t("usersTitle")}>
+      <Card as="section" aria-label={t("usersTitle")}>
         <h2 style={{ margin: 0, fontSize: "var(--fs-xl)" }}>{t("usersTitle")}</h2>
         <SearchUsers />
         {query === "" ? (
           <p style={{ ...mutedStyle, margin: 0 }}>{t("noQuery")}</p>
+        ) : usersError ? (
+          <p style={{ ...mutedStyle, margin: 0 }}>{t("usersUnavailable")}</p>
         ) : users.length === 0 ? (
           <p style={{ ...mutedStyle, margin: 0 }}>{t("noUsers")}</p>
         ) : (
@@ -166,27 +169,27 @@ export default async function AdminPage({
                         ?.emailAddress ?? "—"}
                     </td>
                     <td style={{ ...tdStyle, whiteSpace: "nowrap" }}>
-                      <span style={roleBadgeStyle}>{roleLabel(user.publicMetadata.role)}</span>
+                      <Badge>{roleLabel(user.publicMetadata.role)}</Badge>
                     </td>
                     <td style={tdStyle}>
-                      <div style={{ display: "flex", gap: "var(--space-xs)", flexWrap: "wrap" }}>
+                      <div className="tool-row" style={{ flexWrap: "wrap" }}>
                         <form action={setRole}>
                           <input type="hidden" name="id" value={user.id} />
                           <input type="hidden" name="role" value="admin" />
-                          <Button size="sm" disabled={user.publicMetadata.role === "admin"}>
+                          <Button type="submit" variant="primary" size="sm" disabled={user.publicMetadata.role === "admin"}>
                             {t("makeAdmin")}
                           </Button>
                         </form>
                         <form action={setRole}>
                           <input type="hidden" name="id" value={user.id} />
                           <input type="hidden" name="role" value="moderator" />
-                          <Button size="sm" disabled={user.publicMetadata.role === "moderator"}>
+                          <Button type="submit" size="sm" disabled={user.publicMetadata.role === "moderator"}>
                             {t("makeModerator")}
                           </Button>
                         </form>
                         <form action={removeRole}>
                           <input type="hidden" name="id" value={user.id} />
-                          <Button size="sm" disabled={user.publicMetadata.role === undefined}>
+                          <Button type="submit" size="sm" disabled={user.publicMetadata.role == null}>
                             {t("removeRole")}
                           </Button>
                         </form>
@@ -198,7 +201,7 @@ export default async function AdminPage({
             </table>
           </div>
         )}
-      </section>
+      </Card>
     </section>
   );
 }

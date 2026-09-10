@@ -29,6 +29,10 @@
       "destination": "/zh/tools/:splat"
     },
     {
+      "source": "/admin*",
+      "destination": "/zh/admin/"
+    },
+    {
       "source": "/blog",
       "destination": "/zh/blog/"
     },

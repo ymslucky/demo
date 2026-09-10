@@ -40,6 +40,7 @@
     "makeModerator": "设为版主",
     "removeRole": "移除角色",
     "noUsers": "没有匹配的用户",
+    "usersUnavailable": "用户搜索暂不可用：需要在部署环境配置 CLERK_SECRET_KEY 后重试。",
     "noQuery": "输入关键词搜索用户后，可在此调整角色（写入 Clerk publicMetadata.role）。",
     "roleAdmin": "管理员",
     "roleModerator": "版主",

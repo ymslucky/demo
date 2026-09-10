@@ -40,6 +40,7 @@
     "makeModerator": "Make moderator",
     "removeRole": "Remove role",
     "noUsers": "No matching users",
+    "usersUnavailable": "User search is unavailable — configure CLERK_SECRET_KEY in the deployment environment and retry.",
     "noQuery": "Search for a user to manage roles here (written to Clerk publicMetadata.role).",
     "roleAdmin": "Admin",
     "roleModerator": "Moderator",
