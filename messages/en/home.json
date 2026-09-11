@@ -1,0 +1,16 @@
+{
+  "home": {
+    "title": "LuckyLab — Indie Developer · Full-Stack Development & Automation Tools",
+    "description": "LuckyLab, an indie developer focused on full-stack development of web apps and automation tools. Builds small practical tools quickly with Next.js, Python and Serverless.",
+    "tagline": "Turning ideas into products with code.",
+    "bio": "An indie developer focused on full-stack development of web applications and automation tools. I enjoy building small practical utilities with Next.js and Python — from holiday calendars to serverless function platforms.",
+    "heatmap": {
+      "title": "GitHub Activity",
+      "unavailable": "Contribution data is currently unavailable",
+      "total": "{count} contributions in the last year · @{login}",
+      "less": "Less",
+      "more": "More",
+      "dayTooltip": "{count} contributions · {date}"
+    }
+  }
+}

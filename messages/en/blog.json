@@ -1,0 +1,14 @@
+{
+  "blog": {
+    "title": "Blog",
+    "description": "Tech articles and tutorials by LuckyLab",
+    "heading": "Blog",
+    "readMore": "Read more →",
+    "backToBlog": "← Back to Blog",
+    "codeBlock": {
+      "copy": "Copy",
+      "copied": "Copied",
+      "copyCode": "Copy code"
+    }
+  }
+}

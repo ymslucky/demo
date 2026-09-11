@@ -1,0 +1,25 @@
+{
+  "unit": {
+    "length": {
+      "m": "Meters (m)",
+      "km": "Kilometers (km)",
+      "cm": "Centimeters (cm)",
+      "mm": "Millimeters (mm)",
+      "in": "Inches (in)",
+      "ft": "Feet (ft)",
+      "mi": "Miles (mi)"
+    },
+    "temperature": {
+      "c": "Celsius (°C)",
+      "f": "Fahrenheit (°F)",
+      "k": "Kelvin (K)"
+    },
+    "data": {
+      "b": "Bytes (B)",
+      "kb": "Kilobytes (KB)",
+      "mb": "Megabytes (MB)",
+      "gb": "Gigabytes (GB)",
+      "tb": "Terabytes (TB)"
+    }
+  }
+}

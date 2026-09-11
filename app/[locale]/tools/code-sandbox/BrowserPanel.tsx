@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Button } from "../../components/ui";
 import { useStickyState } from "../components/useStickyState";
+import { cardStyle, controlStyle, monoStyle, mutedStyle } from "@/app/lib/styles";
 import {
   BROWSER_STEP_OPS,
   BROWSER_STORAGE_KEY,
@@ -13,50 +14,26 @@ import {
   moveBrowserStep,
   normalizeBrowserPayload,
   normalizeBrowserSteps,
-  randomId,
   removeBrowserStep,
   type BrowserStep,
   type BrowserStepOp,
   type BrowserStepResult,
-  type SandboxSnapshot,
-} from "./utils";
+} from "./browser";
+import { randomId, type SandboxSnapshot } from "./utils";
 
 /**
  * 浏览器工作台子页：自定义编排浏览器操作指令队列（goto / click / type /
  * evaluate / getContent / screenshot / close），逐步发送到 /code-run 的
  * browser 动作（每步一个请求），结果与截图随步骤实时回填。纯逻辑（队列
- * 操作 / 响应解析）在 utils.ts（含单测），本组件只负责展示与交互。
+ * 操作 / 响应解析）在 browser.ts（含单测），本组件只负责展示与交互。
  */
 
-const cardStyle = {
-  background: "var(--color-surface)",
-  border: "3px solid var(--color-border)",
-  borderRadius: "var(--radius-md)",
-  boxShadow: "var(--shadow-sm)",
-  padding: "var(--space-lg)",
+// 面板壳：基础卡 + grid 纵向布置 + 吃满父网格剩余高度（行不被 stretch 撑坏）。
+const panelStyle = {
+  ...cardStyle,
   display: "grid",
   gap: "var(--space-sm)",
   minHeight: 0,
-} as const;
-
-const mutedStyle = {
-  fontSize: "var(--fs-sm)",
-  color: "var(--color-text-muted)",
-} as const;
-
-const monoStyle = {
-  fontFamily: "var(--font-mono)",
-} as const;
-
-// 编排器输入控件：fontFamily 必须 inherit（原生 input/select/textarea 不继承字体）。
-const controlStyle = {
-  fontFamily: "inherit",
-  fontSize: "var(--fs-sm)",
-  padding: "0.35rem 0.5rem",
-  border: "3px solid var(--color-border)",
-  borderRadius: "var(--radius-sm)",
-  background: "var(--color-surface)",
-  color: "var(--color-text)",
 } as const;
 
 // 队列行小操作钮（上移 / 下移 / 删除）：重置 UA 样式，紧凑方块。
@@ -473,7 +450,7 @@ export default function BrowserPanel({ conversationId, post, mergeSnapshot, repo
         )}
       </section>
 
-      <section style={cardStyle} aria-label={t("browserShotTitle")}>
+      <section style={panelStyle} aria-label={t("browserShotTitle")}>
         <div style={{ display: "flex", alignItems: "center", gap: "var(--space-xs)", flexWrap: "wrap" }}>
           <h2 style={{ margin: 0, fontSize: "var(--fs-xl)" }}>{t("browserShotTitle")}</h2>
           {shotStep ? (

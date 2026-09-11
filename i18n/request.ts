@@ -1,13 +1,19 @@
 import { getRequestConfig } from "next-intl/server";
 import { hasLocale } from "next-intl";
 import { routing } from "./routing";
+import zh from "../messages/zh";
+import en from "../messages/en";
 
 /**
  * Loads the message catalog for the active locale.
  *
- * The catalogs are co-located in `messages/` — one JSON file per locale, so
- * adding a locale only requires a new file plus a routing entry.
+ * 词表按域模块化：messages/{locale}/{group}.json（每个文件一组顶层命名
+ * 空间，如 core = metadata/nav/footer/…），由 messages/{locale}/index.ts
+ * 聚合成与拆分前一致的单一对象；zh/en 键结构同构由 tests/i18n.test.ts
+ * 强制。新增命名空间文件时在对应 index.ts 中登记即可。
  */
+const catalogs = { zh, en } as const;
+
 export default getRequestConfig(async ({ requestLocale }) => {
   // Typically corresponds to the `[locale]` segment.
   const requested = await requestLocale;
@@ -17,7 +23,7 @@ export default getRequestConfig(async ({ requestLocale }) => {
 
   return {
     locale,
-    messages: (await import(`../messages/${locale}.json`)).default,
+    messages: catalogs[locale],
 
     /**
      * Missing-key policy (acceptance: fail visibly in dev, never crash prod).

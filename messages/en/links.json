@@ -1,0 +1,215 @@
+{
+  "links": {
+    "title": "Links",
+    "description": "Handy links for development & design — cloud services, dev resources, frontend frameworks, design tools, AI and developer communities.",
+    "heading": "Links",
+    "categories": {
+      "cloud": {
+        "title": "Cloud Providers",
+        "links": {
+          "aws": {
+            "name": "AWS",
+            "desc": "Amazon Web Services"
+          },
+          "azure": {
+            "name": "Azure",
+            "desc": "Microsoft Azure"
+          },
+          "gcp": {
+            "name": "Google Cloud",
+            "desc": "GCP"
+          },
+          "aliyun": {
+            "name": "Alibaba Cloud",
+            "desc": "阿里云"
+          },
+          "tencent": {
+            "name": "Tencent Cloud",
+            "desc": "腾讯云"
+          },
+          "huawei": {
+            "name": "Huawei Cloud",
+            "desc": "华为云"
+          },
+          "cloudflare": {
+            "name": "Cloudflare",
+            "desc": "Edge & Serverless"
+          },
+          "vercel": {
+            "name": "Vercel",
+            "desc": "Frontend deployment & hosting"
+          }
+        }
+      },
+      "dev": {
+        "title": "Dev Resources",
+        "links": {
+          "github": {
+            "name": "GitHub",
+            "desc": "The world's largest code hosting platform"
+          },
+          "gitlab": {
+            "name": "GitLab",
+            "desc": "All-in-one DevOps platform"
+          },
+          "stackoverflow": {
+            "name": "Stack Overflow",
+            "desc": "Q&A community for programmers"
+          },
+          "mdn": {
+            "name": "MDN Web Docs",
+            "desc": "Authoritative web development docs"
+          },
+          "npm": {
+            "name": "npm",
+            "desc": "Node package registry"
+          },
+          "devdocs": {
+            "name": "DevDocs",
+            "desc": "Aggregated offline API docs"
+          },
+          "caniuse": {
+            "name": "Can I Use",
+            "desc": "Browser compatibility lookup"
+          },
+          "regex101": {
+            "name": "Regex101",
+            "desc": "Regex testing & debugging"
+          }
+        }
+      },
+      "frontend": {
+        "title": "Frontend Frameworks & Tools",
+        "links": {
+          "react": {
+            "name": "React",
+            "desc": "UI library"
+          },
+          "vue": {
+            "name": "Vue.js",
+            "desc": "Progressive JS framework"
+          },
+          "astro": {
+            "name": "Astro",
+            "desc": "Static site generator"
+          },
+          "nextjs": {
+            "name": "Next.js",
+            "desc": "React full-stack framework"
+          },
+          "svelte": {
+            "name": "Svelte",
+            "desc": "Compile-time frontend framework"
+          },
+          "tailwind": {
+            "name": "Tailwind CSS",
+            "desc": "Utility-first CSS framework"
+          },
+          "vite": {
+            "name": "Vite",
+            "desc": "Next-generation frontend build tool"
+          },
+          "typescript": {
+            "name": "TypeScript",
+            "desc": "Typed superset of JavaScript"
+          }
+        }
+      },
+      "design": {
+        "title": "Design Resources",
+        "links": {
+          "figma": {
+            "name": "Figma",
+            "desc": "Collaborative online design tool"
+          },
+          "dribbble": {
+            "name": "Dribbble",
+            "desc": "Designer portfolio community"
+          },
+          "behance": {
+            "name": "Behance",
+            "desc": "Creative portfolio platform"
+          },
+          "coolors": {
+            "name": "Coolors",
+            "desc": "Color palette generator"
+          },
+          "unsplash": {
+            "name": "Unsplash",
+            "desc": "Free high-resolution images"
+          },
+          "iconfont": {
+            "name": "Iconfont",
+            "desc": "Alibaba vector icon library"
+          },
+          "lucide": {
+            "name": "Lucide",
+            "desc": "Beautiful open-source icon set"
+          },
+          "googlefonts": {
+            "name": "Google Fonts",
+            "desc": "Free web fonts"
+          }
+        }
+      },
+      "ai": {
+        "title": "AI Tools",
+        "links": {
+          "chatgpt": {
+            "name": "ChatGPT",
+            "desc": "OpenAI conversational assistant"
+          },
+          "claude": {
+            "name": "Claude",
+            "desc": "Anthropic AI assistant"
+          },
+          "huggingface": {
+            "name": "Hugging Face",
+            "desc": "Community for models & datasets"
+          },
+          "copilot": {
+            "name": "GitHub Copilot",
+            "desc": "AI coding partner"
+          },
+          "midjourney": {
+            "name": "Midjourney",
+            "desc": "AI image generation"
+          },
+          "stablediffusion": {
+            "name": "Stable Diffusion",
+            "desc": "Open-source image generation model"
+          }
+        }
+      },
+      "community": {
+        "title": "Developer Communities",
+        "links": {
+          "devto": {
+            "name": "Dev.to",
+            "desc": "Developer blogging community"
+          },
+          "hn": {
+            "name": "Hacker News",
+            "desc": "Tech news & discussion"
+          },
+          "v2ex": {
+            "name": "V2EX",
+            "desc": "Community for creative professionals"
+          },
+          "juejin": {
+            "name": "Juejin",
+            "desc": "Chinese tech community"
+          },
+          "reddit": {
+            "name": "Reddit /r/programming",
+            "desc": "Programming subreddit"
+          },
+          "producthunt": {
+            "name": "Product Hunt",
+            "desc": "New product discovery platform"
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "blog": {
+    "title": "博客",
+    "description": "LuckyLab 的技术文章与教程",
+    "heading": "博客",
+    "readMore": "阅读全文 →",
+    "backToBlog": "← 返回博客",
+    "codeBlock": {
+      "copy": "复制",
+      "copied": "已复制",
+      "copyCode": "复制代码"
+    }
+  }
+}

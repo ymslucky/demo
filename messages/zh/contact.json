@@ -1,0 +1,12 @@
+{
+  "contact": {
+    "title": "联系",
+    "description": "联系 LuckyLab — 邮箱、GitHub 与个人域名。",
+    "heading": "联系我",
+    "labels": {
+      "email": "邮箱",
+      "github": "GitHub",
+      "website": "个人域名"
+    }
+  }
+}

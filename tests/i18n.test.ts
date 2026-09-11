@@ -18,10 +18,22 @@ function flatten(obj: Record<string, unknown>, prefix = ""): string[] {
   return keys;
 }
 
+/**
+ * Loads a locale catalog by merging every group file under
+ * messages/<locale>/ (the split mirrors i18n/request.ts's static import of
+ * messages/<locale>/index.ts).
+ */
 function loadCatalog(locale: string): Record<string, unknown> {
-  return JSON.parse(
-    readFileSync(join(process.cwd(), "messages", `${locale}.json`), "utf8"),
-  ) as Record<string, unknown>;
+  const dir = join(process.cwd(), "messages", locale);
+  const catalog: Record<string, unknown> = {};
+  for (const entry of readdirSync(dir)) {
+    if (!entry.endsWith(".json")) continue;
+    Object.assign(
+      catalog,
+      JSON.parse(readFileSync(join(dir, entry), "utf8")) as Record<string, unknown>,
+    );
+  }
+  return catalog;
 }
 
 describe("i18n routing", () => {

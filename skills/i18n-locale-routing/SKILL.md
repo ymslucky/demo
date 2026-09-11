@@ -56,8 +56,9 @@ rewrite**（实证 2026-09）：
 ## 5. 用户可见文案与 ARIA 标签
 
 一律走 next-intl（`useTranslations`、`getTranslations`），词表在
-[messages/zh.json](../../messages/zh.json) /
-[messages/en.json](../../messages/en.json)。TSX 中硬编码含人类语言词的
+[messages/zh/](../../messages/zh/) /
+[messages/en/](../../messages/en/)——按域拆分（core/admin/home/blog/links/
+contact/tools/unit），由各 locale 的 `index.ts` 聚合。TSX 中硬编码含人类语言词的
 `aria-label="…"` 会让测试失败。例外：机器专用属性
 （`aria-current="page"`、`data-*`、CSS 类名）。
 

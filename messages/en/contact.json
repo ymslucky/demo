@@ -1,0 +1,12 @@
+{
+  "contact": {
+    "title": "Contact",
+    "description": "Contact LuckyLab — email, GitHub and personal domain.",
+    "heading": "Contact Me",
+    "labels": {
+      "email": "Email",
+      "github": "GitHub",
+      "website": "Website"
+    }
+  }
+}

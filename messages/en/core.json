@@ -1,0 +1,33 @@
+{
+  "metadata": {
+    "title": "LuckyLab",
+    "template": "%s · LuckyLab",
+    "description": "LuckyLab — an indie developer focused on full-stack development of web apps and automation tools."
+  },
+  "nav": {
+    "ariaLabel": "Main navigation",
+    "skipToContent": "Skip to content",
+    "home": "Home",
+    "links": "Links",
+    "tools": "Tools",
+    "blog": "Blog",
+    "contact": "Contact",
+    "signIn": "Sign in",
+    "signUp": "Sign up",
+    "adminLink": "Admin"
+  },
+  "footer": {
+    "tagline": "Turning ideas into products with code",
+    "online": "{count, plural, =1 {1 online} other {# online}}"
+  },
+  "languageSwitcher": {
+    "zhLabel": "中文",
+    "enLabel": "EN",
+    "switchToZh": "Switch to Chinese",
+    "switchToEn": "Switch to English"
+  },
+  "theme": {
+    "toggleToDark": "Switch to dark theme",
+    "toggleToLight": "Switch to light theme"
+  }
+}

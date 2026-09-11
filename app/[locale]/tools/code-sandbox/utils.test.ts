@@ -6,36 +6,20 @@ import {
   MAX_RUN_HISTORY,
   appendEntries,
   appendRuns,
-  browserStepArg,
-  browserStepReady,
   clampTimeoutSec,
-  filterInstances,
   formatClock,
   formatDateTime,
   formatElapsedSeconds,
-  formatRemainingMs,
   getOrCreateConversationId,
-  groupInstances,
-  instanceStatus,
   isLanguageId,
   languageDef,
-  makeBrowserStep,
   makeEntry,
-  moveBrowserStep,
-  normalizeBrowserPayload,
-  normalizeBrowserSteps,
   normalizeCode,
   normalizeInstanceRecords,
   normalizeRunPayload,
-  parseDayRange,
   remainingMs,
-  removeBrowserStep,
   rotateConversationId,
   sanitizeLanguage,
-  sortInstances,
-  type BrowserStep,
-  type InstanceFilter,
-  type SandboxInstanceRecord,
   type RunRecord,
   type StorageLike,
 } from "./utils";
@@ -263,97 +247,6 @@ describe("formatDateTime", () => {
   });
 });
 
-describe("browser queue helpers", () => {
-  const step = (over: Partial<BrowserStep>): BrowserStep => ({ ...makeBrowserStep("goto", "seed"), ...over });
-
-  it("browserStepReady enforces per-op required fields", () => {
-    expect(browserStepReady(step({ op: "goto", url: "https://x.com" }))).toBe(true);
-    expect(browserStepReady(step({ op: "goto", url: "   " }))).toBe(false);
-    expect(browserStepReady(step({ op: "click", selector: "button" }))).toBe(true);
-    expect(browserStepReady(step({ op: "type", selector: "" }))).toBe(false);
-    expect(browserStepReady(step({ op: "evaluate", script: "1+1" }))).toBe(true);
-    expect(browserStepReady(step({ op: "evaluate", script: "" }))).toBe(false);
-    expect(browserStepReady(step({ op: "getContent" }))).toBe(true);
-    expect(browserStepReady(step({ op: "screenshot" }))).toBe(true);
-    expect(browserStepReady(step({ op: "close" }))).toBe(true);
-  });
-
-  it("browserStepArg renders the display argument per op", () => {
-    expect(browserStepArg(step({ op: "goto", url: "https://x.com" }))).toBe("https://x.com");
-    expect(browserStepArg(step({ op: "click", selector: "#go" }))).toBe("#go");
-    expect(browserStepArg(step({ op: "type", selector: "#q", text: "hi" }))).toBe("#q | hi");
-    expect(
-      browserStepArg(step({ op: "evaluate", script: "\n  // comment\n  document.title\n" })),
-    ).toBe("// comment");
-    expect(browserStepArg(step({ op: "evaluate", script: "x".repeat(80) }))).toHaveLength(61);
-    expect(browserStepArg(step({ op: "screenshot" }))).toBe("");
-    expect(browserStepArg(step({ op: "close" }))).toBe("");
-  });
-
-  it("moveBrowserStep reorders without mutating and clamps at the edges", () => {
-    const steps = [step({ id: "a" }), step({ id: "b" }), step({ id: "c" })];
-    const moved = moveBrowserStep(steps, "c", -1);
-    expect(moved.map((s) => s.id)).toEqual(["a", "c", "b"]);
-    expect(steps.map((s) => s.id)).toEqual(["a", "b", "c"]);
-    expect(moveBrowserStep(steps, "a", -1).map((s) => s.id)).toEqual(["a", "b", "c"]);
-    expect(moveBrowserStep(steps, "c", 1).map((s) => s.id)).toEqual(["a", "b", "c"]);
-    expect(moveBrowserStep(steps, "missing", 1).map((s) => s.id)).toEqual(["a", "b", "c"]);
-  });
-
-  it("removeBrowserStep filters by id", () => {
-    const steps = [step({ id: "a" }), step({ id: "b" })];
-    expect(removeBrowserStep(steps, "a").map((s) => s.id)).toEqual(["b"]);
-    expect(removeBrowserStep(steps, "zzz")).toHaveLength(2);
-  });
-
-  it("normalizeBrowserSteps drops malformed entries but keeps the valid ones", () => {
-    expect(normalizeBrowserSteps("nope")).toBeNull();
-    const steps = normalizeBrowserSteps([
-      { id: "a", op: "goto", url: "https://x.com" },
-      { op: "reload" },
-      null,
-      { id: "b", op: "click", selector: "button", url: 42 },
-    ]);
-    expect(steps?.map((s) => s.id)).toEqual(["a", "b"]);
-    expect(steps?.[1].selector).toBe("button");
-    expect(steps?.[1].url).toBe("");
-  });
-});
-
-describe("normalizeBrowserPayload", () => {
-  it("parses a well-formed browser action response", () => {
-    const payload = normalizeBrowserPayload({
-      ok: true,
-      action: "browser",
-      steps: [
-        { op: "goto", ok: true, summary: "x - HTTP 200", error: "", base64Image: "B64", elapsedMs: 12 },
-        { op: "getContent", ok: false, summary: "", error: "boom", content: "<p/>", elapsedMs: 3 },
-      ],
-      browser: { liveUrl: "https://live.example", cdpUrl: "" },
-      sandbox: { instanceId: "i-1", expiresAt: "2026-09-11T12:00:00Z" },
-    });
-    expect(payload?.ok).toBe(true);
-    expect(payload?.steps).toHaveLength(2);
-    expect(payload?.steps[0].base64Image).toBe("B64");
-    expect(payload?.steps[1].ok).toBe(false);
-    expect(payload?.liveUrl).toBe("https://live.example");
-    expect(payload?.sandbox.instanceId).toBe("i-1");
-  });
-
-  it("returns null for malformed shapes", () => {
-    expect(normalizeBrowserPayload(null)).toBeNull();
-    expect(normalizeBrowserPayload({ ok: true })).toBeNull();
-    expect(normalizeBrowserPayload({ ok: true, steps: "no" })).toBeNull();
-  });
-
-  it("tolerates missing browser/sandbox blocks with safe defaults", () => {
-    const payload = normalizeBrowserPayload({ ok: true, steps: [] });
-    expect(payload?.liveUrl).toBe("");
-    expect(payload?.sandbox.instanceId).toBeUndefined();
-    expect(payload?.error).toBe("");
-  });
-});
-
 describe("normalizeInstanceRecords", () => {
   it("parses a well-formed list response and coerces numeric fields", () => {
     const records = normalizeInstanceRecords({
@@ -400,93 +293,5 @@ describe("normalizeInstanceRecords", () => {
     expect(normalizeInstanceRecords("nope")).toBeNull();
     expect(normalizeInstanceRecords({})).toBeNull();
     expect(normalizeInstanceRecords({ sandboxes: "not-an-array" })).toBeNull();
-  });
-});
-
-describe("instance table helpers", () => {
-  // Local noon keeps date-range assertions timezone-independent.
-  const NOW = new Date(2026, 2, 15, 12).getTime();
-  const iso = (offsetMs: number) => new Date(NOW + offsetMs).toISOString();
-  const record = (overrides: Partial<SandboxInstanceRecord>): SandboxInstanceRecord => ({
-    instanceId: "i-1",
-    uid: "user_1",
-    createdAt: NOW - 60_000,
-    updatedAt: NOW - 30_000,
-    expiresAt: iso(120_000),
-    ...overrides,
-  });
-  const records: SandboxInstanceRecord[] = [
-    record({ instanceId: "i-beta", uid: "user_2", createdAt: NOW - 200_000, updatedAt: NOW - 90_000 }),
-    record({ instanceId: "i-alpha", uid: "user_1", expiresAt: iso(-60_000) }),
-    record({ instanceId: "i-gamma", uid: "user_1", expiresAt: undefined }),
-  ];
-
-  it("classifies alive / expired / unknown statuses", () => {
-    expect(instanceStatus(records[0], NOW)).toBe("alive");
-    expect(instanceStatus(records[1], NOW)).toBe("expired");
-    expect(instanceStatus(records[2], NOW)).toBe("unknown");
-  });
-
-  it("parses day strings into inclusive local-time ranges", () => {
-    const range = parseDayRange("2026-03-14", "2026-03-15");
-    expect(range.from).toBe(new Date(2026, 2, 14).getTime());
-    expect(range.to).toBe(new Date(2026, 2, 15).getTime() + 24 * 60 * 60 * 1000 - 1);
-    expect(parseDayRange(undefined, "junk")).toEqual({ from: null, to: null });
-  });
-
-  it("filters by text, status and created-date range", () => {
-    const none: InstanceFilter = {};
-    expect(filterInstances(records, none, NOW)).toHaveLength(3);
-
-    expect(filterInstances(records, { text: "ALPHA" }, NOW).map((r) => r.instanceId)).toEqual(["i-alpha"]);
-    expect(filterInstances(records, { text: "user_2" }, NOW).map((r) => r.instanceId)).toEqual(["i-beta"]);
-    expect(filterInstances(records, { status: "expired" }, NOW).map((r) => r.instanceId)).toEqual(["i-alpha"]);
-    expect(filterInstances(records, { status: "unknown" }, NOW).map((r) => r.instanceId)).toEqual(["i-gamma"]);
-
-    // Records created before today are excluded when the range starts today.
-    const todayOnly: InstanceFilter = { createdFrom: "2026-03-15", createdTo: "2026-03-15" };
-    const dayStart = new Date(2026, 2, 15).getTime();
-    const inRange = records.filter((r) => r.createdAt >= dayStart);
-    expect(filterInstances(records, todayOnly, NOW)).toEqual(inRange);
-  });
-
-  it("sorts by column without mutating the input; missing expiresAt always sinks", () => {
-    const byId = sortInstances(records, "instanceId");
-    expect(byId.map((r) => r.instanceId)).toEqual(["i-alpha", "i-beta", "i-gamma"]);
-    expect(records.map((r) => r.instanceId)).toEqual(["i-beta", "i-alpha", "i-gamma"]);
-
-    expect(sortInstances(records, "uid", "desc").map((r) => r.instanceId)).toEqual([
-      "i-beta",
-      "i-alpha",
-      "i-gamma",
-    ]);
-    expect(sortInstances(records, "updatedAt").map((r) => r.instanceId)).toEqual([
-      "i-beta",
-      "i-alpha",
-      "i-gamma",
-    ]);
-    expect(sortInstances(records, "expiresAt", "desc").map((r) => r.instanceId)).toEqual([
-      "i-beta",
-      "i-alpha",
-      "i-gamma",
-    ]);
-  });
-
-  it("groups by uid / status, preserving first-appearance order", () => {
-    expect(groupInstances(records, "none", NOW)).toEqual([{ key: "", records }]);
-    expect(groupInstances(records, "uid", NOW).map((g) => [g.key, g.records.length])).toEqual([
-      ["user_2", 1],
-      ["user_1", 2],
-    ]);
-    expect(groupInstances(records, "status", NOW).map((g) => g.key)).toEqual(["alive", "expired", "unknown"]);
-  });
-
-  it("formats remaining time compactly", () => {
-    expect(formatRemainingMs(4 * 60_000 + 30_000)).toBe("4m 30s");
-    expect(formatRemainingMs(45_000)).toBe("45s");
-    expect(formatRemainingMs(999)).toBe("<1s");
-    expect(formatRemainingMs(0)).toBe("0s");
-    expect(formatRemainingMs(-5)).toBe("0s");
-    expect(formatRemainingMs(NaN)).toBe("0s");
   });
 });

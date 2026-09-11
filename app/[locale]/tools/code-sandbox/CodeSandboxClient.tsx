@@ -7,6 +7,7 @@ import { Button } from "../../components/ui";
 import { useStickyState } from "../components/useStickyState";
 import BrowserPanel from "./BrowserPanel";
 import InstancesPanel from "./InstancesPanel";
+import { cardStyle as cardBaseStyle, monoStyle, mutedStyle } from "@/app/lib/styles";
 import {
   appendEntries,
   appendRuns,
@@ -43,24 +44,12 @@ const LANGUAGE_LABELS: Record<LanguageId, string> = {
 };
 
 // 与 todo-list / http-check 工具页一致的 Neo-Brutalism 卡片样式（内联变量，
-// 不新增全局容器类，避免同步 e2e 脚本的义务）。
+// 不新增全局容器类，避免同步 e2e 脚本的义务）：基础卡 + grid 纵向布置
+// （flex 变体在使用处覆盖 display）。
 const cardStyle = {
-  background: "var(--color-surface)",
-  border: "3px solid var(--color-border)",
-  borderRadius: "var(--radius-md)",
-  boxShadow: "var(--shadow-sm)",
-  padding: "var(--space-lg)",
+  ...cardBaseStyle,
   display: "grid",
   gap: "var(--space-sm)",
-} as const;
-
-const mutedStyle = {
-  fontSize: "var(--fs-sm)",
-  color: "var(--color-text-muted)",
-} as const;
-
-const monoStyle = {
-  fontFamily: "var(--font-mono)",
 } as const;
 
 // 工作台骨架：Tab 行自适应高度 + 子页内容吃掉剩余视口（铺满屏幕）。

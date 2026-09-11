@@ -1,0 +1,33 @@
+{
+  "metadata": {
+    "title": "LuckyLab",
+    "template": "%s · LuckyLab",
+    "description": "LuckyLab — 独立开发者，专注于 Web 应用与自动化工具的全栈开发。"
+  },
+  "nav": {
+    "ariaLabel": "主导航",
+    "skipToContent": "跳到正文",
+    "home": "首页",
+    "links": "导航",
+    "tools": "工具",
+    "blog": "博客",
+    "contact": "联系",
+    "signIn": "登录",
+    "signUp": "注册",
+    "adminLink": "管理后台"
+  },
+  "footer": {
+    "tagline": "用代码把想法变成产品",
+    "online": "{count} 人在线"
+  },
+  "languageSwitcher": {
+    "zhLabel": "中文",
+    "enLabel": "EN",
+    "switchToZh": "切换到中文",
+    "switchToEn": "切换到英文"
+  },
+  "theme": {
+    "toggleToDark": "切换到暗色主题",
+    "toggleToLight": "切换到亮色主题"
+  }
+}

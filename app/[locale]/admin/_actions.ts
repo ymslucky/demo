@@ -1,14 +1,13 @@
 "use server";
 
 import { clerkClient } from "@clerk/nextjs/server";
-import { isAdminClaims } from "@/app/lib/rbac";
-import { readSessionClaims } from "@/app/lib/session";
+import { readAdminClaims } from "@/app/lib/rbac";
 
 /**
  * 管理后台 server actions：调整用户角色（写入 publicMetadata.role）。
  *
  * 安全设计：
- * - 每次调用都重新读取并验签会话 claims（readSessionClaims，不依赖
+ * - 每次调用都经 readAdminClaims 重新验签并判定角色（不依赖
  *   clerkMiddleware——EdgeOne 生产 SSR 不透传其装饰）；UI 隐藏不构成边界；
  * - 角色值走白名单（admin / moderator），拒绝任意 metadata 注入；
  * - 未通过校验静默不执行；Clerk Backend 调用失败（如部署环境缺
@@ -21,8 +20,7 @@ function inputText(formData: FormData, key: string): string {
 }
 
 export async function setRole(formData: FormData): Promise<void> {
-  const claims = await readSessionClaims();
-  if (!isAdminClaims(claims)) return;
+  if (!(await readAdminClaims())) return;
   const id = inputText(formData, "id");
   const role = inputText(formData, "role");
   if (!id || (role !== "admin" && role !== "moderator")) return;
@@ -35,8 +33,7 @@ export async function setRole(formData: FormData): Promise<void> {
 }
 
 export async function removeRole(formData: FormData): Promise<void> {
-  const claims = await readSessionClaims();
-  if (!isAdminClaims(claims)) return;
+  if (!(await readAdminClaims())) return;
   const id = inputText(formData, "id");
   if (!id) return;
   try {

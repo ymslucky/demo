@@ -4,45 +4,40 @@ import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Button } from "../../components/ui";
 import {
+  cardStyle as cardBaseStyle,
+  monoStyle,
+  mutedStyle,
+  tdStyle,
+  thStyle,
+} from "@/app/lib/styles";
+import {
   filterInstances,
-  formatDateTime,
   formatRemainingMs,
   groupInstances,
   instanceStatus,
-  remainingMs,
   sortInstances,
   type InstanceGroupKey,
   type InstanceSortKey,
   type InstanceStatus,
-  type SandboxInstanceRecord,
   type SortDirection,
-} from "./utils";
+} from "./instances";
+import { formatDateTime, remainingMs, type SandboxInstanceRecord } from "./utils";
 
 /**
  * 实例列表子页：Neo-Brutalism 表格组件，纯前端本地筛选（文本 / 状态 /
  * 创建日期区间）/ 排序（点击列头）/ 分组（按用户或状态）。筛选排序等
- * 纯逻辑在 utils.ts（含单测），本组件只负责展示与交互。
+ * 纯逻辑在 instances.ts（含单测），本组件只负责展示与交互。
  */
 
-// 与工作台卡片同族的表格外壳（3px 边框 + 硬阴影），窄屏横向滚动。
-// alignContent: start —— 容器被父网格拉高时行不随 stretch 撑开（历史
-// BUG：标题块被 auto 行拉伸导致高度失控）。
+// 与工作台卡片同族的表格外壳（基础卡 + 列表变体：通栏 + 可拉高时行不随
+// stretch 撑开——历史 BUG：标题块被 auto 行拉伸导致高度失控）。
 const panelStyle = {
-  background: "var(--color-surface)",
-  border: "3px solid var(--color-border)",
-  borderRadius: "var(--radius-md)",
-  boxShadow: "var(--shadow-sm)",
-  padding: "var(--space-lg)",
+  ...cardBaseStyle,
   display: "grid",
   gap: "var(--space-sm)",
   alignContent: "start",
   gridColumn: "1 / -1",
   minHeight: 0,
-} as const;
-
-const mutedStyle = {
-  fontSize: "var(--fs-sm)",
-  color: "var(--color-text-muted)",
 } as const;
 
 // 工具条输入控件：fontFamily 必须 inherit（原生 input/select 不继承字体）。
@@ -90,14 +85,6 @@ const tableStyle = {
   minWidth: 920,
 };
 
-const thStyle = {
-  textAlign: "left" as const,
-  padding: "0.5rem 0.6rem",
-  borderBottom: "3px solid var(--color-border)",
-  background: "var(--color-tint)",
-  whiteSpace: "nowrap" as const,
-} as const;
-
 // 列头排序按钮：重置 UA 样式，继承 th 字体。
 const thButtonStyle = {
   fontFamily: "inherit",
@@ -111,13 +98,6 @@ const thButtonStyle = {
   display: "inline-flex",
   alignItems: "center",
   gap: "0.3rem",
-} as const;
-
-const tdStyle = {
-  padding: "0.45rem 0.6rem",
-  borderBottom: "2px solid var(--color-border)",
-  verticalAlign: "top" as const,
-  wordBreak: "break-all" as const,
 } as const;
 
 /** 外部地址短展示：去协议、超长截断（完整地址见 title 与链接本身）。 */

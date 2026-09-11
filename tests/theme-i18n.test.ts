@@ -33,10 +33,18 @@ function collectFiles(dir: string): string[] {
 }
 const COMPONENT_FILES = collectFiles(APP);
 
+/** Loads a locale catalog by merging the split group files under messages/<locale>/. */
 function loadCatalog(locale: "zh" | "en"): Record<string, unknown> {
-  return JSON.parse(
-    readFileSync(join(process.cwd(), "messages", `${locale}.json`), "utf8"),
-  );
+  const dir = join(process.cwd(), "messages", locale);
+  const catalog: Record<string, unknown> = {};
+  for (const entry of readdirSync(dir)) {
+    if (!entry.endsWith(".json")) continue;
+    Object.assign(
+      catalog,
+      JSON.parse(readFileSync(join(dir, entry), "utf8")) as Record<string, unknown>,
+    );
+  }
+  return catalog;
 }
 
 function flatten(obj: Record<string, unknown>, prefix = ""): string[] {
