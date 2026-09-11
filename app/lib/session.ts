@@ -66,19 +66,35 @@ function commaList(raw: string | undefined): string[] | null {
 
 /**
  * 从 verifyToken 的错误对象提取一行可展示的摘要（纯函数，可单测）。
- * 只取 message——TokenVerificationError 的 message 是原因码/网络失败
- * 描述，不含 token 与密钥；空白归一并截断，防止超长破坏诊断卡排版。
+ * 三级兜底：message → reason → JSON 序列化——生产实测上游可能抛出
+ * 不带标准 message 的错误对象（EdgeOne SSR 运行时差异），诊断卡
+ * 绝不允许因此空白。只取错误描述字段（message / reason 是原因码或
+ * 网络失败说明，不含 token 与密钥）；空白归一并截断，防止超长破坏
+ * 诊断卡排版。
  */
 export function sanitizeVerifyDetail(error: unknown): string | null {
-  if (!error) return null;
-  const message =
-    typeof error === "string"
-      ? error
-      : error instanceof Error
-        ? error.message
-        : "";
-  const line = message.replace(/\s+/g, " ").trim();
-  return line ? line.slice(0, DETAIL_MAX_LENGTH) : null;
+  if (error === null || error === undefined) return null;
+  const pick = (value: string): string | null => {
+    const line = value.replace(/\s+/g, " ").trim();
+    return line ? line.slice(0, DETAIL_MAX_LENGTH) : null;
+  };
+  if (typeof error === "string") return pick(error);
+  if (error instanceof Error) return pick(error.message);
+  // 非 Error 对象（上游行为变化 / 运行时差异）：message → reason → JSON。
+  const candidate = error as { message?: unknown; reason?: unknown };
+  if (typeof candidate.message === "string") {
+    const fromMessage = pick(candidate.message);
+    if (fromMessage) return fromMessage;
+  }
+  if (candidate.reason !== undefined && candidate.reason !== null) {
+    const fromReason = pick(String(candidate.reason));
+    if (fromReason) return fromReason;
+  }
+  try {
+    return pick(JSON.stringify(error)) ?? pick(String(error));
+  } catch {
+    return pick(String(error));
+  }
 }
 
 /**

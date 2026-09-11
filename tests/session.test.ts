@@ -16,11 +16,24 @@ describe("sanitizeVerifyDetail", () => {
     expect(sanitizeVerifyDetail("Invalid token")).toBe("Invalid token");
   });
 
-  it("returns null for nullish, blank, and non-error objects", () => {
+  it("returns null for nullish and blank inputs", () => {
     expect(sanitizeVerifyDetail(null)).toBeNull();
     expect(sanitizeVerifyDetail(undefined)).toBeNull();
     expect(sanitizeVerifyDetail("   ")).toBeNull();
-    expect(sanitizeVerifyDetail({ code: "no-message" })).toBeNull();
+  });
+
+  it("falls back to the reason field for non-Error objects", () => {
+    expect(sanitizeVerifyDetail({ reason: "TokenInvalid" })).toBe("TokenInvalid");
+  });
+
+  it("serializes opaque objects so the gate card is never blank", () => {
+    expect(sanitizeVerifyDetail({ code: "no-message" })).toBe('{"code":"no-message"}');
+  });
+
+  it("prefers a string message field over reason on plain objects", () => {
+    expect(sanitizeVerifyDetail({ message: "JWKS fetch failed", reason: "RemoteJWKFailedToLoad" })).toBe(
+      "JWKS fetch failed",
+    );
   });
 
   it("collapses whitespace so a single line survives the gate card", () => {
