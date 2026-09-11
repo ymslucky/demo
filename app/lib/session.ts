@@ -29,10 +29,11 @@ import { verifyToken } from "@clerk/nextjs/server";
  * 开箱即用。
  *
  * 诊断（对齐边缘函数 x-auth-fail 的逐关哲学）：readSessionClaimsDetailed
- * 返回失败原因（no-cookie / no-key / verify-failed / issuer-mismatch）与
- * detail（verifyToken 错误摘要，脱敏截断——不含 token 与密钥），供门控页
- * 就地展示诊断卡而非静默弹回首页。所有失败一律不返回 claims（fail-closed），
- * 绝不抛 500。
+ * 返回失败原因（no-cookie / no-key / verify-failed / issuer-mismatch）、
+ * detail（verifyToken 错误摘要——单条错误 message 优先，兜底序列化整个
+ * errors 数组）与 input（密钥材料的存在性/形态摘要，直接回答"环境变量
+ * 是否到达了 SSR 运行时"），供门控页就地展示诊断卡而非静默弹回首页。
+ * 所有失败一律不返回 claims（fail-closed），绝不抛 500。
  */
 
 const SESSION_COOKIE = "__session";
@@ -51,6 +52,8 @@ export type SessionResult = {
   reason: SessionFailureReason | null;
   /** 失败细节摘要（脱敏截断）；成功时为 null。 */
   detail: string | null;
+  /** 验签输入侧摘要（sk/pem 存在性与形态）；仅环境相关失败时非 null。 */
+  input: string | null;
 };
 
 /** issuer 比较前的尾斜杠归一化。 */
@@ -118,17 +121,35 @@ export function resolveVerifyKeys(
 }
 
 /**
+ * 验签输入侧摘要（纯函数，可单测）：只含存在性布尔与形态线索（PEM
+ * 长度 / 前 10 字符 / 是否为字面 \n 转义），不含任何密钥正文。部署后
+ * 读一眼即可分辨：变量没配到运行时（sk:no pem:no）、值配错（head 不
+ * 是 PEM 头）、换行未转义（esc=0 且多行被面板吞成单行）。
+ */
+export function describeVerifyInput(
+  env: Record<string, string | undefined> = process.env,
+): string {
+  const { secretKey, jwtKey } = resolveVerifyKeys(env);
+  const skPart = secretKey ? "sk:yes" : "sk:no";
+  if (!jwtKey) return `${skPart} pem:no`;
+  const head = jwtKey.slice(0, 10).replace(/\s+/g, "");
+  const raw = env.CLERK_JWT_PUBLIC_KEY ?? "";
+  const escaped = raw.includes("\\n");
+  return `${skPart} pem:yes(len=${jwtKey.length},head=${head},esc=${escaped ? 1 : 0})`;
+}
+
+/**
  * 读取并验签当前请求的 Clerk 会话 claims；未登录 / 环境无任何验签密钥 /
- * 验签失败一律 claims: null 并附 reason + detail（fail-closed）。服务端
- * 组件与 server action 均可调用（不依赖 clerkMiddleware）。
+ * 验签失败一律 claims: null 并附 reason + detail + input（fail-closed）。
+ * 服务端组件与 server action 均可调用（不依赖 clerkMiddleware）。
  */
 export async function readSessionClaimsDetailed(): Promise<SessionResult> {
   const token = (await cookies()).get(SESSION_COOKIE)?.value;
-  if (!token) return { claims: null, reason: "no-cookie", detail: null };
+  if (!token) return { claims: null, reason: "no-cookie", detail: null, input: null };
 
   const { secretKey, jwtKey } = resolveVerifyKeys();
   if (!secretKey && !jwtKey) {
-    return { claims: null, reason: "no-key", detail: null };
+    return { claims: null, reason: "no-key", detail: null, input: describeVerifyInput() };
   }
 
   try {
@@ -146,7 +167,10 @@ export async function readSessionClaimsDetailed(): Promise<SessionResult> {
       return {
         claims: null,
         reason: "verify-failed",
-        detail: sanitizeVerifyDetail(first),
+        // 单条错误优先；无内容时序列化整个 errors 数组（含空数组的 "[]"，
+        // 用于区分"上游返回了空错误列表"这一形态本身）。
+        detail: sanitizeVerifyDetail(first) ?? sanitizeVerifyDetail(errors ?? null),
+        input: describeVerifyInput(),
       };
     }
 
@@ -158,12 +182,18 @@ export async function readSessionClaimsDetailed(): Promise<SessionResult> {
         claims: null,
         reason: "issuer-mismatch",
         detail: normalizeIssuer(claims.iss),
+        input: describeVerifyInput(),
       };
     }
-    return { claims, reason: null, detail: null };
+    return { claims, reason: null, detail: null, input: null };
   } catch (error) {
     // verifyToken 约定为返回 errors 而非抛出；此 catch 兜底上游行为变化。
-    return { claims: null, reason: "verify-failed", detail: sanitizeVerifyDetail(error) };
+    return {
+      claims: null,
+      reason: "verify-failed",
+      detail: sanitizeVerifyDetail(error),
+      input: describeVerifyInput(),
+    };
   }
 }
 

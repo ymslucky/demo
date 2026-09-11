@@ -23,13 +23,26 @@ export const ADMIN_ROLE = "admin";
  * 判别联合收窄分支，联合型 reason 会破坏 TS 收窄）：
  * - no-key：环境无任何验签密钥材料（CLERK_SECRET_KEY / CLERK_JWT_PUBLIC_KEY 均缺）；
  * - no-session：会话层失败（sessionReason 细分 no-cookie / verify-failed /
- *   issuer-mismatch，detail 为 verifyToken 错误摘要——诊断卡数据源）；
+ *   issuer-mismatch，detail 为 verifyToken 错误摘要——诊断卡数据源；
+ *   input 为验签输入侧摘要——sk/pem 存在性与形态）；
  * - not-admin：会话有效但角色非 admin（保留 claims 供页面展示当前身份）。
  */
 export type AdminAccess =
   | { ok: true; claims: SessionClaims }
-  | { ok: false; reason: "no-key"; sessionReason: SessionFailureReason; detail: string | null }
-  | { ok: false; reason: "no-session"; sessionReason: SessionFailureReason; detail: string | null }
+  | {
+      ok: false;
+      reason: "no-key";
+      sessionReason: SessionFailureReason;
+      detail: string | null;
+      input: string | null;
+    }
+  | {
+      ok: false;
+      reason: "no-session";
+      sessionReason: SessionFailureReason;
+      detail: string | null;
+      input: string | null;
+    }
   | { ok: false; reason: "not-admin"; claims: SessionClaims };
 
 export function isAdminClaims(claims: CustomJwtSessionClaims | null | undefined): boolean {
@@ -42,9 +55,9 @@ export async function readAdminClaims(): Promise<SessionClaims | null> {
 }
 
 export async function readAdminAccess(): Promise<AdminAccess> {
-  const { claims, reason, detail } = await readSessionClaimsDetailed();
+  const { claims, reason, detail, input } = await readSessionClaimsDetailed();
   if (reason === "no-key") {
-    return { ok: false, reason: "no-key", sessionReason: reason, detail };
+    return { ok: false, reason: "no-key", sessionReason: reason, detail, input };
   }
   if (reason || !claims) {
     return {
@@ -52,6 +65,7 @@ export async function readAdminAccess(): Promise<AdminAccess> {
       reason: "no-session",
       sessionReason: reason ?? "verify-failed",
       detail,
+      input,
     };
   }
   return isAdminClaims(claims) ? { ok: true, claims } : { ok: false, reason: "not-admin", claims };

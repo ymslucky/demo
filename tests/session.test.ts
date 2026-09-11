@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { resolveVerifyKeys, sanitizeVerifyDetail } from "../app/lib/session";
+import {
+  describeVerifyInput,
+  resolveVerifyKeys,
+  sanitizeVerifyDetail,
+} from "../app/lib/session";
 
 /**
  * Unit tests for the pure helpers exported by app/lib/session.ts.
@@ -75,5 +79,35 @@ describe("resolveVerifyKeys", () => {
     expect(
       resolveVerifyKeys({ CLERK_SECRET_KEY: "sk_live_y", CLERK_JWT_PUBLIC_KEY: "-----KEY-----" }),
     ).toEqual({ secretKey: "sk_live_y", jwtKey: "-----KEY-----" });
+  });
+});
+
+describe("describeVerifyInput", () => {
+  it("reports absence of both key materials", () => {
+    expect(describeVerifyInput({})).toBe("sk:no pem:no");
+  });
+
+  it("reports a secret key without a PEM", () => {
+    expect(describeVerifyInput({ CLERK_SECRET_KEY: "sk_test_x" })).toBe("sk:yes pem:no");
+  });
+
+  it("summarizes PEM shape: length, head, and escaped newlines", () => {
+    const pem = "-----BEGIN PUBLIC KEY-----\\nABCDEF\\n-----END PUBLIC KEY-----";
+    const out = describeVerifyInput({ CLERK_SECRET_KEY: "sk_live_y", CLERK_JWT_PUBLIC_KEY: pem });
+    // len counts the unescaped form: each literal \n (2 chars) becomes 1 char.
+    expect(out).toBe(`sk:yes pem:yes(len=${pem.length - 2},head=-----BEGIN,esc=1)`);
+  });
+
+  it("flags an escaped-newline-free (multiline) PEM with esc=0", () => {
+    const pem = "-----BEGIN PUBLIC KEY-----\nABCDEF\n-----END PUBLIC KEY-----";
+    const out = describeVerifyInput({ CLERK_JWT_PUBLIC_KEY: pem });
+    expect(out).toContain("esc=0");
+    expect(out).toContain("head=-----BEGIN");
+  });
+
+  it("never leaks key material into the summary", () => {
+    const secret = "sk_live_super_secret_value";
+    const out = describeVerifyInput({ CLERK_SECRET_KEY: secret, CLERK_JWT_PUBLIC_KEY: "-----KEY-----" });
+    expect(out).not.toContain("super_secret_value");
   });
 });

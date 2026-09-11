@@ -10,6 +10,7 @@
     "gateVerifyTitle": "Admin console unavailable: session verification failed",
     "gateVerifyDetail": "The server received a session token but verification failed (signature / key resolution / time window / hardening allowlist). The per-gate diagnostics below, compared with the client probe, pinpoint the failing layer.",
     "gateVerifyReasonLabel": "Failed gate",
+    "gateVerifyKeyMaterialLabel": "Key material (sk = CLERK_SECRET_KEY, pem = CLERK_JWT_PUBLIC_KEY)",
     "gateVerifyDetailLabel": "Error summary",
     "gateVerifyDetailNone": "(no detail provided upstream)",
     "gateVerifyHintJwks": "If the summary mentions JWKS / fetch failures: the deployment environment may be unable to reach the Clerk Backend API — configure CLERK_JWT_PUBLIC_KEY (Dashboard → API keys → Public key, PEM) to verify locally instead.",

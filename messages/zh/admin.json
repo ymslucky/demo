@@ -10,6 +10,7 @@
     "gateVerifyTitle": "管理后台暂不可用：会话验签未通过",
     "gateVerifyDetail": "服务端读到了会话令牌，但验签失败（签名 / 密钥回源 / 时间窗 / 加固白名单）。下方为逐关诊断，与客户端探针对照即可定位故障层级。",
     "gateVerifyReasonLabel": "失败关卡",
+    "gateVerifyKeyMaterialLabel": "密钥材料（sk = CLERK_SECRET_KEY，pem = CLERK_JWT_PUBLIC_KEY）",
     "gateVerifyDetailLabel": "错误摘要",
     "gateVerifyDetailNone": "（上游未提供错误详情）",
     "gateVerifyHintJwks": "若摘要指向 JWKS / fetch 失败：部署环境可能无法回源 Clerk Backend API，可改配 CLERK_JWT_PUBLIC_KEY（Dashboard → API keys → Public key，PEM）改为本地验签。",

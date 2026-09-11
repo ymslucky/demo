@@ -109,6 +109,12 @@ export default async function AdminPage({
             <Badge>{access.sessionReason ?? "verify-failed"}</Badge>
           </p>
           <div>
+            <div className="tool-label">{t("gateVerifyKeyMaterialLabel")}</div>
+            <div style={{ ...monoStyle, fontSize: "var(--fs-sm)", wordBreak: "break-all" }}>
+              {access.input || "—"}
+            </div>
+          </div>
+          <div>
             <div className="tool-label">{t("gateVerifyDetailLabel")}</div>
             <div style={{ ...monoStyle, fontSize: "var(--fs-sm)", wordBreak: "break-all" }}>
               {access.detail || t("gateVerifyDetailNone")}
