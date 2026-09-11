@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
+  b64urlEncode,
+  b64urlJson,
+  generateSigningKey,
+  signJwt,
+} from "./helpers/sign-jwt";
+import {
   consumeRunQuota,
   errorText,
   execute,
@@ -301,54 +307,9 @@ describe("executeBrowserSteps: sequential browser ops with auto screenshots", ()
 
 // ---------------------------------------------------------------------------
 // Session JWT verification (test tokens are signed locally with Node
-// WebCrypto; verifyAgentSession runs with fully injected deps — no network).
+// WebCrypto via ./helpers/sign-jwt; verifyAgentSession runs with fully
+// injected deps — no network).
 // ---------------------------------------------------------------------------
-
-function b64urlEncode(bytes: Uint8Array): string {
-  let binary = "";
-  bytes.forEach((b) => (binary += String.fromCharCode(b)));
-  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
-}
-
-function b64urlJson(value: unknown): string {
-  return b64urlEncode(encoder.encode(JSON.stringify(value)));
-}
-
-async function generateSigningKey(alg: "ES256" | "RS256", kid = "test-key") {
-  const pair = (await crypto.subtle.generateKey(
-    alg === "ES256"
-      ? { name: "ECDSA", namedCurve: "P-256" }
-      : {
-          name: "RSASSA-PKCS1-v1_5",
-          modulusLength: 2048,
-          publicExponent: new Uint8Array([1, 0, 1]),
-          hash: "SHA-256",
-        },
-    true,
-    ["sign", "verify"],
-  )) as CryptoKeyPair;
-  const jwk = {
-    ...(await crypto.subtle.exportKey("jwk", pair.publicKey)),
-    kid,
-  };
-  return { privateKey: pair.privateKey, jwk };
-}
-
-async function signJwt(
-  alg: "ES256" | "RS256",
-  keys: { privateKey: CryptoKey },
-  payload: Record<string, unknown>,
-  kid = "test-key",
-): Promise<string> {
-  const header = { alg, kid, typ: "JWT" };
-  const signingInput = `${b64urlJson(header)}.${b64urlJson(payload)}`;
-  const signature = await crypto.subtle.sign(
-    alg === "ES256" ? { name: "ECDSA", hash: "SHA-256" } : { name: "RSASSA-PKCS1-v1_5" },
-    keys.privateKey,
-    encoder.encode(signingInput),
-  );
-  return `${signingInput}.${b64urlEncode(new Uint8Array(signature))}`;
-}
 
 function sessionPayload(now: number): Record<string, unknown> {
   const nowSec = Math.floor(now / 1000);
