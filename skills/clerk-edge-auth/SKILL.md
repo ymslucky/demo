@@ -31,20 +31,30 @@ clerkMiddleware()" → 500；本地 `next dev` 完全正常（纯环境差异，
 `readSessionClaims()`：读 `__session` cookie 后交 **Clerk 官方 `verifyToken`**
 （`@clerk/nextjs/server` re-export）完成验签，本仓库不自己解析 JWT：
 
-- **必须配置 `CLERK_SECRET_KEY`**：`verifyToken` 的 JWKS 回源（官方 Backend
-  API `/v1/jwks`，模块级缓存）强制要求 SK；用户搜索 / 角色管理的
-  `clerkClient` 也需要它。缺失时 `readSessionClaimsDetailed()` 返回
-  `reason: "no-secret-key"`（fail-closed），绝不抛 500；admin 页面据此
-  展示配置指引而非静默弹回首页。
+- **密钥材料二选一**（verifyToken 原生 jwtKey 优先，源码 chunk-73GEKEET
+  L6624）：`CLERK_SECRET_KEY`（JWKS 经 Backend API 回源，用户搜索 /
+  角色管理的 clerkClient 也需要它）或 `CLERK_JWT_PUBLIC_KEY`
+  （Dashboard → API keys 的 Public key，PEM）——**networkless 本地验签**，
+  免 JWKS 回源：出网受限 / 回源超时的自愈通道，也是免一次 RTT 的性能
+  余量。PEM 仅适用 RS256 生产实例（dev/test 签 ES256）；支持 `\n`
+  转义换行（`resolveVerifyKeys` 还原）。两者皆缺才返回 `no-key`。
+- **失败必须带诊断，绝不静默重定向**：`readSessionClaimsDetailed()`
+  返回 reason（no-cookie / no-key / verify-failed / issuer-mismatch）+
+  detail（verifyToken 错误摘要，`sanitizeVerifyDetail` 脱敏截断，不含
+  token/密钥）。admin 门控页据此就地展示诊断卡，并内嵌
+  AdminClientProbe（客户端 useUser 对照——客户端已登录而服务端
+  no-cookie 即 EdgeOne SSR 层问题；探针无角色即 metadata 未注入或
+  令牌未刷新）。**"一点击就跳首页"式静默失败是排障的头号敌人**——
+  与边缘函数 `x-auth-fail` 响应头同一哲学。
 - **issuer / azp 默认不校验（可选加固）**：verifyToken 的 JWKS 回源由 SK
   决定，签名天然绑定实例（dev 实例 `*.clerk.accounts.dev` 与生产实例
   均开箱即用）；需显式钉死时设 `CLERK_ISSUER` / `CLERK_AZP_ORIGINS`
-  （逗号分隔 origin）。这与边缘函数不同——那边的 JWKS URL 从 token iss
-  构造，iss 白名单是必需关卡。
-- 备选（不推荐当前仓库使用）：`jwtKey`（Dashboard 的 PEM 公钥）可
-  networkless 验签、免 SK——但用户搜索仍需 SK，单配它不解决问题。
-- 先例：admin 页面门控（readAdminAccess 三态：面板 / 环境指引 / 重定向）
-  与角色 server actions（readAdminClaims 静默拒绝）均走该路径。
+  （逗号分隔 origin；issuer-mismatch 的 detail 带实际 iss 便于对账）。
+  这与边缘函数不同——那边的 JWKS URL 从 token iss 构造，iss 白名单
+  是必需关卡。
+- 先例：admin 页面门控（readAdminAccess 判别联合四态：面板 / no-key
+  指引 / no-session 诊断 / not-admin 说明）与角色 server actions
+  （readAdminClaims 静默拒绝）均走该路径。
 
 ## 2. Clerk v7 组件 API（相对旧版为破坏性变更）
 
@@ -139,6 +149,7 @@ kid 强制刷新，以及一条 **broken-subtle 回归**（crypto 桩：`importK
 ## 7. 红旗信号
 
 - 生产 SSR 页面 / server action 里调用 `auth()`——EdgeOne 不透传 clerkMiddleware，改用 `readSessionClaims()`（§1.1）。
+- 门控失败静默 `redirect` 首页——失败必须就地展示 reason + detail 诊断卡，"跳首页"式不可见故障无法排障（§1.1）。
 - 在边缘函数里对 RS256 调用 `crypto.subtle.importKey`/`verify`——立刻停（生产事故根源，见 §4）。
 - 把验签逻辑挪进 `app/api/**` 或 Next.js 层"复用"——两层各司其职（§1）。
 - 用 token 里的 `iss` 直接构造 JWKS URL 而不经允许列表——认证绕过（§3.3）。

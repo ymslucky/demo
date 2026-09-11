@@ -1,4 +1,8 @@
-import { readSessionClaimsDetailed, type SessionClaims } from "./session";
+import {
+  readSessionClaimsDetailed,
+  type SessionClaims,
+  type SessionFailureReason,
+} from "./session";
 
 /**
  * 服务端 RBAC 判定（Next.js 层共享）。角色来自会话 claims.metadata.role
@@ -7,16 +11,26 @@ import { readSessionClaimsDetailed, type SessionClaims } from "./session";
  * 三级 API，按调用方的失败语义取用：
  * - isAdminClaims：已有 claims 时的纯判定；
  * - readAdminClaims：静默门控（server actions——失败即拒绝，不解释）；
- * - readAdminAccess：带失败原因的门控（admin 页面——区分"环境未配置"
- *   （如缺 CLERK_SECRET_KEY，应展示配置指引）与"无权限"（应重定向）。
+ * - readAdminAccess：带失败原因的门控（admin 页面——所有失败态就地展示
+ *   诊断卡而非静默重定向：环境缺密钥 → 配置指引；未登录 → 登录提示；
+ *   验签失败 → reason + detail 诊断；已登录但非 admin → 无权限说明）。
  * UI 隐藏不构成边界，真正的门控在各调用点。
  */
 export const ADMIN_ROLE = "admin";
 
-/** 非管理员访问的失败语义：no-session 含未登录与验签失败，no-secret-key 为环境缺配置。 */
+/**
+ * 非管理员访问的失败语义（每个失败态 reason 均为单一字面量——页面按
+ * 判别联合收窄分支，联合型 reason 会破坏 TS 收窄）：
+ * - no-key：环境无任何验签密钥材料（CLERK_SECRET_KEY / CLERK_JWT_PUBLIC_KEY 均缺）；
+ * - no-session：会话层失败（sessionReason 细分 no-cookie / verify-failed /
+ *   issuer-mismatch，detail 为 verifyToken 错误摘要——诊断卡数据源）；
+ * - not-admin：会话有效但角色非 admin（保留 claims 供页面展示当前身份）。
+ */
 export type AdminAccess =
   | { ok: true; claims: SessionClaims }
-  | { ok: false; reason: "not-admin" | "no-session" | "no-secret-key" };
+  | { ok: false; reason: "no-key"; sessionReason: SessionFailureReason; detail: string | null }
+  | { ok: false; reason: "no-session"; sessionReason: SessionFailureReason; detail: string | null }
+  | { ok: false; reason: "not-admin"; claims: SessionClaims };
 
 export function isAdminClaims(claims: CustomJwtSessionClaims | null | undefined): boolean {
   return claims?.metadata?.role === ADMIN_ROLE;
@@ -28,8 +42,17 @@ export async function readAdminClaims(): Promise<SessionClaims | null> {
 }
 
 export async function readAdminAccess(): Promise<AdminAccess> {
-  const { claims, reason } = await readSessionClaimsDetailed();
-  if (reason === "no-secret-key") return { ok: false, reason: "no-secret-key" };
-  if (!claims || reason) return { ok: false, reason: "no-session" };
-  return isAdminClaims(claims) ? { ok: true, claims } : { ok: false, reason: "not-admin" };
+  const { claims, reason, detail } = await readSessionClaimsDetailed();
+  if (reason === "no-key") {
+    return { ok: false, reason: "no-key", sessionReason: reason, detail };
+  }
+  if (reason || !claims) {
+    return {
+      ok: false,
+      reason: "no-session",
+      sessionReason: reason ?? "verify-failed",
+      detail,
+    };
+  }
+  return isAdminClaims(claims) ? { ok: true, claims } : { ok: false, reason: "not-admin", claims };
 }

@@ -149,7 +149,7 @@ npm run build  # next build --webpack；构建守卫：路由表必须出现 `ƒ
 | Morphing Slab 导航 + 认证控件（`Show`、SignIn/SignUp/UserButton） | [app/[locale]/components/Nav.tsx](app/[locale]/components/Nav.tsx) |
 | 主题运行时助手（apply/persist/resolve）+ `themeInitScript()` | [app/lib/theme.ts](app/lib/theme.ts) |
 | CSS 变量 + 组件类 + dock 外壳（含 `.dock-auth-btn`） | [app/globals.css](app/globals.css) + [app/styles/](app/styles/) |
-| i18n 区域路由（`localePrefix: "always"`） | [i18n/routing.ts](i18n/routing.ts) |
+| i18n 区域路由（`localePrefix: "as-needed"`，zh 裸路径；带 `/zh` 前缀请求在 proxy.ts 直通防 307↔rewrite 环） | [i18n/routing.ts](i18n/routing.ts) |
 | i18n 词表 | [messages/zh.json](messages/zh.json) · [messages/en.json](messages/en.json) |
 | i18n 链接原语 / 请求配置 | [i18n/navigation.ts](i18n/navigation.ts) · [i18n/request.ts](i18n/request.ts) |
 | Clerk 密钥（绝不提交） | `.env.local` |

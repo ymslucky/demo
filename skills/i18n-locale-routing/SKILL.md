@@ -35,6 +35,17 @@ rewrite**（实证 2026-09）：
 完成同样的改写（cookie `NEXT_LOCALE` → `Accept-Language` 权重 → 默认 `zh`），
 非默认语言的无前缀请求以重定向应答。
 
+### 2.1 带前缀路径必须直通（2026-09 生产事故）
+
+as-needed 下 next-intl 会把**显式默认前缀**（`/zh/…`）当作冗余并以 307 剥到
+裸路径；而 EdgeOne 边缘 rewrites 恰恰把裸路径改写回 `/zh/…`——两者互相成环
+（实测 `/zh/admin/` → 307 `/admin/` → rewrite `/zh/admin/` → …），带前缀 URL
+永远渲染不出来。因此 [proxy.ts](../../proxy.ts) 组合层对 `/{defaultLocale}`
+前缀请求**跳过 intlMiddleware 直接放行**（`app/[locale]` 段从 URL 解析
+locale，无需协商/改写）；裸路径行为不变（本地 intlMiddleware 改写、生产边缘
+rewrites）。生产上 307 响应穿透静态层直达浏览器，**该环只有生产可观测**——
+本地 dev 正常不代表生产无环，验证 307 链要在 `next start` 下 curl。
+
 ## 3. 裸根兜底（`/`）
 
 [app/route.ts](../../app/route.ts) 是动态兜底处理器：执行与 intlMiddleware 相同
@@ -71,6 +82,7 @@ contact/tools/unit），由各 locale 的 `index.ts` 聚合。TSX 中硬编码�
 
 - 在 app/ 组件里硬编码用户可见文案或含人类语言词的 `aria-label`——测试会失败（§5）。
 - 用 `NextResponse.rewrite()` 解决 EdgeOne 上的路径改写——Route Handler 显式 500、middleware 静默丢弃（§2）。
+- 在 proxy.ts 组合层删掉带前缀路径的直通分支——as-needed 的 307 剥前缀会与边缘 rewrites 成环（§2.1）。
 - 新增顶级页面却没在 edgeone.json 补 rewrite——生产裸路径 404（§2）。
 - 需要区域感知链接时用了裸 `<a>` / `next/link`（§5）。
 - 写 `X/*` 改写规则后没有为区根补精确规则——`*` 不匹配空串（§2）。

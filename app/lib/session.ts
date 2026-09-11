@@ -9,8 +9,15 @@ import { verifyToken } from "@clerk/nextjs/server";
  * "Clerk can't detect usage of clerkMiddleware()"（线上 500；本地 next dev
  * 正常，纯环境差异）。改用 Clerk 官方手动验签路径：读取 __session cookie，
  * 交由 @clerk/backend 的 verifyToken 完成（签名 + exp/nbf + clockSkewInMs
- * + 可选 authorizedParties；JWKS 从 SK 对应实例的官方 Backend API 回源并
- * 模块级缓存——本文件不自己解析 JWT）。
+ * + 可选 authorizedParties；本文件不自己解析 JWT）。
+ *
+ * 密钥材料（二选一即可，verifyToken 原生支持 jwtKey 优先）：
+ * - CLERK_SECRET_KEY：JWKS 从 SK 对应实例的官方 Backend API 回源（模块级
+ *   缓存）；用户搜索 / 角色管理（clerkClient）也依赖它。
+ * - CLERK_JWT_PUBLIC_KEY：Dashboard → API keys 的 Public key（PEM）。
+ *   networkless 本地验签，免 JWKS 回源——部署环境出网受限 / 回源超时
+ *   的自愈通道，也是免一次回源 RTT 的性能余量。仅适用于 RS256 生产
+ *   实例（dev/test 实例签 ES256，PEM 路径不适用）。支持 \n 转义换行。
  *
  * 安全模型：verifyToken 的 JWKS 回源由 CLERK_SECRET_KEY 决定，签名验证
  * 天然绑定到 SK 所属的 Clerk 实例——其他实例签发的 token 必然验签失败。
@@ -21,24 +28,29 @@ import { verifyToken } from "@clerk/nextjs/server";
  * 默认不钉死，dev 实例（*.clerk.accounts.dev）本地开发与生产实例部署
  * 开箱即用。
  *
- * 诊断：readSessionClaimsDetailed 返回失败原因（no-cookie / no-secret-key /
- * verify-failed / issuer-mismatch），供门控页区分"环境未配置"与"无权限"。
- * 两种失败都一律不返回 claims（fail-closed），绝不抛 500。
+ * 诊断（对齐边缘函数 x-auth-fail 的逐关哲学）：readSessionClaimsDetailed
+ * 返回失败原因（no-cookie / no-key / verify-failed / issuer-mismatch）与
+ * detail（verifyToken 错误摘要，脱敏截断——不含 token 与密钥），供门控页
+ * 就地展示诊断卡而非静默弹回首页。所有失败一律不返回 claims（fail-closed），
+ * 绝不抛 500。
  */
 
 const SESSION_COOKIE = "__session";
+const DETAIL_MAX_LENGTH = 200;
 
 export type SessionClaims = CustomJwtSessionClaims & Record<string, unknown>;
 
 export type SessionFailureReason =
   | "no-cookie"
-  | "no-secret-key"
+  | "no-key"
   | "verify-failed"
   | "issuer-mismatch";
 
 export type SessionResult = {
   claims: SessionClaims | null;
   reason: SessionFailureReason | null;
+  /** 失败细节摘要（脱敏截断）；成功时为 null。 */
+  detail: string | null;
 };
 
 /** issuer 比较前的尾斜杠归一化。 */
@@ -53,35 +65,89 @@ function commaList(raw: string | undefined): string[] | null {
 }
 
 /**
- * 读取并验签当前请求的 Clerk 会话 claims；未登录 / 环境缺 CLERK_SECRET_KEY /
- * 验签失败一律 claims: null 并附 reason（fail-closed）。服务端组件与
- * server action 均可调用（不依赖 clerkMiddleware）。
+ * 从 verifyToken 的错误对象提取一行可展示的摘要（纯函数，可单测）。
+ * 只取 message——TokenVerificationError 的 message 是原因码/网络失败
+ * 描述，不含 token 与密钥；空白归一并截断，防止超长破坏诊断卡排版。
+ */
+export function sanitizeVerifyDetail(error: unknown): string | null {
+  if (!error) return null;
+  const message =
+    typeof error === "string"
+      ? error
+      : error instanceof Error
+        ? error.message
+        : "";
+  const line = message.replace(/\s+/g, " ").trim();
+  return line ? line.slice(0, DETAIL_MAX_LENGTH) : null;
+}
+
+/**
+ * 解析验签密钥材料（纯函数，可单测）：SK 与 PEM 至少其一即可完成验签；
+ * 两者皆缺才视为环境未配置。PEM 中的字面 "\n"（反斜杠+n）还原为换行，
+ * 兼容控制台环境变量不支持多行输入的部署面板。
+ */
+export function resolveVerifyKeys(
+  env: Record<string, string | undefined> = process.env,
+): { secretKey: string | null; jwtKey: string | null } {
+  const pick = (name: string): string | null => {
+    const raw = env[name];
+    const value = typeof raw === "string" ? raw.trim() : "";
+    return value ? value : null;
+  };
+  const jwtRaw = pick("CLERK_JWT_PUBLIC_KEY");
+  return {
+    secretKey: pick("CLERK_SECRET_KEY"),
+    jwtKey: jwtRaw ? jwtRaw.replace(/\\n/g, "\n") : null,
+  };
+}
+
+/**
+ * 读取并验签当前请求的 Clerk 会话 claims；未登录 / 环境无任何验签密钥 /
+ * 验签失败一律 claims: null 并附 reason + detail（fail-closed）。服务端
+ * 组件与 server action 均可调用（不依赖 clerkMiddleware）。
  */
 export async function readSessionClaimsDetailed(): Promise<SessionResult> {
   const token = (await cookies()).get(SESSION_COOKIE)?.value;
-  if (!token) return { claims: null, reason: "no-cookie" };
+  if (!token) return { claims: null, reason: "no-cookie", detail: null };
 
-  const secretKey = process.env.CLERK_SECRET_KEY;
-  if (!secretKey) return { claims: null, reason: "no-secret-key" };
+  const { secretKey, jwtKey } = resolveVerifyKeys();
+  if (!secretKey && !jwtKey) {
+    return { claims: null, reason: "no-key", detail: null };
+  }
 
   try {
     const { data, errors } = await verifyToken(token, {
-      secretKey,
+      // verifyToken 原生优先走 jwtKey（networkless）；无 PEM 时回源 JWKS。
+      secretKey: secretKey ?? undefined,
+      jwtKey: jwtKey ?? undefined,
       // 可选加固：CLERK_AZP_ORIGINS 显式设置时才校验 azp（默认信任 Clerk）。
       authorizedParties: commaList(process.env.CLERK_AZP_ORIGINS) ?? undefined,
     });
-    // verifyToken 的返回元素类型过宽（{}），收窄后再读字段。
+    // verifyToken 的返回元素类型过宽（{}），收窄后再读字段/取错误。
     const claims = (data ?? null) as SessionClaims | null;
-    if (errors || !claims) return { claims: null, reason: "verify-failed" };
+    if (errors || !claims) {
+      const first = (errors as unknown[] | undefined)?.[0];
+      return {
+        claims: null,
+        reason: "verify-failed",
+        detail: sanitizeVerifyDetail(first),
+      };
+    }
 
-    // 可选加固：CLERK_ISSUER 显式设置时才钉死 issuer。
+    // 可选加固：CLERK_ISSUER 显式设置时才钉死 issuer；detail 带实际 iss，
+    // 生产配错时一眼可辨（iss 是公开的 issuer URL，非敏感）。
     const expectedIssuer = process.env.CLERK_ISSUER;
     if (expectedIssuer && normalizeIssuer(claims.iss) !== normalizeIssuer(expectedIssuer)) {
-      return { claims: null, reason: "issuer-mismatch" };
+      return {
+        claims: null,
+        reason: "issuer-mismatch",
+        detail: normalizeIssuer(claims.iss),
+      };
     }
-    return { claims, reason: null };
-  } catch {
-    return { claims: null, reason: "verify-failed" };
+    return { claims, reason: null, detail: null };
+  } catch (error) {
+    // verifyToken 约定为返回 errors 而非抛出；此 catch 兜底上游行为变化。
+    return { claims: null, reason: "verify-failed", detail: sanitizeVerifyDetail(error) };
   }
 }
 
