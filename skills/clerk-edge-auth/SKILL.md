@@ -28,30 +28,38 @@ clerkMiddleware()" → 500；本地 `next dev` 完全正常（纯环境差异，
 客户端组件（`<Show>` / `useUser`）不受影响（走 ClerkProvider + Frontend API）。
 
 **服务端需要会话时的正解**——[app/lib/session.ts](../../app/lib/session.ts) 的
-`readSessionClaims()`：读 `__session` cookie 后交 **Clerk 官方 `verifyToken`**
-（`@clerk/nextjs/server` re-export）完成验签，本仓库不自己解析 JWT：
+`readSessionClaims()`：读 `__session` cookie 后自行验签，**验签通道按序取
+第一条可用**（2026-09 生产事故后的三通道架构）：
 
-- **密钥材料二选一**（verifyToken 原生 jwtKey 优先，源码 chunk-73GEKEET
-  L6624）：`CLERK_SECRET_KEY`（JWKS 经 Backend API 回源，用户搜索 /
-  角色管理的 clerkClient 也需要它）或 `CLERK_JWT_PUBLIC_KEY`
-  （Dashboard → API keys 的 Public key，PEM）——**networkless 本地验签**，
-  免 JWKS 回源：出网受限 / 回源超时的自愈通道，也是免一次 RTT 的性能
-  余量。PEM 仅适用 RS256 生产实例（dev/test 签 ES256）；支持 `\n`
-  转义换行（`resolveVerifyKeys` 还原）。两者皆缺才返回 `no-key`。
-- **失败必须带诊断，绝不静默重定向**：`readSessionClaimsDetailed()`
-  返回 reason（no-cookie / no-key / verify-failed / issuer-mismatch）+
-  detail（verifyToken 错误摘要，`sanitizeVerifyDetail` 脱敏截断，不含
-  token/密钥）。admin 门控页据此就地展示诊断卡，并内嵌
-  AdminClientProbe（客户端 useUser 对照——客户端已登录而服务端
-  no-cookie 即 EdgeOne SSR 层问题；探针无角色即 metadata 未注入或
-  令牌未刷新）。**"一点击就跳首页"式静默失败是排障的头号敌人**——
-  与边缘函数 `x-auth-fail` 响应头同一哲学。
-- **issuer / azp 默认不校验（可选加固）**：verifyToken 的 JWKS 回源由 SK
-  决定，签名天然绑定实例（dev 实例 `*.clerk.accounts.dev` 与生产实例
-  均开箱即用）；需显式钉死时设 `CLERK_ISSUER` / `CLERK_AZP_ORIGINS`
-  （逗号分隔 origin；issuer-mismatch 的 detail 带实际 iss 便于对账）。
-  这与边缘函数不同——那边的 JWKS URL 从 token iss 构造，iss 白名单
-  是必需关卡。
+1. **PEM 通道**（`CLERK_JWT_PUBLIC_KEY`，Dashboard → API keys → Public
+   key）：verifyToken 原生 `jwtKey` 路径，networkless——已配置的环境最优，
+   也是免 JWKS 获取 RTT 的性能余量。仅适用 RS256 实例；支持 `\n` 转义。
+2. **JWKS 通道（生产默认）**：token iss 命中白名单（`CLERK_ISSUER` 显式
+   列表，或 `SITE_DOMAIN` 派生 `https://clerk.<apex>`——派生规则与边缘
+   函数逐字对齐，未配置默认 rdom.cn）→ jose `createRemoteJWKSet` 从该
+   iss 的公开端点 `<iss>/.well-known/jwks.json` 取公钥（模块级缓存 + kid
+   轮换自愈）+ `jwtVerify`（issuer/alg ES256+RS256/clockTolerance 5s）。
+   **存在理由**：verifyToken 的 SK 回源打 `api.clerk.com/v1/jwks`，生产
+   环境出网不可达（线上 verify-failed 且摘要为空）——工具页边缘函数
+   正是靠这条自定义域 JWKS 通道一直正常。安全关卡同边缘函数：JWKS URL
+   只按白名单条目构造，绝不从 token iss 直接构造。
+3. **SK 回源兜底**：iss 不在白名单（本地 dev 实例 accounts.dev）时走
+   verifyToken + `CLERK_SECRET_KEY`——本地网络可达 api.clerk.com。
+
+`CLERK_SECRET_KEY` 始终必需（用户搜索 / 角色管理的 clerkClient 用）。
+诊断三件套：reason（no-cookie / no-key / verify-failed / issuer-mismatch）
++ detail（错误摘要——message → reason → JSON 三级兜底，绝不允许空白）
++ input（`via=<pem|jwks|sk>` 通道标记 + sk/pem 存在性与形态摘要），门控页
+就地展示诊断卡并内嵌 AdminClientProbe（客户端 useUser 对照——客户端已
+登录而服务端 verify-failed 即出网/通道问题；探针无角色即 metadata 未
+注入或令牌未刷新）。**"一点击就跳首页"式静默失败是排障的头号敌人**——
+与边缘函数 `x-auth-fail` 响应头同一哲学。
+- **issuer / azp 的校验语义随通道而异**：JWKS 通道的 iss 白名单是**必需
+  关卡**（jose `issuer` 参数，验签时强制）——与边缘函数 §3.3 同理（防
+  任意 iss + 自造 JWKS 伪造身份）。PEM / SK 通道签名绑定实例，iss 校验
+  仅在 `CLERK_ISSUER` 显式设置时执行（claimsGate）。azp 在两处均为可选
+  加固：`CLERK_AZP_ORIGINS` 设置时，azp 存在且不命中才拒绝（缺失放行
+  ——旧实例可能不带 azp）。
 - 先例：admin 页面门控（readAdminAccess 判别联合四态：面板 / no-key
   指引 / no-session 诊断 / not-admin 说明）与角色 server actions
   （readAdminClaims 静默拒绝）均走该路径。

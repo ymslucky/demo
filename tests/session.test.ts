@@ -1,8 +1,12 @@
-import { describe, expect, it } from "vitest";
+import { SignJWT } from "jose";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  allowedIssuers,
   describeVerifyInput,
+  matchAllowedIssuer,
   resolveVerifyKeys,
   sanitizeVerifyDetail,
+  siteApex,
 } from "../app/lib/session";
 
 /**
@@ -10,6 +14,63 @@ import {
  * The cookie/verifyToken plumbing itself needs a request scope and is
  * covered by production smoke checks (next start) instead.
  */
+
+describe("siteApex", () => {
+  it("normalizes bare, prefixed, and www forms to the apex domain", () => {
+    expect(siteApex("rdom.cn")).toBe("rdom.cn");
+    expect(siteApex("https://rdom.cn")).toBe("rdom.cn");
+    expect(siteApex("https://www.rdom.cn/tools/")).toBe("rdom.cn");
+    expect(siteApex("  RDOM.CN ")).toBe("rdom.cn");
+  });
+
+  it("returns null for blank or non-string input", () => {
+    expect(siteApex(undefined)).toBeNull();
+    expect(siteApex("   ")).toBeNull();
+  });
+});
+
+describe("allowedIssuers", () => {
+  it("derives the clerk issuer from SITE_DOMAIN like the edge functions do", () => {
+    expect(allowedIssuers({ SITE_DOMAIN: "https://www.example.com" })).toEqual([
+      "https://clerk.example.com",
+    ]);
+  });
+
+  it("falls back to the rdom.cn default when SITE_DOMAIN is absent", () => {
+    expect(allowedIssuers({})).toEqual(["https://clerk.rdom.cn"]);
+  });
+
+  it("prefers an explicit CLERK_ISSUER list over the SITE_DOMAIN derivation", () => {
+    expect(
+      allowedIssuers({ CLERK_ISSUER: "https://a.example.com, https://b.example.com", SITE_DOMAIN: "x.cn" }),
+    ).toEqual(["https://a.example.com", "https://b.example.com"]);
+  });
+});
+
+describe("matchAllowedIssuer", () => {
+  const secret = new TextEncoder().encode("unit-test-secret-0123456789abcdef");
+
+  async function tokenFor(iss: string): Promise<string> {
+    return new SignJWT({ sub: "user_1" })
+      .setProtectedHeader({ alg: "HS256" })
+      .setIssuer(iss)
+      .sign(secret);
+  }
+
+  it("matches a trailing-slash issuer to the canonical allowlist entry", async () => {
+    const token = await tokenFor("https://clerk.rdom.cn/");
+    expect(matchAllowedIssuer(token, ["https://clerk.rdom.cn"])).toBe("https://clerk.rdom.cn");
+  });
+
+  it("returns null for a non-allowlisted issuer (rogue instance)", async () => {
+    const token = await tokenFor("https://clerk.attacker.example");
+    expect(matchAllowedIssuer(token, ["https://clerk.rdom.cn"])).toBeNull();
+  });
+
+  it("returns null for a malformed token", () => {
+    expect(matchAllowedIssuer("not-a-jwt", ["https://clerk.rdom.cn"])).toBeNull();
+  });
+});
 
 describe("sanitizeVerifyDetail", () => {
   it("extracts the message from an Error", () => {
@@ -109,5 +170,68 @@ describe("describeVerifyInput", () => {
     const secret = "sk_live_super_secret_value";
     const out = describeVerifyInput({ CLERK_SECRET_KEY: secret, CLERK_JWT_PUBLIC_KEY: "-----KEY-----" });
     expect(out).not.toContain("super_secret_value");
+  });
+
+  it("prefixes the summary with the verification channel tag", () => {
+    expect(describeVerifyInput({}, "jwks")).toBe("via=jwks sk:no pem:no");
+    expect(describeVerifyInput({}, "sk")).toBe("via=sk sk:no pem:no");
+    expect(describeVerifyInput({}, "pem")).toBe("via=pem sk:no pem:no");
+  });
+});
+
+describe("readSessionClaimsDetailed channel selection", () => {
+  const secret = new TextEncoder().encode("unit-test-secret-0123456789abcdef");
+  // Set by each test before calling the reader; read through the mocked
+  // next/headers cookie jar below.
+  const cookieJar = vi.hoisted(() => ({ token: null as string | null }));
+
+  vi.mock("next/headers", () => ({
+    cookies: async () => ({
+      get: (name: string) =>
+        name === "__session" && cookieJar.token ? { value: cookieJar.token } : undefined,
+    }),
+  }));
+
+  afterEach(() => {
+    cookieJar.token = null;
+    vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
+  });
+
+  async function tokenFor(iss: string): Promise<string> {
+    return new SignJWT({ sub: "user_1" })
+      .setProtectedHeader({ alg: "HS256" })
+      .setIssuer(iss)
+      .sign(secret);
+  }
+
+  it("routes a whitelisted issuer through the JWKS channel even with no key material", async () => {
+    vi.stubEnv("CLERK_SECRET_KEY", "");
+    vi.stubEnv("CLERK_JWT_PUBLIC_KEY", "");
+    vi.stubEnv("SITE_DOMAIN", "rdom.cn");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response(JSON.stringify({ keys: [] }), { status: 200 })),
+    );
+    cookieJar.token = await tokenFor("https://clerk.rdom.cn");
+    const { readSessionClaimsDetailed } = await import("../app/lib/session");
+    const out = await readSessionClaimsDetailed();
+    expect(out.reason).toBe("verify-failed");
+    expect(out.input).toContain("via=jwks");
+  });
+
+  it("falls back to no-key when the issuer is off-list and no keys exist", async () => {
+    vi.stubEnv("CLERK_SECRET_KEY", "");
+    vi.stubEnv("CLERK_JWT_PUBLIC_KEY", "");
+    vi.stubEnv("SITE_DOMAIN", "rdom.cn");
+    const fetchSpy = vi.fn();
+    vi.stubGlobal("fetch", fetchSpy);
+    cookieJar.token = await tokenFor("https://clerk.attacker.example");
+    const { readSessionClaimsDetailed } = await import("../app/lib/session");
+    const out = await readSessionClaimsDetailed();
+    expect(out.reason).toBe("no-key");
+    expect(out.input).toContain("pem:no");
+    // The rogue issuer must never reach the network: no JWKS fetch happens.
+    expect(fetchSpy).not.toHaveBeenCalled();
   });
 });
