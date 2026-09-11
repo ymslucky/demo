@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
-import { redirect } from "next/navigation";
 import { clerkClient } from "@clerk/nextjs/server";
 import { getTranslations, setRequestLocale } from "next-intl/server";
+import { redirect } from "@/i18n/navigation";
 import { Badge, Button, Card } from "../components/ui";
 import { isAdminClaims } from "@/app/lib/rbac";
 import { readSessionClaims } from "@/app/lib/session";
@@ -78,7 +78,7 @@ export default async function AdminPage({
   // 定制、未登录或角色不匹配一律重定向（fail-closed）。
   const claims = await readSessionClaims();
   if (!isAdminClaims(claims)) {
-    redirect(`/${locale}`);
+    redirect({ href: "/", locale });
   }
   const userId = typeof claims?.sub === "string" ? claims.sub : "";
 

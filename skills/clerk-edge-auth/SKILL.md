@@ -27,9 +27,21 @@ EdgeOne 适配器**不透传 clerkMiddleware 的请求装饰**（与 intl 重写
 clerkMiddleware()" → 500；本地 `next dev` 完全正常（纯环境差异，三门禁测不出）。
 客户端组件（`<Show>` / `useUser`）不受影响（走 ClerkProvider + Frontend API）。
 
-- 服务端需要会话时用 [app/lib/session.ts](../../app/lib/session.ts) 的
-  `readSessionClaims()`：直接读 `__session` cookie 并按 §3 八步清单验签
-  （Next SSR 是 Node 22，RS256 可走标准 `subtle.verify`，无需 §4 纯 JS 路径）。
+**服务端需要会话时的正解**——[app/lib/session.ts](../../app/lib/session.ts) 的
+`readSessionClaims()`：读 `__session` cookie 后交 **Clerk 官方 `verifyToken`**
+（`@clerk/nextjs/server` re-export）完成验签，本仓库不自己解析 JWT：
+
+- **必须配置 `CLERK_SECRET_KEY`**：`verifyToken` 的 JWKS 回源（官方 Backend
+  API `/v1/jwks`，模块级缓存）强制要求 SK；用户搜索 / 角色管理的
+  `clerkClient` 也需要它。缺失时 `readSessionClaims()` 返回 null
+  （fail-closed），绝不抛 500。
+- verifyToken 不校验 `iss`（JWKS 已绑定实例），session.ts 显式钉死
+  issuer 白名单（默认 `https://clerk.<SITE_DOMAIN apex>`，`CLERK_ISSUER`
+  可覆盖——本地 dev 实例调试时指向 Dashboard 域名）。
+- azp 走官方 `authorizedParties`（默认 apex + www，`CLERK_AZP_ORIGINS`
+  可覆盖）。
+- 备选（不推荐当前仓库使用）：`jwtKey`（Dashboard 的 PEM 公钥）可
+  networkless 验签、免 SK——但用户搜索仍需 SK，单配它不解决问题。
 - 先例：admin 页面门控与角色 server actions 均走该路径。
 
 ## 2. Clerk v7 组件 API（相对旧版为破坏性变更）
