@@ -1,0 +1,8 @@
+{
+  "name": "@lucky/auth-core",
+  "version": "1.0.0",
+  "description": "Clerk session predicates shared across the edge functions, agents, and Next SSR layers.",
+  "main": "index.js",
+  "type": "module",
+  "private": true
+}

@@ -37,9 +37,14 @@ UI 组件（客户端，零平台依赖）
   │
   ▼
 平台绑定层（唯一允许接触平台 API 的地方）
-  ├─ functions/  —— EdgeOne 边缘函数 + EO KV（自包含，禁 import）
-  ├─ agents/     —— Makers agents + context.sandbox（自包含，零 import）
-  └─ app/lib/    —— Next SSR（Clerk verifyToken、共享样式/RBAC）
+  ├─ functions/  —— EdgeOne 边缘函数 + EO KV
+  ├─ agents/     —— Makers agents + context.sandbox
+  └─ app/lib/    —— Next SSR（会话验签通道、共享样式/RBAC）
+
+shared/auth-core/（npm 依赖包 @lucky/auth-core：跨层纯判定逻辑单一
+真源——issuer 派生 / azp / 角色名。三层以标准 import 复用：SSR 与
+agents 直接 import，边缘函数经 node_modules 解析（官方 @supabase
+示例背书）；file: 依赖随 npm install 就位，零构建步骤。）
 ```
 
 - **HTTP 契约即端口**：前端与业务逻辑永不直接 import 平台 SDK；换基础设施
@@ -78,7 +83,7 @@ npm run build  # next build --webpack；构建守卫：路由表必须出现 `ƒ
 | 容器 CSS 类名 | 同步更新 [scripts/e2e-cross-feature.cjs](scripts/e2e-cross-feature.cjs) 的 `document.querySelector(...)`（手动 E2E，不在 `npm test` 内） |
 | `app/[locale]/tools/**/*.ts` 新增逻辑函数 | 附带同级 `*.test.ts`——[tests/tools.test.ts](tests/tools.test.ts) 只覆盖共享助手 |
 | 用户可见文案 / ARIA 标签 | 同时更新 [messages/zh/](messages/zh/) 与 [messages/en/](messages/en/) 下对应域文件——键结构一致由 `tests/i18n.test.ts` 强制 |
-| [shared/](shared/) 纯逻辑（auth-core 等） | 运行 `node scripts/sync-shared.cjs` 同步各函数文件区间——漂移由 `npm test` 前置的 `--check` 拦截 |
+| [shared/auth-core/](shared/auth-core/)（@lucky/auth-core） | 纯 import 复用，无需同步脚本；导出面变更需核对 functions / agents / app 三处调用点 |
 
 **小步聚焦**
 
@@ -90,6 +95,15 @@ npm run build  # next build --webpack；构建守卫：路由表必须出现 `ƒ
 - §1 三项门禁**实际运行**且全绿——引用真实输出，不预测结果。
 - 同步表全部联动点已在同一提交内更新。
 - 相关 skill 的红旗信号（各 SKILL.md 末节）零命中。
+
+## 2.5 工作方式 —— 用户明确要求（2026-09）
+
+1. **需求不明确时必须询问用户**（AskUserQuestion），严禁猜测用户意图并擅自主张；
+   拿不准"做不做、做多少、往哪个方向做"时，一律先问再动手。
+2. **开发行为必须严格遵循行业规范与最佳实践**：优先框架官方文档、成熟库、
+   标准工具链（如代码共享用打包器而非文本注入脚本）；严禁为绕过工具或
+   平台限制采用 hack（文本拼接、@ts-nocheck、滥用类型断言等）；确需偏离
+   常规做法时，先向用户说明理由并获同意。
 
 ## 3. 铁则 —— 绝无例外
 

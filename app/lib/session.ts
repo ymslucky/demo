@@ -1,7 +1,7 @@
 import { cookies } from "next/headers";
 import { verifyToken } from "@clerk/nextjs/server";
 import { createRemoteJWKSet, decodeJwt, jwtVerify } from "jose";
-import { deriveIssuers, normalizeIssuer, parseList, siteApex } from "../../shared/auth-core.js";
+import { deriveIssuers, normalizeIssuer, parseList, siteApex } from "@lucky/auth-core";
 
 /**
  * Next.js 服务端会话读取（不依赖 clerkMiddleware 的 auth()）。

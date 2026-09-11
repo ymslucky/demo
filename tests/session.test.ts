@@ -1,6 +1,6 @@
 import { SignJWT } from "jose";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { deriveIssuers, siteApex } from "../shared/auth-core.js";
+import { deriveIssuers, siteApex } from "@lucky/auth-core";
 import {
   describeVerifyInput,
   matchAllowedIssuer,

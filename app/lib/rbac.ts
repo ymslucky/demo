@@ -4,7 +4,7 @@ import {
   type SessionFailureReason,
 } from "./session";
 // 角色常量单一真源在 shared/auth-core.js（agents 层 roleFromClaims 同源）。
-import { ADMIN_ROLE } from "../../shared/auth-core.js";
+import { ADMIN_ROLE } from "@lucky/auth-core";
 
 /**
  * 服务端 RBAC 判定（Next.js 层共享）。角色来自会话 claims.metadata.role
