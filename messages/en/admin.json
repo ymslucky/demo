@@ -1,6 +1,9 @@
 {
   "admin": {
     "title": "Admin console",
+    "envMissingTitle": "Admin console unavailable: missing environment config",
+    "envMissingDetail": "Your session was recognized, but the deployment environment has no CLERK_SECRET_KEY, so the server can neither verify sessions nor call the Clerk Backend API (required for user search and role management).",
+    "envMissingHint": "Fix: add a CLERK_SECRET_KEY environment variable for this project in the EdgeOne console (the Secret key from Clerk Dashboard → API keys), then redeploy.",
     "subtitle": "Visible to the admin role only — access is decided by the session claims.metadata.role (injected via Clerk session token customization, signed with the JWT).",
     "currentCard": "Current admin",
     "userIdLabel": "User ID",

@@ -27,6 +27,31 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
   - **EdgeOne 边缘函数层**（[functions/](functions/)）：KV 支撑的 HTTP API（`/api/presence`、`/api/todo`、`/api/echo`、`/api/headers`）。
 - **UI 风格**：Neo-Brutalism（完整契约见 `neo-brutalism-ui` skill）。
 
+### 0.1 架构分层与可替换性（接入新基础设施前必读）
+
+```
+UI 组件（客户端，零平台依赖）
+  │  只依赖 HTTP 契约：/api/*（JSON）、/code-run（动作协议）
+  ▼
+业务纯逻辑（utils.ts / instances.ts / browser.ts / app/lib/*，零平台依赖，可单测）
+  │
+  ▼
+平台绑定层（唯一允许接触平台 API 的地方）
+  ├─ functions/  —— EdgeOne 边缘函数 + EO KV（自包含，禁 import）
+  ├─ agents/     —— Makers agents + context.sandbox（自包含，零 import）
+  └─ app/lib/    —— Next SSR（Clerk verifyToken、共享样式/RBAC）
+```
+
+- **HTTP 契约即端口**：前端与业务逻辑永不直接 import 平台 SDK；换基础设施
+  （如 Cloudflare KV/D1、沙箱容器）= 用新平台重写平台绑定层并**保持
+  HTTP 契约不变**，UI 与业务逻辑零改动。
+- **接新供应商清单**：① 新建平台绑定实现（遵守该层的自包含规则）；
+  ② 对照旧端点的请求/响应字段逐一保持契约；③ 认证沿用 Clerk
+  （角色读 `claims.metadata.role`，见 `clerk-edge-auth` skill §1.1）；
+  ④ 新增环境变量进 `edgeone.json`/控制台并在 AGENTS.md 登记。
+- **禁止提前抽象**：没有第二个真实实现前，不写端口/工厂/适配器空壳
+  （YAGNI）；重复的平台绑定代码以注释互相引用即可（自包含铁则优先）。
+
 ## 1. 质量门禁（推送前必须全绿）
 
 ```bash

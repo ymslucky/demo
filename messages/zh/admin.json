@@ -1,6 +1,9 @@
 {
   "admin": {
     "title": "管理后台",
+    "envMissingTitle": "管理后台暂不可用：环境缺配置",
+    "envMissingDetail": "已识别到你的登录会话，但部署环境尚未配置 CLERK_SECRET_KEY，服务端无法验证会话与调用 Clerk Backend API（用户搜索 / 角色管理依赖它）。",
+    "envMissingHint": "处理方式：在 EdgeOne 控制台为本项目添加环境变量 CLERK_SECRET_KEY（值取自 Clerk Dashboard → API keys 的 Secret key），重新部署后即可进入。",
     "subtitle": "仅 admin 角色可见：权限判定来自会话 claims.metadata.role（Clerk session token 定制注入，随 JWT 签名下发）。",
     "currentCard": "当前管理员",
     "userIdLabel": "用户 ID",

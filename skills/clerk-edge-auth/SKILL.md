@@ -33,16 +33,18 @@ clerkMiddleware()" → 500；本地 `next dev` 完全正常（纯环境差异，
 
 - **必须配置 `CLERK_SECRET_KEY`**：`verifyToken` 的 JWKS 回源（官方 Backend
   API `/v1/jwks`，模块级缓存）强制要求 SK；用户搜索 / 角色管理的
-  `clerkClient` 也需要它。缺失时 `readSessionClaims()` 返回 null
-  （fail-closed），绝不抛 500。
-- verifyToken 不校验 `iss`（JWKS 已绑定实例），session.ts 显式钉死
-  issuer 白名单（默认 `https://clerk.<SITE_DOMAIN apex>`，`CLERK_ISSUER`
-  可覆盖——本地 dev 实例调试时指向 Dashboard 域名）。
-- azp 走官方 `authorizedParties`（默认 apex + www，`CLERK_AZP_ORIGINS`
-  可覆盖）。
+  `clerkClient` 也需要它。缺失时 `readSessionClaimsDetailed()` 返回
+  `reason: "no-secret-key"`（fail-closed），绝不抛 500；admin 页面据此
+  展示配置指引而非静默弹回首页。
+- **issuer / azp 默认不校验（可选加固）**：verifyToken 的 JWKS 回源由 SK
+  决定，签名天然绑定实例（dev 实例 `*.clerk.accounts.dev` 与生产实例
+  均开箱即用）；需显式钉死时设 `CLERK_ISSUER` / `CLERK_AZP_ORIGINS`
+  （逗号分隔 origin）。这与边缘函数不同——那边的 JWKS URL 从 token iss
+  构造，iss 白名单是必需关卡。
 - 备选（不推荐当前仓库使用）：`jwtKey`（Dashboard 的 PEM 公钥）可
   networkless 验签、免 SK——但用户搜索仍需 SK，单配它不解决问题。
-- 先例：admin 页面门控与角色 server actions 均走该路径。
+- 先例：admin 页面门控（readAdminAccess 三态：面板 / 环境指引 / 重定向）
+  与角色 server actions（readAdminClaims 静默拒绝）均走该路径。
 
 ## 2. Clerk v7 组件 API（相对旧版为破坏性变更）
 

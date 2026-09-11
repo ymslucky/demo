@@ -4,7 +4,7 @@ import { getTranslations, setRequestLocale } from "next-intl/server";
 import { redirect } from "@/i18n/navigation";
 import { Badge, Card } from "../components/ui";
 import { monoStyle, mutedStyle } from "@/app/lib/styles";
-import { readAdminClaims } from "@/app/lib/rbac";
+import { readAdminAccess } from "@/app/lib/rbac";
 import { AdminUserTable, type AdminUserRow } from "./UserTable";
 import { SearchUsers } from "./SearchUsers";
 
@@ -14,10 +14,11 @@ import { SearchUsers } from "./SearchUsers";
  * 职责边界：本页面只做门控与检索编排——角色表格在 UserTable、动作在
  * _actions、会话验签在 app/lib/session、角色判定在 app/lib/rbac。
  *
- * 会话读取走 readAdminClaims（直接验签 __session cookie）——EdgeOne
+ * 会话读取走 readAdminAccess（直接验签 __session cookie）——EdgeOne
  * 适配器不透传 clerkMiddleware 装饰，auth() 在生产 SSR 不可用（500）。
- * 用户检索只在带 ?search= 时初始化 clerkClient（需要部署环境
- * CLERK_SECRET_KEY）；初始化/请求失败降级为可读文案而不是 500。
+ * 门控三态：管理员 → 面板；环境缺 CLERK_SECRET_KEY → 配置指引（登录
+ * 用户不该被静默弹回首页，排障信息就地展示）；未登录/无权限 → 重定向。
+ * 用户检索只在带 ?search= 时初始化 clerkClient；失败降级为可读文案。
  */
 
 export async function generateMetadata({
@@ -42,14 +43,22 @@ export default async function AdminPage({
   setRequestLocale(locale);
   const t = await getTranslations("admin");
 
-  // 门控：角色来自已验签的会话 claims（session token 定制注入）；未配置
-  // 定制、未登录或角色不匹配一律重定向（fail-closed）。
-  const claims = await readAdminClaims();
-  if (!claims) {
+  const access = await readAdminAccess();
+  if (!access.ok) {
+    if (access.reason === "no-secret-key") {
+      return (
+        <Card as="section" aria-label={t("envMissingTitle")} style={{ maxWidth: 640 }}>
+          <h1 style={{ margin: 0, fontSize: "var(--fs-xl)" }}>{t("envMissingTitle")}</h1>
+          <p style={{ ...mutedStyle, margin: 0 }}>{t("envMissingDetail")}</p>
+          <p style={{ ...mutedStyle, margin: 0 }}>{t("envMissingHint")}</p>
+        </Card>
+      );
+    }
     redirect({ href: "/", locale });
+    // redirect 会中断渲染（next-intl 签名非 never，此行仅供 TS 收窄）。
+    return null;
   }
-  // redirect 不参与 TS 窄化（next-intl 签名非 never），可空链兜底。
-  const userId = typeof claims?.sub === "string" ? claims.sub : "";
+  const userId = typeof access.claims.sub === "string" ? access.claims.sub : "";
 
   const query = ((await searchParams).search ?? "").trim();
   let users: AdminUserRow[] = [];

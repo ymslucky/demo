@@ -7,75 +7,85 @@ import { verifyToken } from "@clerk/nextjs/server";
  * 背景（EdgeOne Pages 生产限制）：适配器不透传 proxy.ts 中 clerkMiddleware
  * 的请求装饰——SSR 页面 / server action 里调用 auth() 会抛
  * "Clerk can't detect usage of clerkMiddleware()"（线上 500；本地 next dev
- * 正常，纯环境差异）。改用 Clerk 官方的手动验签路径：直接读取 __session
- * cookie，交由 @clerk/backend 的 verifyToken 完成（官方实现：签名 + exp/nbf
- * + clockSkewInMs=5000 + authorizedParties(azp)，JWKS 从官方 Backend API
- * 回源并模块级缓存——本文件不自己解析 JWT）。
+ * 正常，纯环境差异）。改用 Clerk 官方手动验签路径：读取 __session cookie，
+ * 交由 @clerk/backend 的 verifyToken 完成（签名 + exp/nbf + clockSkewInMs
+ * + 可选 authorizedParties；JWKS 从 SK 对应实例的官方 Backend API 回源并
+ * 模块级缓存——本文件不自己解析 JWT）。
  *
- * 部署要求：环境需配置 CLERK_SECRET_KEY（verifyToken 的 JWKS 回源强制；
- * 用户搜索 / 角色管理的 clerkClient 同样需要）。缺失时一律视为未登录
- * （fail-closed）——管理后台与角色写入全部关闭，但不产生 500。
+ * 安全模型：verifyToken 的 JWKS 回源由 CLERK_SECRET_KEY 决定，签名验证
+ * 天然绑定到 SK 所属的 Clerk 实例——其他实例签发的 token 必然验签失败。
+ * 因此 issuer / azp 白名单在这里是可选的纵深加固而非必需关卡（与边缘函数
+ * 不同：那边的 JWKS URL 从 token iss 构造，必须钉死白名单）：
+ * - CLERK_ISSUER 设置时才校验 iss（多实例并存、想显式钉死时使用）；
+ * - CLERK_AZP_ORIGINS（逗号分隔 origin）设置时才校验 azp。
+ * 默认不钉死，dev 实例（*.clerk.accounts.dev）本地开发与生产实例部署
+ * 开箱即用。
  *
- * 与边缘层（functions/api/todo.js 八步清单）的强度对齐：
- * - issuer 钉死：verifyToken 不校验 iss（JWKS/PEM 已绑定本实例，伪造实例
- *   的签名过不了验签），这里仍显式校验 iss 白名单保持同强度；
- *   默认 `https://clerk.<SITE_DOMAIN apex>`，可用 CLERK_ISSUER 覆盖
- *   （本地开发指向 Clerk Dashboard 的 dev 实例域）。
- * - azp 白名单：authorizedParties（azp 缺失放行，同官方语义）；
- *   默认 apex 及 www 变体，可用 CLERK_AZP_ORIGINS（逗号分隔）覆盖。
+ * 诊断：readSessionClaimsDetailed 返回失败原因（no-cookie / no-secret-key /
+ * verify-failed / issuer-mismatch），供门控页区分"环境未配置"与"无权限"。
+ * 两种失败都一律不返回 claims（fail-closed），绝不抛 500。
  */
 
 const SESSION_COOKIE = "__session";
-const DEFAULT_SITE_APEX = "rdom.cn";
 
 export type SessionClaims = CustomJwtSessionClaims & Record<string, unknown>;
 
-/** 访问域名 → 裸 apex（剥协议/路径/www）；非字符串或空值返回 null。 */
-function siteApex(raw: string | undefined): string | null {
-  if (typeof raw !== "string") return null;
-  const host = raw.trim().toLowerCase().replace(/^https?:\/\//, "").split("/")[0];
-  if (!host) return null;
-  return host.startsWith("www.") ? host.slice(4) : host;
-}
+export type SessionFailureReason =
+  | "no-cookie"
+  | "no-secret-key"
+  | "verify-failed"
+  | "issuer-mismatch";
+
+export type SessionResult = {
+  claims: SessionClaims | null;
+  reason: SessionFailureReason | null;
+};
 
 /** issuer 比较前的尾斜杠归一化。 */
 function normalizeIssuer(value: unknown): string {
   return String(value ?? "").replace(/\/+$/, "");
 }
 
-function commaList(raw: string | undefined, fallback: string[]): string[] {
-  if (typeof raw !== "string" || raw.trim() === "") return fallback;
+function commaList(raw: string | undefined): string[] | null {
+  if (typeof raw !== "string" || raw.trim() === "") return null;
   const items = raw.split(",").map((item) => item.trim()).filter(Boolean);
-  return items.length > 0 ? items : fallback;
+  return items.length > 0 ? items : null;
 }
 
 /**
- * 读取并验签当前请求的 Clerk 会话 claims；未登录 / 验签失败 / 环境缺
- * CLERK_SECRET_KEY 一律返回 null（fail-closed）。服务端组件与 server
- * action 均可调用（不依赖 clerkMiddleware）。
+ * 读取并验签当前请求的 Clerk 会话 claims；未登录 / 环境缺 CLERK_SECRET_KEY /
+ * 验签失败一律 claims: null 并附 reason（fail-closed）。服务端组件与
+ * server action 均可调用（不依赖 clerkMiddleware）。
  */
-export async function readSessionClaims(): Promise<SessionClaims | null> {
+export async function readSessionClaimsDetailed(): Promise<SessionResult> {
   const token = (await cookies()).get(SESSION_COOKIE)?.value;
-  if (!token) return null;
+  if (!token) return { claims: null, reason: "no-cookie" };
 
   const secretKey = process.env.CLERK_SECRET_KEY;
-  if (!secretKey) return null;
-
-  const apex = siteApex(process.env.SITE_DOMAIN) ?? DEFAULT_SITE_APEX;
-  const issuer = process.env.CLERK_ISSUER || `https://clerk.${apex}`;
-  const authorizedParties = commaList(
-    process.env.CLERK_AZP_ORIGINS,
-    [`https://${apex}`, `https://www.${apex}`],
-  );
+  if (!secretKey) return { claims: null, reason: "no-secret-key" };
 
   try {
-    const { data, errors } = await verifyToken(token, { secretKey, authorizedParties });
-    // verifyToken 的返回元素类型过宽（{}），收窄后再读 iss。
+    const { data, errors } = await verifyToken(token, {
+      secretKey,
+      // 可选加固：CLERK_AZP_ORIGINS 显式设置时才校验 azp（默认信任 Clerk）。
+      authorizedParties: commaList(process.env.CLERK_AZP_ORIGINS) ?? undefined,
+    });
+    // verifyToken 的返回元素类型过宽（{}），收窄后再读字段。
     const claims = (data ?? null) as SessionClaims | null;
-    if (errors || !claims) return null;
-    if (normalizeIssuer(claims.iss) !== normalizeIssuer(issuer)) return null;
-    return claims;
+    if (errors || !claims) return { claims: null, reason: "verify-failed" };
+
+    // 可选加固：CLERK_ISSUER 显式设置时才钉死 issuer。
+    const expectedIssuer = process.env.CLERK_ISSUER;
+    if (expectedIssuer && normalizeIssuer(claims.iss) !== normalizeIssuer(expectedIssuer)) {
+      return { claims: null, reason: "issuer-mismatch" };
+    }
+    return { claims, reason: null };
   } catch {
-    return null;
+    return { claims: null, reason: "verify-failed" };
   }
+}
+
+/** 便捷封装：只要 claims（null = 未登录或任何失败）。 */
+export async function readSessionClaims(): Promise<SessionClaims | null> {
+  return (await readSessionClaimsDetailed()).claims;
 }
