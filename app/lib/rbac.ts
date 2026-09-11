@@ -3,6 +3,8 @@ import {
   type SessionClaims,
   type SessionFailureReason,
 } from "./session";
+// 角色常量单一真源在 shared/auth-core.js（agents 层 roleFromClaims 同源）。
+import { ADMIN_ROLE } from "../../shared/auth-core.js";
 
 /**
  * 服务端 RBAC 判定（Next.js 层共享）。角色来自会话 claims.metadata.role
@@ -16,7 +18,7 @@ import {
  *   验签失败 → reason + detail 诊断；已登录但非 admin → 无权限说明）。
  * UI 隐藏不构成边界，真正的门控在各调用点。
  */
-export const ADMIN_ROLE = "admin";
+export { ADMIN_ROLE };
 
 /**
  * 非管理员访问的失败语义（每个失败态 reason 均为单一字面量——页面按

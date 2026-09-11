@@ -78,6 +78,7 @@ npm run build  # next build --webpack；构建守卫：路由表必须出现 `ƒ
 | 容器 CSS 类名 | 同步更新 [scripts/e2e-cross-feature.cjs](scripts/e2e-cross-feature.cjs) 的 `document.querySelector(...)`（手动 E2E，不在 `npm test` 内） |
 | `app/[locale]/tools/**/*.ts` 新增逻辑函数 | 附带同级 `*.test.ts`——[tests/tools.test.ts](tests/tools.test.ts) 只覆盖共享助手 |
 | 用户可见文案 / ARIA 标签 | 同时更新 [messages/zh/](messages/zh/) 与 [messages/en/](messages/en/) 下对应域文件——键结构一致由 `tests/i18n.test.ts` 强制 |
+| [shared/](shared/) 纯逻辑（auth-core 等） | 运行 `node scripts/sync-shared.cjs` 同步各函数文件区间——漂移由 `npm test` 前置的 `--check` 拦截 |
 
 **小步聚焦**
 

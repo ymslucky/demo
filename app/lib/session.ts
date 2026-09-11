@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 import { verifyToken } from "@clerk/nextjs/server";
 import { createRemoteJWKSet, decodeJwt, jwtVerify } from "jose";
+import { deriveIssuers, normalizeIssuer, parseList, siteApex } from "../../shared/auth-core.js";
 
 /**
  * Next.js 服务端会话读取（不依赖 clerkMiddleware 的 auth()）。
@@ -64,42 +65,11 @@ export type SessionResult = {
   input: string | null;
 };
 
+// 纯判定逻辑（issuer 派生 / azp / 角色名）单一真源在 shared/auth-core.js，
+// 由上层 re-export 保持既有导入面；本文件只保留通道编排与验签。
+export { normalizeIssuer, siteApex };
+
 /** issuer 比较前的尾斜杠归一化。 */
-function normalizeIssuer(value: unknown): string {
-  return String(value ?? "").replace(/\/+$/, "");
-}
-
-function commaList(raw: string | undefined): string[] | null {
-  if (typeof raw !== "string" || raw.trim() === "") return null;
-  const items = raw.split(",").map((item) => item.trim()).filter(Boolean);
-  return items.length > 0 ? items : null;
-}
-
-/**
- * 访问域名归一化（与 functions/api/todo.js 的 siteApex 保持一致）：接受
- * "rdom.cn" / "https://rdom.cn" / "https://www.rdom.cn" 等写法，剥协议、
- * 路径与 www 前缀；空值返回 null。（纯函数，可单测。）
- */
-export function siteApex(raw: string | undefined): string | null {
-  if (typeof raw !== "string") return null;
-  const host = raw.trim().toLowerCase().replace(/^https?:\/\//, "").split("/")[0];
-  if (!host) return null;
-  return host.startsWith("www.") ? host.slice(4) : host;
-}
-
-/**
- * JWKS 通道的 issuer 白名单（纯函数，可单测）：CLERK_ISSUER 显式列表优先
- * （兼容旧可选加固语义），否则按 Clerk 自定义实例惯例由 SITE_DOMAIN 派生
- * https://clerk.<apex>；未配置 SITE_DOMAIN 默认 rdom.cn——与边缘函数的
- * 派生规则逐字对齐，换域名只改部署环境变量，无需改代码。
- */
-export function allowedIssuers(
-  env: Record<string, string | undefined> = process.env,
-): string[] {
-  const explicit = commaList(env.CLERK_ISSUER);
-  if (explicit) return explicit;
-  return [`https://clerk.${siteApex(env.SITE_DOMAIN) ?? "rdom.cn"}`];
-}
 
 /**
  * 从 verifyToken/jose 的错误对象提取一行可展示的摘要（纯函数，可单测）。
@@ -211,8 +181,11 @@ export async function readSessionClaimsDetailed(): Promise<SessionResult> {
   if (!token) return { claims: null, reason: "no-cookie", detail: null, input: null };
 
   const { secretKey, jwtKey } = resolveVerifyKeys();
-  const issuers = allowedIssuers();
-  const azpAllowlist = commaList(process.env.CLERK_AZP_ORIGINS);
+  const issuers = deriveIssuers({
+    siteDomain: process.env.SITE_DOMAIN,
+    clerkIssuer: process.env.CLERK_ISSUER,
+  });
+  const azpAllowlist = parseList(process.env.CLERK_AZP_ORIGINS);
 
   try {
     // 通道 1：PEM networkless（verifyToken 原生 jwtKey 路径）。

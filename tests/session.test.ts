@@ -1,21 +1,22 @@
 import { SignJWT } from "jose";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { deriveIssuers, siteApex } from "../shared/auth-core.js";
 import {
-  allowedIssuers,
   describeVerifyInput,
   matchAllowedIssuer,
   resolveVerifyKeys,
   sanitizeVerifyDetail,
-  siteApex,
 } from "../app/lib/session";
 
 /**
  * Unit tests for the pure helpers exported by app/lib/session.ts.
  * The cookie/verifyToken plumbing itself needs a request scope and is
  * covered by production smoke checks (next start) instead.
+ * Pure auth predicates (siteApex / issuer derivation) are tested against
+ * their single source of truth, shared/auth-core.js.
  */
 
-describe("siteApex", () => {
+describe("siteApex (shared/auth-core)", () => {
   it("normalizes bare, prefixed, and www forms to the apex domain", () => {
     expect(siteApex("rdom.cn")).toBe("rdom.cn");
     expect(siteApex("https://rdom.cn")).toBe("rdom.cn");
@@ -29,20 +30,20 @@ describe("siteApex", () => {
   });
 });
 
-describe("allowedIssuers", () => {
+describe("deriveIssuers (shared/auth-core)", () => {
   it("derives the clerk issuer from SITE_DOMAIN like the edge functions do", () => {
-    expect(allowedIssuers({ SITE_DOMAIN: "https://www.example.com" })).toEqual([
+    expect(deriveIssuers({ siteDomain: "https://www.example.com" })).toEqual([
       "https://clerk.example.com",
     ]);
   });
 
   it("falls back to the rdom.cn default when SITE_DOMAIN is absent", () => {
-    expect(allowedIssuers({})).toEqual(["https://clerk.rdom.cn"]);
+    expect(deriveIssuers({})).toEqual(["https://clerk.rdom.cn"]);
   });
 
   it("prefers an explicit CLERK_ISSUER list over the SITE_DOMAIN derivation", () => {
     expect(
-      allowedIssuers({ CLERK_ISSUER: "https://a.example.com, https://b.example.com", SITE_DOMAIN: "x.cn" }),
+      deriveIssuers({ clerkIssuer: "https://a.example.com, https://b.example.com", siteDomain: "x.cn" }),
     ).toEqual(["https://a.example.com", "https://b.example.com"]);
   });
 });
