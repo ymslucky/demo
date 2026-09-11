@@ -16,6 +16,7 @@
     "gateVerifyHintJwks": "若摘要指向 JWKS / fetch 失败：部署环境可能无法回源 Clerk Backend API，可改配 CLERK_JWT_PUBLIC_KEY（Dashboard → API keys → Public key，PEM）改为本地验签。",
     "gateVerifyHintIssuer": "若摘要指向 issuer：生产设置了 CLERK_ISSUER 白名单，请核对它与当前实例的 issuer 一致（移除该环境变量可关闭此校验）。",
     "gateNotAdminTitle": "无访问权限",
+    "gateNotAdminTokenMeta": "当前令牌的 metadata 声明（签发时快照）：",
     "gateNotAdminDetail": "会话有效，但该账号的角色不是管理员（用户 ID：{userId}）。角色由 Clerk publicMetadata.role 决定，请联系管理员调整，调整后重新登录以刷新令牌。",
     "probeLabel": "客户端探针：",
     "probeLoading": "会话加载中…",

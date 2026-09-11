@@ -45,7 +45,13 @@ export type AdminAccess =
       detail: string | null;
       input: string | null;
     }
-  | { ok: false; reason: "not-admin"; claims: SessionClaims };
+  | {
+      ok: false;
+      reason: "not-admin";
+      claims: SessionClaims;
+      /** claims.metadata 的 JSON 快照——诊断卡展示，确诊模板是否生效。 */
+      metadataSnapshot: string;
+    };
 
 export function isAdminClaims(claims: CustomJwtSessionClaims | null | undefined): boolean {
   return claims?.metadata?.role === ADMIN_ROLE;
@@ -70,5 +76,7 @@ export async function readAdminAccess(): Promise<AdminAccess> {
       input,
     };
   }
-  return isAdminClaims(claims) ? { ok: true, claims } : { ok: false, reason: "not-admin", claims };
+  return isAdminClaims(claims)
+    ? { ok: true, claims }
+    : { ok: false, reason: "not-admin", claims, metadataSnapshot: JSON.stringify(claims.metadata ?? null) };
 }

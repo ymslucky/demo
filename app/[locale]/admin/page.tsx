@@ -132,6 +132,12 @@ export default async function AdminPage({
         title={t("gateNotAdminTitle")}
         lines={[t("gateNotAdminDetail", { userId: seenUserId })]}
       >
+        <div>
+          <div className="tool-label">{t("gateNotAdminTokenMeta")}</div>
+          <div style={{ ...monoStyle, fontSize: "var(--fs-sm)", wordBreak: "break-all" }}>
+            {access.metadataSnapshot}
+          </div>
+        </div>
         <AdminClientProbe />
         <Link href="/" className="dock-auth-btn">
           {t("gateBackHome")}

@@ -16,6 +16,7 @@
     "gateVerifyHintJwks": "If the summary mentions JWKS / fetch failures: the deployment environment may be unable to reach the Clerk Backend API — configure CLERK_JWT_PUBLIC_KEY (Dashboard → API keys → Public key, PEM) to verify locally instead.",
     "gateVerifyHintIssuer": "If the summary mentions issuer: a CLERK_ISSUER allowlist is configured — make sure it matches this instance's issuer (removing the variable disables the check).",
     "gateNotAdminTitle": "No access",
+    "gateNotAdminTokenMeta": "metadata claim of the current token (snapshot at issuance):",
     "gateNotAdminDetail": "The session is valid, but this account does not have the admin role (user ID: {userId}). Roles come from Clerk publicMetadata.role — ask an admin to change it, then sign in again to refresh the token.",
     "probeLabel": "Client probe:",
     "probeLoading": "Loading session…",
