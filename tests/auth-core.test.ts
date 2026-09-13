@@ -235,6 +235,41 @@ describe("verifySessionDetailed: rejection reasons feed x-auth-fail", () => {
     expect(fetchJwks).toHaveBeenNthCalledWith(2, ISSUER, { forceRefresh: true });
   });
 
+  it("rejects with reason jwks when the initial JWKS fetch fails", async () => {
+    const now = Date.now();
+    const keys = await generateEs256Keys();
+    const token = await signJwt("ES256", keys, sessionPayload(now));
+    const fetchJwks = vi.fn(() => Promise.reject(new Error("jwks-http-503")));
+    expect(
+      await verifySessionDetailed(token, {
+        now,
+        fetchJwks,
+        allowedIssuers: [ISSUER],
+        azpApex: APEX,
+      }),
+    ).toEqual({ ok: false, reason: "jwks" });
+    expect(fetchJwks).toHaveBeenCalledTimes(1);
+  });
+
+  it("rejects with reason jwks when the forced refresh fetch fails", async () => {
+    const now = Date.now();
+    const keys = await generateEs256Keys();
+    const token = await signJwt("ES256", keys, sessionPayload(now));
+    const fetchJwks = vi
+      .fn<() => Promise<Array<Record<string, unknown>>>>()
+      .mockResolvedValueOnce([{ kid: "stale-key" }])
+      .mockRejectedValueOnce(new Error("jwks-http-500"));
+    expect(
+      await verifySessionDetailed(token, {
+        now,
+        fetchJwks,
+        allowedIssuers: [ISSUER],
+        azpApex: APEX,
+      }),
+    ).toEqual({ ok: false, reason: "jwks" });
+    expect(fetchJwks).toHaveBeenCalledTimes(2);
+  });
+
   it("is fail-closed when allowedIssuers is omitted: every iss is rejected", async () => {
     const now = Date.now();
     const keys = await generateEs256Keys();

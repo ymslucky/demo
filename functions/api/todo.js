@@ -272,7 +272,7 @@ export function readSessionToken(request) {
 /**
  * 验证 Clerk 会话 JWT（详细版）：成功返回 { ok: true, payload }，失败
  * 返回 { ok: false, reason }。reason 取值：parse / alg:<算法> / iss /
- * azp / nbf / exp / sts / kid / sig / crypto——会进 401 响应的
+ * azp / nbf / exp / sts / kid / sig / crypto / jwks——会进 401 响应的
  * x-auth-fail 诊断头。八步验签清单（alg 分派 / 钉死 issuer / azp /
  * 时间窗 / kid 选取与 JWKS 自愈刷新 / RS256 纯 JS 验签 / ES256）由
  * @lucky/auth-core 的 verifySessionDetailed 提供（单一真源）；本包装

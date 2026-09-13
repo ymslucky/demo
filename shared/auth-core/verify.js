@@ -213,7 +213,7 @@ function sanitizeTag(value) {
 /**
  * 验证 Clerk 会话 JWT（详细版）：成功返回 { ok: true, payload }，失败
  * 返回 { ok: false, reason }。reason 取值：parse / alg:<算法> / iss /
- * azp / nbf / exp / sts / kid / sig / crypto——会进 401 响应的
+ * azp / nbf / exp / sts / kid / sig / crypto / jwks——会进 401 响应的
  * x-auth-fail 诊断头，动态拼接的算法名经 sanitizeTag 消毒。
  * 依赖均可注入，测试无需真实网络。导出仅供测试。
  *
@@ -279,11 +279,21 @@ export async function verifySessionDetailed(
   }
 
   // 选取公钥：注入 JWKS 时跳过网络路径；回源时 kid 未命中则强制刷新
-  // 一次再试（自愈密钥轮换与陈旧缓存），仍无则拒绝。
-  let keys = Array.isArray(jwks) ? jwks : await fetchJwks(iss);
+  // 一次再试（自愈密钥轮换与陈旧缓存），仍无则拒绝。回源失败（网络 /
+  // JWKS 端点异常）按 "jwks" 关卡拒绝——不让验签层异常裸抛给调用方。
+  let keys;
+  try {
+    keys = Array.isArray(jwks) ? jwks : await fetchJwks(iss);
+  } catch {
+    return { ok: false, reason: "jwks" };
+  }
   let jwk = keys.find((k) => k?.kid === parsed.header.kid);
   if (!jwk && !Array.isArray(jwks)) {
-    keys = await fetchJwks(iss, { forceRefresh: true });
+    try {
+      keys = await fetchJwks(iss, { forceRefresh: true });
+    } catch {
+      return { ok: false, reason: "jwks" };
+    }
     jwk = keys.find((k) => k?.kid === parsed.header.kid);
   }
   if (!jwk) return { ok: false, reason: "kid" };

@@ -151,7 +151,7 @@ token 在本地 Node 验签正常（所以测试一直全绿）。`verifyRs256` 
 todo 端点的 401 响应携带 `x-auth-fail`，值为命中的确切失败关卡：
 
 ```
-parse | alg:<x> | iss | azp | nbf | exp | sts | kid | sig | crypto | no-cookie | sub
+parse | alg:<x> | iss | azp | nbf | exp | sts | kid | sig | crypto | jwks | no-cookie | sub
 ```
 
 动态值经 `sanitizeTag`（`/^[\w.:-]{1,32}$/`）消毒。排障配方：读一次响应头即可
