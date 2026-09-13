@@ -1528,6 +1528,29 @@ function TodoPanel() {
                         <span className="todo-badge">{formatDateValue(item.dueAt)}</span>
                       ) : null}
                     </span>
+                    <div className="todo-card-actions">
+                      <button
+                        type="button"
+                        className="todo-chip"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          toggle(item);
+                        }}
+                      >
+                        {item.done ? t("markUndone") : t("markDone")}
+                      </button>
+                      <button
+                        type="button"
+                        className="todo-chip"
+                        aria-label={t("deleteItem", { title: item.title })}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          remove(item.id);
+                        }}
+                      >
+                        ✕
+                      </button>
+                    </div>
                   </article>
                 ))}
                 <form
