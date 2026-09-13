@@ -187,7 +187,15 @@ describe("verifySessionDetailed: rejection reasons feed x-auth-fail", () => {
     const now = Date.now();
     const keys = await generateEs256Keys();
     const token = await signJwt("ES256", keys, sessionPayload(now));
-    const tampered = `${token.slice(0, -1)}${token.endsWith("A") ? "B" : "A"}`;
+    // Corrupt the FIRST character of the signature segment: all six of its
+    // bits are significant (they form the top bits of signature byte 0), so
+    // swapping it always changes the decoded signature. Swapping the LAST
+    // character was flaky — its low four bits are discarded base64 padding,
+    // so an "A" -> "B" swap decoded to the identical final byte in ~25% of
+    // runs and the tampered token still verified.
+    const [header, payload, sig] = token.split(".");
+    const swapped = sig.startsWith("A") ? "B" : "A";
+    const tampered = `${header}.${payload}.${swapped}${sig.slice(1)}`;
     expect(
       await verifySessionDetailed(tampered, baseDeps(now, [keys.jwk])),
     ).toEqual({ ok: false, reason: "sig" });
