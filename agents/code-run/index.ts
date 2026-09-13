@@ -21,10 +21,11 @@
  * - kill    {}                              销毁实例（重置会话时调用）
  *
  * 登录门控（全动作生效）：仅登录用户可用。读取 __session cookie 中的
- * Clerk 会话 JWT 并完整验签（八步清单；RS256 走纯 JS BigInt 实现——边缘
- * 运行时 crypto.subtle 不支持 RSA，见 verifyRs256 注释），失败返回
- * 401 unauthorized 并附 x-auth-fail 诊断头。认证函数自
- * functions/api/todo.js 移植为 TS，本文件保持自包含（零 import）。
+ * Clerk 会话 JWT 并完整验签（八步清单由 npm 包 @lucky/auth-core 的
+ * verifySessionDetailed 提供——单一真源；RS256 走纯 JS BigInt 实现等
+ * 算法细节见包内 verify.js），失败返回 401 unauthorized 并附
+ * x-auth-fail 诊断头。本文件只保留薄包装 verifyAgentSession（注入站点
+ * 默认派生）与运行时适配（普通对象 headers 读 cookie、诊断头消毒）。
  *
  * run 动作限速：每用户每小时 10 次；browser 动作独立配额每用户每小时
  * 60 次（前端逐条发送队列步骤，一次队列会消耗多条）。模块级内存滑动窗口
@@ -50,8 +51,9 @@
  * - go / java           → files.write 写入源文件后 commands.run 调工具链
  *   （go run / java 单文件启动；Java 公共类须命名为 Main）
  *
- * 本文件保持自包含（不 import 仓库内模块），全部类型为结构性声明，
- * 以便 next build 对 agents/** 的类型检查无需 Makers SDK 依赖。
+ * 除 npm 包 @lucky/auth-core（验签单一真源）外不 import 任何模块；全部
+ * 类型为结构性声明，以便 next build 对 agents/** 的类型检查无需 Makers
+ * SDK 依赖。
  */
 
 /** 沙箱能力面的最小结构声明（实际运行时由 Makers 注入）。 */
@@ -459,13 +461,15 @@ export async function executeBrowserSteps(
 }
 
 // ---------------------------------------------------------------------------
-// Clerk 会话验证（自 functions/api/todo.js 移植为 TS，零 import 自包含）
+// Clerk 会话验证（验签核心单一真源：npm 包 @lucky/auth-core）
 //
-// 八步清单：parse → alg 分派（仅 ES256/RS256）→ 钉死 issuer 白名单 →
+// 八步清单（parse → alg 分派（仅 ES256/RS256）→ 钉死 issuer 白名单 →
 // azp 校验（缺失放行）→ exp/nbf（5s 容差）→ sts → kid 匹配（未命中强制
-// 刷新 JWKS 一次）→ 验签。与 todo.js 的差异只有两处：
-// - headers 是普通对象（Makers 运行时无 Headers.get），cookie 直接取
-//   headers["cookie"]；
+// 刷新 JWKS 一次）→ 验签）由包的 verifySessionDetailed 提供；RS256 走
+// 纯 JS BigInt 实现（边缘运行时 crypto.subtle 不支持 RSA）等算法细节见
+// 包内 verify.js。与 todo.js 的差异只有两处：
+// - headers 是普通对象（Makers 运行时无 Headers.get），cookie 由
+//   readCookieToken 直接取 headers["cookie"]；
 // - issuer 白名单 / azp 基准不在模块级派生（Makers 运行时无 process.env），
 //   改为请求时从 context.env.SITE_DOMAIN 派生并注入 verifyAgentSession。
 // ---------------------------------------------------------------------------
@@ -474,9 +478,9 @@ import {
   ADMIN_ROLE,
   DEFAULT_SITE_APEX,
   isAllowedAzp,
-  normalizeIssuer,
   roleFromClaims,
   siteApex,
+  verifySessionDetailed,
 } from "@lucky/auth-core";
 
 // 共享判定逻辑 re-export（单一真源 @lucky/auth-core，供测试与上层复用）。
@@ -485,12 +489,6 @@ export { isAllowedAzp, roleFromClaims, siteApex };
 type Jwk = Record<string, unknown>;
 type JwkKeys = Jwk[];
 
-const JWKS_TTL_MS = 3_600_000;
-const CLOCK_SKEW_S = 5;
-
-// ── shared:auth-core（单一真源 shared/auth-core.js，勿手改——由
-// scripts/sync-shared.cjs 生成并校验一致性）──────────────────────
-
 /** 从普通对象 headers 的 cookie 中提取 __session JWT（字符集 URL 安全）。 */
 function readCookieToken(headers: Record<string, unknown> | undefined): string | null {
   const raw = headers?.cookie;
@@ -498,154 +496,6 @@ function readCookieToken(headers: Record<string, unknown> | undefined): string |
     typeof raw === "string" ? raw : Array.isArray(raw) ? raw.join("; ") : "";
   const match = cookie.match(/(?:^|;\s*)__session=([^;]*)/);
   return match ? match[1].trim() : null;
-}
-
-/** base64url 段解码为字节（自动补齐 padding）；标注 ArrayBuffer 以满足 BufferSource。 */
-function base64UrlDecode(segment: string): Uint8Array<ArrayBuffer> {
-  const b64 = String(segment).replace(/-/g, "+").replace(/_/g, "/");
-  const padded = b64 + "=".repeat((4 - (b64.length % 4)) % 4);
-  const binary = atob(padded);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
-  return bytes;
-}
-
-/** 拆解 JWT 三段并解析 header/payload；任何畸形输入返回 null。 */
-function parseTokenPayload(token: unknown): {
-  header: Record<string, unknown>;
-  payload: Record<string, unknown>;
-  signingInput: string;
-  signature: Uint8Array<ArrayBuffer>;
-} | null {
-  if (typeof token !== "string") return null;
-  const parts = token.split(".");
-  if (parts.length !== 3 || parts.some((p) => p.length === 0)) return null;
-  try {
-    const decoder = new TextDecoder();
-    const header = JSON.parse(decoder.decode(base64UrlDecode(parts[0])));
-    const payload = JSON.parse(decoder.decode(base64UrlDecode(parts[1])));
-    if (typeof header !== "object" || header === null) return null;
-    if (typeof payload !== "object" || payload === null) return null;
-    return {
-      header: header as Record<string, unknown>,
-      payload: payload as Record<string, unknown>,
-      signingInput: `${parts[0]}.${parts[1]}`,
-      signature: base64UrlDecode(parts[2]),
-    };
-  } catch {
-    return null;
-  }
-}
-
-// RS256 纯 JS 验签（BigInt RSA 公钥运算）：边缘运行时 crypto.subtle 不支持
-// RSASSA-PKCS1-v1_5（生产 Clerk 实例签发 RS256，importKey/verify 抛异常 →
-// 401 且 x-auth-fail: crypto，先例见 todo.js），因此绝不走 Web Crypto 做
-// RSA 验签；SHA-256 摘要仍用 subtle.digest，填充比对采用 EMSA-PKCS1-v1_5
-// （RFC 8017 §9.2）。公开指数 e=65537 仅 17 位，2048 位模长约 18 次 BigInt
-// 模运算，亚毫秒级。
-
-/** SHA-256 的 DER DigestInfo 前缀（RFC 8017 §9.2 注 1），共 19 字节。 */
-const SHA256_DIGEST_INFO = Uint8Array.from([
-  0x30, 0x31, 0x30, 0x0d, 0x06, 0x09, 0x60, 0x86, 0x48, 0x01,
-  0x65, 0x03, 0x04, 0x02, 0x01, 0x05, 0x00, 0x04, 0x20,
-]);
-
-/** 字节序列 → BigInt（大端序）。 */
-function bytesToBigInt(bytes: Uint8Array): bigint {
-  let value = 0n;
-  for (const byte of bytes) value = (value << 8n) | BigInt(byte);
-  return value;
-}
-
-/** BigInt → 定长 k 字节大端字节序列（调用方保证 value < 2^(8k)，不截断）。 */
-function bigIntToBytes(value: bigint, length: number): Uint8Array {
-  const bytes = new Uint8Array(length);
-  for (let i = length - 1; i >= 0; i -= 1) {
-    bytes[i] = Number(value & 0xffn);
-    value >>= 8n;
-  }
-  return bytes;
-}
-
-/** BigInt 模幂（平方-乘法）：base^exponent mod modulus。 */
-function modPow(base: bigint, exponent: bigint, modulus: bigint): bigint {
-  let result = 1n;
-  let b = base % modulus;
-  let e = exponent;
-  while (e > 0n) {
-    if (e & 1n) result = (result * b) % modulus;
-    b = (b * b) % modulus;
-    e >>= 1n;
-  }
-  return result;
-}
-
-/** RS256（RSASSA-PKCS1-v1_5 + SHA-256）纯 JS 验签；任何异常一律 false。 */
-async function verifyRs256(
-  jwk: Jwk,
-  signingInput: string,
-  signature: Uint8Array,
-  cryptoObj: Crypto,
-): Promise<boolean> {
-  try {
-    // 标准 RSA JWK 的 n 按"去前导零"序列化，解码后恰为模长 k 字节。
-    const nBytes = base64UrlDecode(String(jwk.n));
-    const k = nBytes.length;
-    if (k < 20 || signature.length !== k) return false;
-    const n = bytesToBigInt(nBytes);
-    const s = bytesToBigInt(signature);
-    // RFC 8017 §5.2.2 步骤 2b：s 不在 [0, n-1] 内即无效。
-    if (s >= n) return false;
-
-    // RSA 公钥运算：em = s^e mod n。
-    const e = bytesToBigInt(base64UrlDecode(String(jwk.e)));
-    const em = bigIntToBytes(modPow(s, e, n), k);
-
-    // EMSA-PKCS1-v1_5 编码比对：00 01 FF..FF 00 || DigestInfo || H(m)。
-    const hash = new Uint8Array(
-      await cryptoObj.subtle.digest("SHA-256", new TextEncoder().encode(signingInput)),
-    );
-    const t = SHA256_DIGEST_INFO.length + hash.length;
-    if (k < t + 11 || em[0] !== 0x00 || em[1] !== 0x01) return false;
-    let idx = 2;
-    while (idx < k - t - 1) {
-      if (em[idx] !== 0xff) return false;
-      idx += 1;
-    }
-    if (em[idx] !== 0x00) return false;
-    idx += 1;
-    for (let i = 0; i < SHA256_DIGEST_INFO.length; i += 1) {
-      if (em[idx + i] !== SHA256_DIGEST_INFO[i]) return false;
-    }
-    idx += SHA256_DIGEST_INFO.length;
-    for (let i = 0; i < hash.length; i += 1) {
-      if (em[idx + i] !== hash[i]) return false;
-    }
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-/** 模块级 JWKS 缓存：iss → { keys, expiresAt }，避免每次请求都回源。 */
-const jwksCache = new Map<string, { keys: JwkKeys; expiresAt: number }>();
-
-/** 回源并解析 JWKS；forceRefresh 跳过缓存（kid 未命中时的自愈路径）。 */
-async function getJwks(
-  issuer: string,
-  { forceRefresh = false }: { forceRefresh?: boolean } = {},
-): Promise<JwkKeys> {
-  const iss = String(issuer).replace(/\/+$/, "");
-  const cached = jwksCache.get(iss);
-  if (!forceRefresh && cached && cached.expiresAt > Date.now()) return cached.keys;
-
-  const res = await fetch(`${iss}/.well-known/jwks.json`, { cache: "no-store" });
-  if (!res.ok) throw new Error(`jwks-http-${res.status}`);
-  const data = (await res.json()) as { keys?: unknown };
-  const keys = Array.isArray(data?.keys) ? (data.keys as JwkKeys) : null;
-  if (!keys) throw new Error("jwks-shape");
-  jwksCache.set(iss, { keys, expiresAt: Date.now() + JWKS_TTL_MS });
-  return keys;
 }
 
 /** 响应头安全的小标签：只放行受限字符集，其余归一为 "invalid"。 */
@@ -666,9 +516,12 @@ export type AgentVerifyDeps = {
 
 /**
  * 验证 Clerk 会话 JWT（八步清单，见块注释）：成功 { ok: true, payload }，
- * 失败 { ok: false, reason }（进 401 响应的 x-auth-fail 诊断头，算法名经
- * sanitizeTag 消毒）。issuer 白名单默认由 azpApex 派生（clerk.<apex>）。
- * 全部依赖可注入。导出仅供测试。
+ * 失败 { ok: false, reason }（进 401 响应的 x-auth-fail 诊断头）。八步
+ * 验签由 @lucky/auth-core 的 verifySessionDetailed 提供（单一真源，含
+ * alg reason 的消毒）；本薄包装只注入站点默认派生：issuer 白名单缺省
+ * clerk.<azpApex>（与原 TS 实现一致），fetchJwks 缺省沿用包内带 1h 缓存
+ * 的 getJwks。AgentVerifyDeps 注入字段与返回形状不变，测试无需真实网络。
+ * 导出仅供测试。
  */
 export async function verifyAgentSession(
   token: unknown,
@@ -676,88 +529,21 @@ export async function verifyAgentSession(
     jwks = null,
     now = Date.now(),
     crypto: cryptoObj = globalThis.crypto,
-    fetchJwks = getJwks,
+    fetchJwks,
     allowedIssuers,
     azpApex = DEFAULT_SITE_APEX,
   }: AgentVerifyDeps = {},
 ): Promise<
   { ok: true; payload: Record<string, unknown> } | { ok: false; reason: string }
 > {
-  const issuers = allowedIssuers ?? [`https://clerk.${azpApex}`];
-  const parsed = parseTokenPayload(token);
-  if (!parsed) return { ok: false, reason: "parse" };
-
-  // Clerk 实例间会话签名算法不固定（开发/生产实例分别为 ES256/RS256），
-  // 按 header.alg 分派到与实例 JWKS 密钥型一致的算法，其余直接拒绝。
-  const alg = parsed.header.alg;
-  if (alg !== "ES256" && alg !== "RS256") {
-    return { ok: false, reason: `alg:${sanitizeTag(alg)}` };
-  }
-
-  const payload = parsed.payload;
-  // 钉死 issuer：只信任白名单实例并只回源其 JWKS（防"任意 iss + 自造
-  // JWKS"伪造身份），比较前做尾斜杠归一化。
-  const iss = normalizeIssuer(payload.iss);
-  if (!issuers.map(normalizeIssuer).includes(iss)) {
-    return { ok: false, reason: "iss" };
-  }
-
-  // azp 校验（防子域 cookie 泄漏攻击）：存在时其 host 须为本站 apex 或其
-  // 任意子域；旧实例可能不带 azp，缺失时放行（对齐官方示例）。
-  if (payload.azp && !isAllowedAzp(payload.azp, azpApex)) {
-    return { ok: false, reason: "azp" };
-  }
-
-  // 时间窗：exp 缺失/已过期、nbf 未生效，各带 CLOCK_SKEW_S 容差。
-  const nowSec = now / 1000;
-  const exp = Number(payload.exp);
-  if (!Number.isFinite(exp) || nowSec >= exp + CLOCK_SKEW_S) {
-    return { ok: false, reason: "exp" };
-  }
-  const nbf = Number(payload.nbf);
-  if (Number.isFinite(nbf) && nowSec < nbf - CLOCK_SKEW_S) {
-    return { ok: false, reason: "nbf" };
-  }
-  // sts（官方可选校验）：存在但非 "active" 视为会话未就绪。
-  if (payload.sts !== undefined && payload.sts !== "active") {
-    return { ok: false, reason: "sts" };
-  }
-
-  // 选取公钥：注入 JWKS 时跳过网络路径；回源时 kid 未命中则强制刷新
-  // 一次再试（自愈密钥轮换与陈旧缓存），仍无则拒绝。
-  let keys = Array.isArray(jwks) ? jwks : await fetchJwks(iss);
-  let jwk = keys.find((k) => k?.kid === parsed.header.kid);
-  if (!jwk && !Array.isArray(jwks)) {
-    keys = await fetchJwks(iss, { forceRefresh: true });
-    jwk = keys.find((k) => k?.kid === parsed.header.kid);
-  }
-  if (!jwk) return { ok: false, reason: "kid" };
-
-  // 验签分派：RS256 走上方纯 JS 实现（边缘 subtle 不支持 RSA），ES256 走
-  // Web Crypto（ECDSA P-256 边缘支持良好，hash 在 verify 时指定）。
-  if (alg === "RS256") {
-    const ok = await verifyRs256(jwk, parsed.signingInput, parsed.signature, cryptoObj);
-    return ok ? { ok: true, payload } : { ok: false, reason: "sig" };
-  }
-  try {
-    const key = await cryptoObj.subtle.importKey(
-      "jwk",
-      jwk as JsonWebKey,
-      { name: "ECDSA", namedCurve: "P-256" },
-      false,
-      ["verify"],
-    );
-    const ok = await cryptoObj.subtle.verify(
-      { name: "ECDSA", hash: "SHA-256" },
-      key,
-      parsed.signature,
-      new TextEncoder().encode(parsed.signingInput),
-    );
-    return ok ? { ok: true, payload } : { ok: false, reason: "sig" };
-  } catch {
-    // 密钥型与算法不匹配等 Web Crypto 异常一律按验签失败（401）处理。
-    return { ok: false, reason: "crypto" };
-  }
+  return verifySessionDetailed(token, {
+    ...(Array.isArray(jwks) ? { jwks } : {}),
+    now,
+    crypto: cryptoObj,
+    ...(fetchJwks ? { fetchJwks } : {}),
+    allowedIssuers: allowedIssuers ?? [`https://clerk.${azpApex}`],
+    azpApex,
+  });
 }
 
 /**
