@@ -168,3 +168,28 @@ export function parseUserAgent(ua: string): UaInfo {
 
   return { browser, version, os, device };
 }
+// ---------------------------------------------------------------------------
+// cURL 重建（把服务器视角收到的请求还原为可回放的 curl 命令）
+// ---------------------------------------------------------------------------
+
+/** POSIX 单引号转义：' → '\''。 */
+function shQuote(value: string): string {
+  return "'" + value.replace(/'/g, "'\\''") + "'";
+}
+
+/**
+ * 把收到的请求重建为 curl 命令：方法 + URL + 全部请求头。
+ * 输出为 POSIX 形式（单引号包裹，内部单引号按 '\'' 转义），
+ * 供一键复制后在终端回放。
+ */
+export function buildCurl(input: {
+  method: string;
+  url: string;
+  headers?: Record<string, string>;
+}): string {
+  const lines = ["curl -X " + input.method.toUpperCase() + " " + shQuote(input.url)];
+  for (const [name, value] of Object.entries(input.headers ?? {})) {
+    lines.push("  -H " + shQuote(name + ": " + value));
+  }
+  return lines.join(" \\\n");
+}

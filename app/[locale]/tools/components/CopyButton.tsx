@@ -8,7 +8,7 @@ import { Button } from "../../components/ui";
  * 一键复制按钮：写系统剪贴板后短暂切换为「已复制」反馈。
  * clipboard API 缺失或被拒（非安全上下文）时回退隐藏 textarea + execCommand。
  */
-export function CopyButton({ value }: { value: string }) {
+export function CopyButton({ value, label }: { value: string; label?: string }) {
   const t = useTranslations("tools");
   const [copied, setCopied] = useState(false);
   const timerRef = useRef(0);
@@ -46,7 +46,7 @@ export function CopyButton({ value }: { value: string }) {
 
   return (
     <Button variant="secondary" size="sm" onClick={copy}>
-      {copied ? t("actions.copied") : t("actions.copy")}
+      {copied ? t("actions.copied") : label ?? t("actions.copy")}
     </Button>
   );
 }

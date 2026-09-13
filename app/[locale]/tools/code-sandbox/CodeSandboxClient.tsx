@@ -29,6 +29,7 @@ import {
   normalizeRunPayload,
   randomId,
   remainingMs,
+  filterConsole,
   rotateConversationId,
   type ConsoleEntry,
   type LanguageId,
@@ -226,6 +227,8 @@ export default function CodeSandboxClient() {
   const [instances, setInstances] = useState<SandboxInstanceRecord[] | null>(null);
   const [instancesLoading, setInstancesLoading] = useState(false);
   const [instancesError, setInstancesError] = useState<string | null>(null);
+  // 控制台日志过滤档位（会话内）。
+  const [consoleFilter, setConsoleFilter] = useState<"all" | "out" | "err">("all");
   const terminalRef = useRef<HTMLDivElement>(null);
 
   // 会话 ID 挂载时生成/复用（localStorage）；换 ID = 新沙箱实例。
@@ -559,8 +562,14 @@ export default function CodeSandboxClient() {
     });
   }
 
-  // 终端展示内容：实时流，或选中历史记录的输出快照（回放）。
-  const visibleEntries = viewingRun ? viewingRun.output : entries;
+  // 终端展示内容：实时流，或选中历史记录的输出快照（回放），再按档位过滤。
+  const sourceEntries = viewingRun ? viewingRun.output : entries;
+  const visibleEntries = filterConsole(sourceEntries, consoleFilter);
+  const consoleCounts = { all: sourceEntries.length, out: 0, err: 0 };
+  for (const entry of sourceEntries) {
+    if (entry.kind === "stderr" || entry.kind === "error") consoleCounts.err += 1;
+    else if (entry.kind !== "system") consoleCounts.out += 1;
+  }
 
   // 仅登录用户可用：客户端用 Clerk <Show> 门控渲染（页面保持静态预渲染），
   // 服务端 agents/code-run 对所有动作做真实 JWT 验签（401）——UI 门控只是
@@ -748,6 +757,25 @@ export default function CodeSandboxClient() {
                   {t("clear")}
                 </Button>
               )}
+              <div style={{ display: "flex", gap: "0.2rem", marginLeft: "auto" }}>
+                {(
+                  [
+                    ["all", t("consoleAll"), consoleCounts.all],
+                    ["out", t("consoleOut"), consoleCounts.out],
+                    ["err", t("consoleErr"), consoleCounts.err],
+                  ] as const
+                ).map(([key, label, count]) => (
+                  <button
+                    key={key}
+                    type="button"
+                    className={consoleFilter === key ? "todo-chip todo-chip--on" : "todo-chip"}
+                    aria-pressed={consoleFilter === key}
+                    onClick={() => setConsoleFilter(key)}
+                  >
+                    {label + " " + count}
+                  </button>
+                ))}
+              </div>
               {visibleEntries.length > 0 ? (
                 <CopyButton value={visibleEntries.map((entry) => entry.text).join("\n")} />
               ) : null}

@@ -400,3 +400,18 @@ export function editorEnter(value: string, selStart: number): EditorEdit {
     selEnd: selStart + insert.length,
   };
 }
+/** 控制台日志过滤档位：全部 / 正常输出（stdout+result）/ 错误（stderr+error）。 */
+export type ConsoleFilter = "all" | "out" | "err";
+
+/** 按档位过滤控制台条目；all 恒等返回。 */
+export function filterConsole(
+  entries: ConsoleEntry[],
+  filter: ConsoleFilter,
+): ConsoleEntry[] {
+  if (filter === "all") return entries;
+  return entries.filter((entry) =>
+    filter === "out"
+      ? entry.kind === "stdout" || entry.kind === "result"
+      : entry.kind === "stderr" || entry.kind === "error",
+  );
+}

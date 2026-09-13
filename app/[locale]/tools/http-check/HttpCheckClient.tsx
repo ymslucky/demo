@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import CodeBlock from "../../blog/components/CodeBlock";
-import { extractClientIp, parseUserAgent } from "./utils";
+import { buildCurl, extractClientIp, parseUserAgent } from "./utils";
+import { CopyButton } from "../components/CopyButton";
 
 /** `/api/headers` 端点返回的载荷结构。 */
 interface HeadersPayload {
@@ -274,6 +275,18 @@ export default function HttpCheckClient() {
                 </tbody>
               </table>
             </div>
+            {payload ? (
+              <div style={{ marginTop: 'var(--space-xs)' }}>
+                <CopyButton
+                  label={t("copyCurl")}
+                  value={buildCurl({
+                    method: payload.method,
+                    url: payload.url,
+                    headers: all,
+                  })}
+                />
+              </div>
+            ) : null}
             <p style={{ margin: '1rem 0 0', fontSize: 'var(--fs-sm)', color: 'var(--color-text-muted)' }}>
               {t("refreshHint")}
             </p>

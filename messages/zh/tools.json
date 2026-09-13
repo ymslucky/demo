@@ -76,6 +76,7 @@
       "headersCard": "完整请求头",
       "headerCount": "{count} 个标头",
       "refreshHint": "提示：更换网络或代理后重新打开本页，可对比数据变化。",
+      "copyCurl": "复制为 cURL",
       "apiCard": "JSON 回显接口",
       "apiDesc": "同样的数据也以 JSON 形式公开，可将任意请求发往 /api/echo 用于调试。",
       "openApi": "查看 JSON 输出"
@@ -285,6 +286,9 @@
       "browserZoomIn": "放大视图",
       "browserZoomOut": "缩小视图",
       "browserResetLayout": "重置布局",
+      "consoleAll": "全部",
+      "consoleOut": "输出",
+      "consoleErr": "错误",
       "instancesClearFilters": "清除筛选",
       "browserUnavailable": "当前沙箱不支持浏览器操作。",
       "hint": "提示：沙箱实例按浏览器会话复用；Python / JavaScript 在 Jupyter 内核中执行，Bash 直接跑命令，Go / Java 写入源文件后调用工具链。"

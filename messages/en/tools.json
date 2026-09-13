@@ -76,6 +76,7 @@
       "headersCard": "Full request headers",
       "headerCount": "{count} headers",
       "refreshHint": "Tip: reopen this page after switching networks or proxies to compare the differences.",
+      "copyCurl": "Copy as cURL",
       "apiCard": "JSON echo API",
       "apiDesc": "The same data is also available as JSON — send any request to /api/echo for debugging.",
       "openApi": "View JSON output"
@@ -285,6 +286,9 @@
       "browserZoomIn": "Zoom in",
       "browserZoomOut": "Zoom out",
       "browserResetLayout": "Reset layout",
+      "consoleAll": "All",
+      "consoleOut": "Output",
+      "consoleErr": "Errors",
       "instancesClearFilters": "Clear filters",
       "browserUnavailable": "Browser operations are unavailable in this sandbox.",
       "hint": "Tip: the sandbox instance is reused per browser session. Python / JavaScript run in a Jupyter kernel, Bash runs directly, Go / Java are written to source files and run via toolchains."

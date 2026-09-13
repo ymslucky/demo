@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
+  buildCurl,
   extractClientIp,
   parseUserAgent,
   isBot,
@@ -124,5 +125,23 @@ describe("isBot", () => {
 
   it("普通浏览器不是爬虫", () => {
     expect(isBot("Mozilla/5.0 (Windows NT 10.0) Chrome/126.0")).toBe(false);
+  });
+});
+
+describe("buildCurl", () => {
+  it("rebuilds method, url and headers as a replayable curl command", () => {
+    const curl = buildCurl({
+      method: "get",
+      url: "https://example.com/path",
+      headers: { host: "example.com", "user-agent": "test" },
+    });
+    expect(curl).toBe(
+      "curl -X GET 'https://example.com/path' \\\n  -H 'host: example.com' \\\n  -H 'user-agent: test'"
+    );
+  });
+
+  it("escapes single quotes in posix-safe form", () => {
+    const curl = buildCurl({ method: "GET", url: "https://x.com", headers: { "x-a": "o'brien" } });
+    expect(curl).toContain("-H 'x-a: o'\\''brien'");
   });
 });

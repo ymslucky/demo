@@ -7,6 +7,7 @@ import {
   appendEntries,
   appendRuns,
   clampTimeoutSec,
+  filterConsole,
   editorEnter,
   editorTab,
   formatClock,
@@ -334,5 +335,20 @@ describe("editorTab / editorEnter", () => {
     const r = editorEnter("if x:", 5);
     expect(r.value).toBe("if x:\n  ");
     expect(r.selStart).toBe(8);
+  });
+});
+
+describe("filterConsole", () => {
+  it("splits entries into output vs error buckets", () => {
+    const entries = [
+      makeEntry("system", "start", 1, "a"),
+      makeEntry("stdout", "hello", 2, "b"),
+      makeEntry("stderr", "warn", 3, "c"),
+      makeEntry("result", "done", 4, "d"),
+      makeEntry("error", "boom", 5, "e"),
+    ];
+    expect(filterConsole(entries, "all")).toHaveLength(5);
+    expect(filterConsole(entries, "out").map((e) => e.kind)).toEqual(["stdout", "result"]);
+    expect(filterConsole(entries, "err").map((e) => e.kind)).toEqual(["stderr", "error"]);
   });
 });
