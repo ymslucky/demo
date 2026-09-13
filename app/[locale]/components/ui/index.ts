@@ -4,6 +4,7 @@ export type { ButtonProps, ButtonVariant, ButtonSize } from "./Button";
 export { Card } from "./Card";
 export type { CardProps, CardElement } from "./Card";
 export { Badge } from "./Badge";
+export { EmptyState } from "./EmptyState";
 export type { BadgeProps } from "./Badge";
 export { Input } from "./Input";
 export type { InputProps } from "./Input";

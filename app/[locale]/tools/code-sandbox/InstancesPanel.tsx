@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
-import { Button } from "../../components/ui";
+import { Button, EmptyState } from "../../components/ui";
 import {
   cardStyle as cardBaseStyle,
   monoStyle,
@@ -238,7 +238,7 @@ export default function InstancesPanel({ records, loading, error, onRefresh, now
           <div className="skeleton-block" />
         </div>
       ) : records.length === 0 ? (
-        <p style={{ ...mutedStyle, margin: 0 }}>{t("instancesEmpty")}</p>
+        <EmptyState title={t("instancesEmpty")} />
       ) : sorted.length === 0 ? (
         <p style={{ ...mutedStyle, margin: 0 }}>{t("instancesNoMatch")}</p>
       ) : (

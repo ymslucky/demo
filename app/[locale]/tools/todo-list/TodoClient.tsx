@@ -45,6 +45,7 @@ import {
   type TodoStatusFilter,
 } from "./utils";
 import { useStickyState } from "../components/useStickyState";
+import { EmptyState } from "../../components/ui";
 
 // 与 http-check 工具页保持一致的 Neo-Brutalism 卡片样式（内联变量）。
 const cardStyle = {
@@ -1106,7 +1107,7 @@ function TodoPanel() {
               {t("add")}
             </button>
           </form>
-          {items.length === 0 ? <p style={mutedStyle}>{t("empty")}</p> : null}
+          {items.length === 0 ? <EmptyState title={t("empty")} /> : null}
           {items.length > 0 ? (
             <div className="todo-toolbar">
               {toolbarNode}
@@ -1565,7 +1566,7 @@ function TodoPanel() {
         </div>
       ) : tab === "board" ? (
         <div role="tabpanel" id="todo-panel-board" aria-labelledby="todo-tab-board">
-          {items.length === 0 ? <p style={mutedStyle}>{t("empty")}</p> : null}
+          {items.length === 0 ? <EmptyState title={t("empty")} /> : null}
           {items.length > 0 ? <div className="todo-toolbar">{toolbarNode}</div> : null}
           {undoToastNode}
           <div className="todo-board">
@@ -1596,7 +1597,7 @@ function TodoPanel() {
                   <span className="todo-group-count">{section.items.length}</span>
                 </header>
                 {section.items.length === 0 ? (
-                  <div style={{ ...mutedStyle, fontSize: "var(--fs-xs)" }}>{t("boardColumnEmpty")}</div>
+                  <EmptyState compact title={t("boardColumnEmpty")} />
                 ) : null}
                 {section.items.map((item) => {
                   const overdue = isOverdue(item, now);

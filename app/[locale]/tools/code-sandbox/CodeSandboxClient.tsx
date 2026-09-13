@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
 import { useTranslations } from "next-intl";
 import { Show, SignInButton } from "@clerk/nextjs";
-import { Button } from "../../components/ui";
+import { Button, EmptyState } from "../../components/ui";
 import { useStickyState } from "../components/useStickyState";
 import BrowserPanel from "./BrowserPanel";
 import InstancesPanel from "./InstancesPanel";
@@ -822,7 +822,7 @@ export default function CodeSandboxClient() {
               aria-label={t("consoleTitle")}
             >
               {visibleEntries.length === 0 ? (
-                <div style={{ opacity: 0.65 }}>{t("consoleEmpty")}</div>
+                <EmptyState compact title={t("consoleEmpty")} />
               ) : (
                 visibleEntries.map((entry) => (
                   <div
@@ -855,7 +855,7 @@ export default function CodeSandboxClient() {
           <section style={cardStyle} aria-label={t("historyTitle")}>
             <h2 style={{ margin: 0, fontSize: "var(--fs-xl)" }}>{t("historyTitle")}</h2>
             {runs.length === 0 ? (
-              <div style={mutedStyle}>{t("historyEmpty")}</div>
+              <EmptyState compact title={t("historyEmpty")} />
             ) : (
               <div style={{ display: "grid", gap: "var(--space-xs)", maxHeight: 240, overflowY: "auto", alignContent: "start" }}>
                 {runs.map((record) => (

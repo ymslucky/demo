@@ -2268,3 +2268,39 @@ body.todo-dragging {
   border-radius: 2px;
   padding: 0 1px;
 }
+/* ---- Unified empty states ---- */
+.empty-state {
+  display: grid;
+  justify-items: center;
+  gap: var(--space-xs);
+  padding: var(--space-md);
+  text-align: center;
+  color: var(--color-text-muted);
+}
+.empty-state-icon {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border: 3px solid var(--color-border);
+  border-radius: 50%;
+  background: var(--color-tint);
+  color: var(--color-text);
+}
+.empty-state--compact {
+  padding: var(--space-xs);
+}
+.empty-state--compact .empty-state-icon {
+  width: 32px;
+  height: 32px;
+  border-width: 2px;
+}
+.empty-state-title {
+  margin: 0;
+  font-weight: 700;
+  color: var(--color-text);
+}
+.empty-state-desc {
+  margin: 0;
+  font-size: var(--fs-sm);
+}

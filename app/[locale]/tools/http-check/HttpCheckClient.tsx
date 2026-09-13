@@ -6,6 +6,7 @@ import CodeBlock from "../../blog/components/CodeBlock";
 import { tokenizeJson } from "../utils";
 import { buildCurl, extractClientIp, parseUserAgent } from "./utils";
 import { CopyButton } from "../components/CopyButton";
+import { EmptyState } from "../../components/ui";
 
 /** `/api/headers` 端点返回的载荷结构。 */
 interface HeadersPayload {
@@ -233,7 +234,7 @@ export default function HttpCheckClient() {
                 ))}
               </ul>
             ) : (
-              <p style={{ margin: 0, color: 'var(--color-text-muted)' }}>{t("geoEmpty")}</p>
+              <EmptyState title={t("geoEmpty")} />
             )
           )}
         </section>
