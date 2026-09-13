@@ -1,8 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
 import {
+  apexFromIssuer,
+  clerkProvider,
   deriveIssuers,
   isTokenFresh,
   parseTokenPayload,
+  roleFromClaims,
   siteApex,
   verifySessionDetailed,
 } from "@lucky/auth-core";
@@ -286,5 +289,37 @@ describe("exported predicates: converged existing assertions", () => {
     expect(parseTokenPayload("not-a-jwt")).toBeNull();
     expect(parseTokenPayload(42)).toBeNull();
     expect(parseTokenPayload("a.b")).toBeNull();
+  });
+});
+
+describe("clerkProvider: vendor adapter contract", () => {
+  it("exposes id 'clerk' and derives issuers: override wins, then siteDomain, then the default apex", () => {
+    expect(clerkProvider.id).toBe("clerk");
+    expect(
+      clerkProvider.issuers({
+        siteDomain: "x.cn",
+        issuerOverride: "https://a.example.com",
+      }),
+    ).toEqual(["https://a.example.com"]);
+    expect(clerkProvider.issuers({ siteDomain: "https://www.example.com" })).toEqual([
+      "https://clerk.example.com",
+    ]);
+    expect(clerkProvider.issuers({})).toEqual(["https://clerk.rdom.cn"]);
+    expect(clerkProvider.issuers()).toEqual(["https://clerk.rdom.cn"]);
+  });
+
+  it("apexFromIssuer strips the clerk. prefix, keeps bare hosts, and empties invalid input", () => {
+    expect(apexFromIssuer("https://clerk.rdom.cn")).toBe("rdom.cn");
+    expect(apexFromIssuer("https://foo.example.com")).toBe("foo.example.com");
+    expect(apexFromIssuer(null)).toBe("");
+  });
+
+  it("roleFromClaims behaves identically to the directly imported shared predicate", () => {
+    expect(clerkProvider.roleFromClaims({ metadata: { role: "admin" } })).toBe("admin");
+    expect(clerkProvider.roleFromClaims(null)).toBe("");
+    expect(clerkProvider.roleFromClaims({ metadata: { role: "admin" } })).toBe(
+      roleFromClaims({ metadata: { role: "admin" } }),
+    );
+    expect(clerkProvider.roleFromClaims(null)).toBe(roleFromClaims(null));
   });
 });

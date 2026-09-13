@@ -2,3 +2,4 @@
 export * from "./predicates.js";
 export * from "./keys.js";
 export * from "./verify.js";
+export * from "./providers.js";

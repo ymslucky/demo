@@ -56,3 +56,10 @@ export function verifySessionToken(
   token: unknown,
   deps?: Parameters<typeof verifySessionDetailed>[1],
 ): Promise<Record<string, unknown> | null>;
+export function apexFromIssuer(issuer: unknown): string;
+export const clerkProvider: {
+  id: "clerk";
+  issuers(env?: { siteDomain?: string; issuerOverride?: string }): string[];
+  roleFromClaims(payload: Record<string, unknown> | null | undefined): string;
+  apexFromIssuer(issuer: unknown): string;
+};
