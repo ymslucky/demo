@@ -10,6 +10,7 @@ import {
   encodeBase64,
   decodeBase64,
   expandShortHex,
+  wcagLevel,
   relativeLuminance,
   encodeBase64Url,
   decodeBase64Url,
@@ -320,5 +321,14 @@ describe("WCAG contrast + short hex", () => {
     expect(expandShortHex("#AbC")).toBe("#AAbbCC");
     expect(expandShortHex("#abcd")).toBe("#abcd");
     expect(expandShortHex("abc")).toBe("abc");
+  });
+});
+
+describe("wcagLevel", () => {
+  it("maps ratios to AAA / AA / AA Large / Fail", () => {
+    expect(wcagLevel(7.01)).toBe("AAA");
+    expect(wcagLevel(4.5)).toBe("AA");
+    expect(wcagLevel(3)).toBe("AA Large");
+    expect(wcagLevel(2.9)).toBe("Fail");
   });
 });

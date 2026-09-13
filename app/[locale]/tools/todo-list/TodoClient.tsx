@@ -17,6 +17,8 @@ import {
   groupSections,
   groupStats,
   insertItemAt,
+  parseTodoImport,
+  todoExportPayload,
   restoreMany,
   isDueToday,
   isOverdue,
@@ -217,6 +219,9 @@ function TodoPanel() {
   const [renameValue, setRenameValue] = useState("");
   // 看板列内快速添加的草稿（按分组名分键）。
   const [boardDrafts, setBoardDrafts] = useState<Record<string, string>>({});
+  // 数据导入：隐藏文件输入 + 反馈文案。
+  const importFileRef = useRef<HTMLInputElement | null>(null);
+  const [importFeedback, setImportFeedback] = useState<string | null>(null);
   // 撤销删除：单槽位（新删除覆盖旧撤销），6 秒后自动过期。
   const [undo, setUndo] = useState<{ entries: Array<{ item: TodoItem; index: number }> } | null>(null);
   const undoTimerRef = useRef(0);
@@ -921,6 +926,39 @@ function TodoPanel() {
     window.clearTimeout(undoTimerRef.current);
     commit(restoreMany(itemsRef.current ?? [], undo.entries));
     setUndo(null);
+  }
+
+  /** 导出 JSON 备份（全量条目，数据归用户所有）。 */
+  function exportJson() {
+    const payload = todoExportPayload(items ?? []);
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "lucky-todo-" + new Date().toISOString().slice(0, 10) + ".json";
+    link.click();
+    URL.revokeObjectURL(url);
+  }
+
+  /** 导入 JSON 备份：整表替换（旧列表进入撤销链路，6 秒内可恢复）。 */
+  function importJsonFile(file: File) {
+    void file.text().then((text) => {
+      let parsed: unknown = null;
+      try {
+        parsed = JSON.parse(text);
+      } catch {
+        parsed = null;
+      }
+      const imported = parseTodoImport(parsed);
+      if (imported === null) {
+        setImportFeedback(t("dataImportInvalid"));
+        return;
+      }
+      const entries = (itemsRef.current ?? []).map((item, index) => ({ item, index }));
+      commit(imported);
+      setUndo({ entries });
+      setImportFeedback(t("dataImported", { count: imported.length }));
+    });
   }
 
   // 工具栏（搜索 / 状态筛选 / 排序）：清单与看板两个视图共享同一控件与状态，
@@ -1868,6 +1906,31 @@ function TodoPanel() {
               ))}
             </div>
           ) : null}
+
+          <div style={{ display: "flex", gap: "var(--space-xs)", alignItems: "center", marginTop: "var(--space-md)" }}>
+            <button type="button" onClick={exportJson} className="btn btn--sm">
+              {t("dataExport")}
+            </button>
+            <button
+              type="button"
+              onClick={() => importFileRef.current?.click()}
+              className="btn btn--sm"
+            >
+              {t("dataImport")}
+            </button>
+            <input
+              ref={importFileRef}
+              type="file"
+              accept="application/json,.json"
+              style={{ display: "none" }}
+              onChange={(event) => {
+                const file = event.target.files?.[0];
+                if (file) importJsonFile(file);
+                event.target.value = "";
+              }}
+            />
+            {importFeedback ? <span style={mutedStyle}>{importFeedback}</span> : null}
+          </div>
         </div>
       )}
 

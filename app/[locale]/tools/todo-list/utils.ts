@@ -533,3 +533,31 @@ export function restoreMany(
   }
   return next;
 }
+// ---------------------------------------------------------------------------
+// 数据导出 / 导入（JSON 备份：数据所有权是商业产品的硬性预期）
+// ---------------------------------------------------------------------------
+
+export interface TodoExportPayload {
+  app: string;
+  version: number;
+  exportedAt: string;
+  items: TodoItem[];
+}
+
+/** 导出载荷：全量条目 + 元信息（条目保真，不做清洗截断）。 */
+export function todoExportPayload(items: TodoItem[], now = new Date()): TodoExportPayload {
+  return { app: "lucky-todo", version: 1, exportedAt: now.toISOString(), items };
+}
+
+/**
+ * 解析导入文件：接受本工具导出的 { items } 载荷或裸数组（同样兼容
+ * 访客镜像的历史格式）。畸形返回 null（调用方提示无效文件）。
+ */
+export function parseTodoImport(raw: unknown): TodoItem[] | null {
+  if (Array.isArray(raw)) return normalizeItems({ items: raw });
+  if (typeof raw === "object" && raw !== null) {
+    const payload = raw as { items?: unknown };
+    if (Array.isArray(payload.items)) return normalizeItems({ items: payload.items });
+  }
+  return null;
+}

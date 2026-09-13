@@ -10,6 +10,8 @@ import {
   completeMany,
   groupStats,
   insertItemAt,
+  parseTodoImport,
+  todoExportPayload,
   moveManyToGroup,
   removeMany,
   toggleId,
@@ -577,5 +579,21 @@ describe("restoreMany", () => {
   it("clamps out-of-range indices", () => {
     const restored = restoreMany([mk("a")], [{ item: mk("x"), index: 99 }]);
     expect(restored.map((i) => i.id)).toEqual(["a", "x"]);
+  });
+});
+
+describe("todo export / import", () => {
+  it("round-trips items through the export payload and import parser", () => {
+    const items = [mk("a", { title: "x" }), mk("b", { group: "g" })];
+    const payload = todoExportPayload(items, new Date(2026, 8, 14));
+    expect(payload.app).toBe("lucky-todo");
+    expect(payload.version).toBe(1);
+    expect(parseTodoImport(JSON.parse(JSON.stringify(payload)))).toEqual(items);
+  });
+
+  it("parseTodoImport accepts bare arrays and rejects malformed payloads", () => {
+    expect(parseTodoImport([{ id: "a", title: "t" }])).toHaveLength(1);
+    expect(parseTodoImport(JSON.stringify({ unrelated: true }))).toBeNull();
+    expect(parseTodoImport("not json")).toBeNull();
   });
 });

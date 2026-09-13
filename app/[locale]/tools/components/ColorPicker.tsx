@@ -8,6 +8,7 @@ import {
   getColorStrings,
   contrastRatio,
   expandShortHex,
+  wcagLevel,
   isHexColor,
   pushColorHistory,
 } from "../utils";
@@ -68,12 +69,10 @@ export default function ColorPicker() {
 
   // 十六进制合法时的对比度（对白底 / 黑底），非法输入显示占位。
   const validHex = /^#[0-9a-fA-F]{6}$/.test(colorHex);
-  const contrastWhite = validHex
-    ? contrastRatio(hexToRgb(colorHex), [255, 255, 255]).toFixed(2) + ":1"
-    : "—";
-  const contrastBlack = validHex
-    ? contrastRatio(hexToRgb(colorHex), [0, 0, 0]).toFixed(2) + ":1"
-    : "—";
+  const ratioWhite = validHex ? contrastRatio(hexToRgb(colorHex), [255, 255, 255]) : null;
+  const ratioBlack = validHex ? contrastRatio(hexToRgb(colorHex), [0, 0, 0]) : null;
+  const contrastWhite = ratioWhite === null ? "—" : ratioWhite.toFixed(2) + ":1 · " + wcagLevel(ratioWhite);
+  const contrastBlack = ratioBlack === null ? "—" : ratioBlack.toFixed(2) + ":1 · " + wcagLevel(ratioBlack);
 
   const handleColorPick = (val: string) => {
     setColorHex(val);

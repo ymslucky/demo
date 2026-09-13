@@ -322,6 +322,15 @@ export function contrastRatio(
   return (hi + 0.05) / (lo + 0.05);
 }
 
+/** WCAG 等级判定：≥7 AAA / ≥4.5 AA / ≥3 AA Large / 其余 Fail。 */
+export type WcagLevel = "AAA" | "AA" | "AA Large" | "Fail";
+export function wcagLevel(ratio: number): WcagLevel {
+  if (ratio >= 7) return "AAA";
+  if (ratio >= 4.5) return "AA";
+  if (ratio >= 3) return "AA Large";
+  return "Fail";
+}
+
 /** #abc → #aabbcc；非三位短格式原样返回。 */
 export function expandShortHex(value: string): string {
   if (/^#[0-9a-fA-F]{3}$/.test(value)) {
