@@ -231,3 +231,19 @@ export function canvasSize(steps: BrowserStep[]): { width: number; height: numbe
   });
   return { width, height };
 }
+export const MIN_CANVAS_ZOOM = 0.5;
+export const MAX_CANVAS_ZOOM = 2;
+
+/** 缩放钳制到 [0.5, 2]；非法输入回 1。 */
+export function clampZoom(value: number): number {
+  if (!Number.isFinite(value)) return 1;
+  return Math.min(MAX_CANVAS_ZOOM, Math.max(MIN_CANVAS_ZOOM, value));
+}
+
+/**
+ * 重置布局：剥掉全部节点坐标，回到网格默认位（执行顺序不变）。
+ * 移除键本身而非置 undefined，避免把废弃字段永久写进存储。
+ */
+export function resetCanvasLayout(steps: BrowserStep[]): BrowserStep[] {
+  return steps.map(({ x: _x, y: _y, ...rest }) => rest);
+}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Button } from "../../components/ui";
 import { useStickyState } from "../components/useStickyState";
@@ -11,6 +11,7 @@ import {
   browserStepArg,
   browserStepReady,
   canvasSize,
+  clampZoom,
   duplicateBrowserStep,
   makeBrowserStep,
   moveStepTo,
@@ -21,6 +22,7 @@ import {
   normalizeBrowserPayload,
   normalizeBrowserSteps,
   removeBrowserStep,
+  resetCanvasLayout,
   type BrowserStep,
   type BrowserStepOp,
   type BrowserStepResult,
@@ -146,6 +148,21 @@ export default function BrowserPanel({ conversationId, post, mergeSnapshot, repo
   const [dragPos, setDragPos] = useState<{ id: string; x: number; y: number } | null>(null);
   const dragRef = useRef<{ id: string; startX: number; startY: number; origX: number; origY: number } | null>(null);
   const panRef = useRef<{ startX: number; startY: number; scrollLeft: number; scrollTop: number } | null>(null);
+  const [zoom, setZoom] = useState(1);
+
+  // Ctrl/Cmd + 滚轮缩放（React 的 onWheel 是 passive 的，需原生监听才能 preventDefault）。
+  useEffect(() => {
+    const el = canvasRef.current;
+    if (!el) return undefined;
+    const onWheel = (event: WheelEvent) => {
+      if (!(event.ctrlKey || event.metaKey)) return;
+      event.preventDefault();
+      const factor = event.deltaY < 0 ? 1.1 : 1 / 1.1;
+      setZoom((current) => clampZoom(current * factor));
+    };
+    el.addEventListener("wheel", onWheel, { passive: false });
+    return () => el.removeEventListener("wheel", onWheel);
+  }, []);
 
   function startNodeDrag(event: React.PointerEvent, step: BrowserStep) {
     if (busy || event.button !== 0) return;
@@ -160,10 +177,11 @@ export default function BrowserPanel({ conversationId, post, mergeSnapshot, repo
   function moveNode(event: React.PointerEvent) {
     const drag = dragRef.current;
     if (!drag) return;
+    // 指针位移是屏幕坐标：除以当前缩放换算回画布坐标。
     setDragPos({
       id: drag.id,
-      x: Math.max(0, drag.origX + (event.clientX - drag.startX)),
-      y: Math.max(0, drag.origY + (event.clientY - drag.startY)),
+      x: Math.max(0, drag.origX + (event.clientX - drag.startX) / zoom),
+      y: Math.max(0, drag.origY + (event.clientY - drag.startY) / zoom),
     });
   }
 
@@ -420,7 +438,28 @@ export default function BrowserPanel({ conversationId, post, mergeSnapshot, repo
             background: "var(--color-bg)",
           }}
         >
-          <div style={{ position: "relative", width: size.width, height: size.height }}>
+          <div style={{ position: "absolute", top: 8, right: 8, display: "flex", gap: "0.2rem", zIndex: 2 }} onPointerDown={(event) => event.stopPropagation()}>
+            <button type="button" style={smallBtnStyle} aria-label={t("browserZoomOut")} onClick={() => setZoom((current) => clampZoom(current / 1.2))}>
+              −
+            </button>
+            <button type="button" style={{ ...smallBtnStyle, cursor: "default", minWidth: "3.2rem" }} aria-hidden="true">
+              {Math.round(zoom * 100)}%
+            </button>
+            <button type="button" style={smallBtnStyle} aria-label={t("browserZoomIn")} onClick={() => setZoom((current) => clampZoom(current * 1.2))}>
+              ＋
+            </button>
+            <button
+              type="button"
+              style={smallBtnStyle}
+              aria-label={t("browserResetLayout")}
+              disabled={busy || steps.length === 0}
+              onClick={() => setStored((prev) => resetCanvasLayout(normalizeBrowserSteps(prev) ?? []))}
+            >
+              ⤾
+            </button>
+          </div>
+          <div style={{ position: "relative", width: size.width * zoom, height: size.height * zoom }}>
+            <div style={{ position: "absolute", top: 0, left: 0, width: size.width, height: size.height, transform: `scale(${zoom})`, transformOrigin: "0 0" }}>
             <svg
               width={size.width}
               height={size.height}
@@ -604,6 +643,7 @@ export default function BrowserPanel({ conversationId, post, mergeSnapshot, repo
                 </div>
               );
             })}
+            </div>
           </div>
         </div>
       </section>

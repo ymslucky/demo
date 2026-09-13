@@ -3,6 +3,7 @@ import {
   browserStepArg,
   browserStepReady,
   canvasSize,
+  clampZoom,
   duplicateBrowserStep,
   makeBrowserStep,
   moveStepTo,
@@ -12,6 +13,7 @@ import {
   normalizeBrowserPayload,
   normalizeBrowserSteps,
   removeBrowserStep,
+  resetCanvasLayout,
   type BrowserStep,
 } from "./browser";
 
@@ -168,5 +170,25 @@ describe("canvas helpers", () => {
     const steps = normalizeBrowserSteps([{ id: "a", op: "goto", url: "https://x.com", x: 40, y: 60 }]);
     expect(steps?.[0]).toMatchObject({ x: 40, y: 60 });
     expect(normalizeBrowserSteps([{ id: "a", op: "goto", url: "https://x.com", x: -5 }])?.[0].x).toBeUndefined();
+  });
+});
+
+describe("canvas zoom + reset layout", () => {
+  it("clampZoom bounds the scale and recovers from bad input", () => {
+    expect(clampZoom(1.4)).toBe(1.4);
+    expect(clampZoom(0.1)).toBe(0.5);
+    expect(clampZoom(5)).toBe(2);
+    expect(clampZoom(Number.NaN)).toBe(1);
+  });
+
+  it("resetCanvasLayout strips node coordinates and keeps everything else", () => {
+    const steps = [makeBrowserStep("goto", "a")];
+    steps[0].x = 300;
+    steps[0].y = 120;
+    const reset = resetCanvasLayout(steps);
+    expect(reset[0]).toMatchObject({ id: "a", op: "goto" });
+    expect("x" in reset[0]).toBe(false);
+    expect("y" in reset[0]).toBe(false);
+    expect(reset).toHaveLength(1);
   });
 });
