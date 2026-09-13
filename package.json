@@ -12,13 +12,12 @@
   "dependencies": {
     "@clerk/localizations": "^4.16.0",
     "@clerk/nextjs": "^7.9.1",
-    "jose": "^6.2.12",
+    "@lucky/auth-core": "file:shared/auth-core",
     "next": "16.3.0",
     "next-intl": "^4.13.5",
     "react": "19.2.8",
     "react-dom": "19.2.8",
-    "undici": "^8.10.2",
-    "@lucky/auth-core": "file:shared/auth-core"
+    "undici": "^8.10.2"
   },
   "devDependencies": {
     "@types/node": "^24",

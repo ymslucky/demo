@@ -1,4 +1,3 @@
-import { SignJWT } from "jose";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { deriveIssuers, siteApex } from "@lucky/auth-core";
 import {
@@ -7,6 +6,7 @@ import {
   resolveVerifyKeys,
   sanitizeVerifyDetail,
 } from "../app/lib/session";
+import { b64urlEncode, b64urlJson } from "./helpers/sign-jwt";
 
 /**
  * Unit tests for the pure helpers exported by app/lib/session.ts.
@@ -15,6 +15,27 @@ import {
  * Pure auth predicates (siteApex / issuer derivation) are tested against
  * their single source of truth, shared/auth-core.js.
  */
+
+/**
+ * Zero-jose HS256 test-token signer built on the b64url primitives from
+ * tests/helpers/sign-jwt.ts. matchAllowedIssuer only decodes the iss claim
+ * and the channel-selection cases only exercise the failure path, so an
+ * HMAC-SHA256 token (no keypair, no jose) is sufficient.
+ */
+const HMAC_SECRET = new TextEncoder().encode("unit-test-secret-0123456789abcdef");
+
+async function tokenFor(iss: string): Promise<string> {
+  const key = await crypto.subtle.importKey(
+    "raw",
+    HMAC_SECRET,
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
+  const signingInput = `${b64urlJson({ alg: "HS256", typ: "JWT" })}.${b64urlJson({ sub: "user_1", iss })}`;
+  const signature = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(signingInput));
+  return `${signingInput}.${b64urlEncode(new Uint8Array(signature))}`;
+}
 
 describe("siteApex (shared/auth-core)", () => {
   it("normalizes bare, prefixed, and www forms to the apex domain", () => {
@@ -49,15 +70,6 @@ describe("deriveIssuers (shared/auth-core)", () => {
 });
 
 describe("matchAllowedIssuer", () => {
-  const secret = new TextEncoder().encode("unit-test-secret-0123456789abcdef");
-
-  async function tokenFor(iss: string): Promise<string> {
-    return new SignJWT({ sub: "user_1" })
-      .setProtectedHeader({ alg: "HS256" })
-      .setIssuer(iss)
-      .sign(secret);
-  }
-
   it("matches a trailing-slash issuer to the canonical allowlist entry", async () => {
     const token = await tokenFor("https://clerk.rdom.cn/");
     expect(matchAllowedIssuer(token, ["https://clerk.rdom.cn"])).toBe("https://clerk.rdom.cn");
@@ -181,7 +193,6 @@ describe("describeVerifyInput", () => {
 });
 
 describe("readSessionClaimsDetailed channel selection", () => {
-  const secret = new TextEncoder().encode("unit-test-secret-0123456789abcdef");
   // Set by each test before calling the reader; read through the mocked
   // next/headers cookie jar below.
   const cookieJar = vi.hoisted(() => ({ token: null as string | null }));
@@ -198,13 +209,6 @@ describe("readSessionClaimsDetailed channel selection", () => {
     vi.unstubAllGlobals();
     vi.unstubAllEnvs();
   });
-
-  async function tokenFor(iss: string): Promise<string> {
-    return new SignJWT({ sub: "user_1" })
-      .setProtectedHeader({ alg: "HS256" })
-      .setIssuer(iss)
-      .sign(secret);
-  }
 
   it("routes a whitelisted issuer through the JWKS channel even with no key material", async () => {
     vi.stubEnv("CLERK_SECRET_KEY", "");

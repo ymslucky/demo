@@ -1,7 +1,13 @@
 import { cookies } from "next/headers";
 import { verifyToken } from "@clerk/nextjs/server";
-import { createRemoteJWKSet, decodeJwt, jwtVerify } from "jose";
-import { deriveIssuers, normalizeIssuer, parseList, siteApex } from "@lucky/auth-core";
+import {
+  deriveIssuers,
+  normalizeIssuer,
+  parseList,
+  parseTokenPayload,
+  siteApex,
+  verifySessionDetailed,
+} from "@lucky/auth-core";
 
 /**
  * Next.js 服务端会话读取（不依赖 clerkMiddleware 的 auth()）。
@@ -18,9 +24,10 @@ import { deriveIssuers, normalizeIssuer, parseList, siteApex } from "@lucky/auth
  * 2. JWKS（默认通道，对齐工具页边缘函数 functions/api/todo.js §3）：
  *    token 的 iss 必须命中白名单（CLERK_ISSUER 显式列表，或由 SITE_DOMAIN
  *    派生的 https://clerk.<apex>——未配置默认 rdom.cn），公钥从该 iss 的
- *    公开端点 <iss>/.well-known/jwks.json 获取（jose createRemoteJWKSet，
- *    模块级缓存 + kid 未命中自动重取——密钥轮换自愈）。生产环境出网
- *    api.clerk.com 不可达时的自愈主通道：自定义域国内可达。
+ *    公开端点 <iss>/.well-known/jwks.json 获取（@lucky/auth-core
+ *    verifySessionDetailed：模块级 JWKS 缓存 + kid 未命中强制刷新重取
+ *    ——密钥轮换自愈）。生产环境出网 api.clerk.com 不可达时的自愈主通道：
+ *    自定义域国内可达。
  *    安全关卡与边缘函数一致：JWKS URL 只按白名单条目构造（token 可控的
  *    iss 指向攻击者 JWKS = 认证绕过，绝不从 token iss 直接构造）。
  * 3. SK 回源（兜底，iss 不在白名单时——如本地 dev 实例）：
@@ -43,10 +50,6 @@ import { deriveIssuers, normalizeIssuer, parseList, siteApex } from "@lucky/auth
 
 const SESSION_COOKIE = "__session";
 const DETAIL_MAX_LENGTH = 200;
-// 与 Clerk SDK 默认 clockSkewInMs 对齐，避免时钟毫秒级偏移误伤刚签发的会话。
-const CLOCK_TOLERANCE_MS = 5000;
-// Clerk 实例并不统一签名算法（dev/test 签 ES256、生产常为 RS256）——绝不钉死单一算法。
-const ALGORITHMS = ["ES256", "RS256"] as const;
 
 export type SessionClaims = CustomJwtSessionClaims & Record<string, unknown>;
 
@@ -72,7 +75,7 @@ export { normalizeIssuer, siteApex };
 /** issuer 比较前的尾斜杠归一化。 */
 
 /**
- * 从 verifyToken/jose 的错误对象提取一行可展示的摘要（纯函数，可单测）。
+ * 从验签上游（verifyToken / 包内 JWKS 回源）的错误对象提取一行可展示的摘要（纯函数，可单测）。
  * 三级兜底：message → reason → JSON 序列化——生产实测上游可能抛出
  * 不带标准 message 的错误对象（EdgeOne SSR 运行时差异），诊断卡
  * 绝不允许因此空白。只取错误描述字段（message / reason 是原因码或
@@ -141,28 +144,15 @@ export function describeVerifyInput(
   return `${channel}${skPart} pem:yes(len=${jwtKey.length},head=${head},esc=${escaped ? 1 : 0})`;
 }
 
-// ── JWKS 通道（jose）─────────────────────────────────────────────
-// 模块级缓存：per-issuer 一个 RemoteJWKSet（内部自带 KV 缓存与 kid 未命中
-// 的 cooldown 重取——密钥轮换自愈由 jose 承接，对应边缘函数清单第 7 步）。
-const jwksByIssuer = new Map<string, ReturnType<typeof createRemoteJWKSet>>();
-
-function remoteJwks(issuer: string): ReturnType<typeof createRemoteJWKSet> {
-  let jwks = jwksByIssuer.get(issuer);
-  if (!jwks) {
-    jwks = createRemoteJWKSet(new URL(`${issuer}/.well-known/jwks.json`));
-    jwksByIssuer.set(issuer, jwks);
-  }
-  return jwks;
-}
-
 /**
- * 解析未验签 token 的 iss 并匹配白名单（纯逻辑，依赖 jose decodeJwt）。
- * 返回白名单条目（而非 token iss 原文）——JWKS URL 只按白名单构造；
- * 解析失败或未命中返回 null（调用方落 SK 兜底通道）。
+ * 解析未验签 token 的 iss 并匹配白名单（纯逻辑，parseTokenPayload 来自
+ * @lucky/auth-core——只解码不验签）。返回白名单条目（而非 token iss 原文）
+ * ——JWKS URL 只按白名单构造；解析失败或未命中返回 null（调用方落 SK
+ * 兜底通道）。
  */
 export function matchAllowedIssuer(token: string, issuers: string[]): string | null {
   try {
-    const { iss } = decodeJwt(token);
+    const iss = parseTokenPayload(token)?.payload.iss;
     const normalized = normalizeIssuer(iss);
     return issuers.find((allowed) => normalizeIssuer(allowed) === normalized) ?? null;
   } catch {
@@ -207,15 +197,23 @@ export async function readSessionClaimsDetailed(): Promise<SessionResult> {
       return claimsGate(claims, "pem", issuers);
     }
 
-    // 通道 2：JWKS（token iss 命中白名单——工具页同款公开端点）。
+    // 通道 2：JWKS（token iss 命中白名单——工具页同款公开端点，包内八步验签）。
     const issuer = matchAllowedIssuer(token, issuers);
     if (issuer) {
-      const { payload } = await jwtVerify(token, remoteJwks(issuer), {
-        issuer,
-        algorithms: [...ALGORITHMS],
-        clockTolerance: CLOCK_TOLERANCE_MS,
+      const azpApex = (siteApex(issuer) ?? "").replace(/^clerk\./, "");
+      const result = await verifySessionDetailed(token, {
+        allowedIssuers: [issuer],
+        azpApex,
       });
-      const claims = payload as SessionClaims;
+      if (!result.ok) {
+        return {
+          claims: null,
+          reason: result.reason === "iss" ? "issuer-mismatch" : "verify-failed",
+          detail: result.reason,
+          input: describeVerifyInput(undefined, "jwks"),
+        };
+      }
+      const claims = result.payload as SessionClaims;
       // azp 可选加固（缺失放行、存在须命中——与边缘函数清单第 4 步同语义）。
       const azp = typeof claims.azp === "string" ? claims.azp : null;
       if (azpAllowlist && azp && !azpAllowlist.includes(azp)) {
@@ -263,8 +261,8 @@ export async function readSessionClaimsDetailed(): Promise<SessionResult> {
 /**
  * 通道 1/3（verifyToken 路径）成功后的可选加固门：CLERK_ISSUER 显式设置时
  * 钉死 issuer（detail 带实际 iss——公开 URL，非敏感）。azp 已由
- * verifyToken 的 authorizedParties 校验；JWKS 通道的 issuer 校验由 jose
- * 在验签时完成，都不经过此处。
+ * verifyToken 的 authorizedParties 校验；JWKS 通道的 issuer 校验由
+ * @lucky/auth-core 在验签时完成，都不经过此处。
  */
 function claimsGate(claims: SessionClaims, via: "pem" | "sk", issuers: string[]): SessionResult {
   // verifyToken 已按 authorizedParties 校验 azp；这里只补 issuer 钉死。
