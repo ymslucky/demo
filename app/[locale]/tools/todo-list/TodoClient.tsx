@@ -10,6 +10,7 @@ import {
   MAX_NOTE_LEN,
   applyReorder,
   cloudMirrorKey,
+  filterTodoItems,
   formatDateValue,
   formatDateTimeValue,
   groupSections,
@@ -21,11 +22,16 @@ import {
   parseDateTimeValue,
   parseLocalItems,
   priorityKey,
+  removeDone,
+  sortTodoItems,
   statsSummary,
   trend7Days,
   type TodoDraft,
   type TodoItem,
+  type TodoSortMode,
+  type TodoStatusFilter,
 } from "./utils";
+import { useStickyState } from "../components/useStickyState";
 
 // 与 http-check 工具页保持一致的 Neo-Brutalism 卡片样式（内联变量）。
 const cardStyle = {
@@ -192,6 +198,10 @@ function TodoPanel() {
   const [status, setStatus] = useState<"loading" | "ready" | "error" | "expired">("loading");
   const [draft, setDraft] = useState("");
   const [draftPriority, setDraftPriority] = useState(0);
+  // 列表工具栏：搜索词（会话内）+ 状态筛选 / 排序（粘性偏好）。
+  const [query, setQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useStickyState<TodoStatusFilter>("all", "todoStatusFilter");
+  const [sortMode, setSortMode] = useStickyState<TodoSortMode>("manual", "todoSortMode");
   const [tab, setTab] = useState<"list" | "stats">("list");
   const [editing, setEditing] = useState<EditDraft | null>(null);
   const [sync, setSync] = useState<SyncState>("idle");
@@ -492,13 +502,15 @@ function TodoPanel() {
   /** 提交一次重排：清单无变化时静默跳过。 */
   const commitReorder = useCallback(
     (next: TodoItem[] | null) => {
+      // 排序视图的展示顺序不是"手动顺序"事实源——拖拽/键盘位移直接忽略。
+      if (sortMode !== "manual") return;
       if (!next) return;
       const signature = (list: TodoItem[]) =>
         list.map((item) => `${item.id}:${item.group}`).join("|");
       if (itemsRef.current && signature(next) === signature(itemsRef.current)) return;
       commit(next);
     },
-    [commit],
+    [commit, sortMode],
   );
 
   /** 键盘替代排序：沿渲染顺序上/下移动一个槽位（可跨分组）。 */
@@ -789,7 +801,12 @@ function TodoPanel() {
   const rate = stats.total > 0 ? Math.round((stats.done / stats.total) * 100) : 0;
   const trend = trend7Days(items, now);
   const maxCount = Math.max(1, ...trend.map((bucket) => Math.max(bucket.added, bucket.completed)));
-  const sections = groupSections(items);
+  const visibleItems = sortTodoItems(
+    filterTodoItems(items, { query, status: statusFilter, now }),
+    sortMode,
+  );
+  const sections = groupSections(visibleItems);
+  const doneCount = items.filter((item) => item.done).length;
 
   // 环形图几何常量：周长按半径推得，弧长按完成率截取。
   const donutRadius = 48;
@@ -869,7 +886,61 @@ function TodoPanel() {
             </button>
           </form>
           {items.length === 0 ? <p style={mutedStyle}>{t("empty")}</p> : null}
-          {items.length > 0 ? <p className="todo-dnd-hint">{t("keyboardHint")}</p> : null}
+          {items.length > 0 ? (
+            <div className="todo-toolbar">
+              <input
+                type="search"
+                className="todo-search"
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder={t("searchPlaceholder")}
+                aria-label={t("searchPlaceholder")}
+              />
+              <div className="todo-chip-row" role="group" aria-label={t("filterLabel")}>
+                {(
+                  [
+                    ["all", t("filterAll")],
+                    ["active", t("filterActive")],
+                    ["done", t("filterDone")],
+                    ["overdue", t("filterOverdue")],
+                  ] as const
+                ).map(([key, label]) => (
+                  <button
+                    key={key}
+                    type="button"
+                    className={statusFilter === key ? "todo-chip todo-chip--on" : "todo-chip"}
+                    aria-pressed={statusFilter === key}
+                    onClick={() => setStatusFilter(key)}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+              <select
+                className="todo-prio-select"
+                value={sortMode}
+                onChange={(event) => setSortMode(event.target.value as TodoSortMode)}
+                aria-label={t("sortLabel")}
+              >
+                <option value="manual">{t("sortManual")}</option>
+                <option value="due">{t("sortDue")}</option>
+                <option value="priority">{t("sortPriority")}</option>
+                <option value="created">{t("sortCreated")}</option>
+              </select>
+              {doneCount > 0 ? (
+                <button
+                  type="button"
+                  className="todo-chip"
+                  onClick={() => commit(removeDone(items))}
+                >
+                  {t("clearCompleted", { count: doneCount })}
+                </button>
+              ) : null}
+            </div>
+          ) : null}
+          {items.length > 0 && sortMode === "manual" ? (
+            <p className="todo-dnd-hint">{t("keyboardHint")}</p>
+          ) : null}
 
           {sections.map((section) => {
             const hintAt =
@@ -1022,6 +1093,10 @@ function TodoPanel() {
               </section>
             );
           })}
+
+          {items.length > 0 && visibleItems.length === 0 ? (
+            <p style={mutedStyle}>{t("noMatch")}</p>
+          ) : null}
 
           {/* 状态监控区：数据来源、最近写入、后台同步指示。 */}
           <div style={{ marginTop: "var(--space-md)", display: "grid", gap: "var(--space-xs)" }}>

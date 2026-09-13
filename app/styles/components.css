@@ -2084,3 +2084,44 @@ body.todo-dragging {
     grid-template-columns: 1fr;
   }
 }
+
+/* ---- Todo list toolbar (search / status chips / sort / clear done) ---- */
+.todo-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-xs);
+  margin: var(--space-xs) 0;
+}
+.todo-search {
+  flex: 1;
+  min-width: 140px;
+  padding: 0.35rem 0.6rem;
+  border: 3px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  font-size: var(--fs-sm);
+}
+.todo-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+}
+.todo-chip {
+  font-family: inherit;
+  font-size: var(--fs-sm);
+  font-weight: 700;
+  padding: 0.3rem 0.65rem;
+  border: 3px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  background: var(--color-surface);
+  color: var(--color-text);
+  transition: var(--transition);
+}
+.todo-chip--on {
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+}

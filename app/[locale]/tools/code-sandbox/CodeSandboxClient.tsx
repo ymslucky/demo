@@ -7,6 +7,7 @@ import { Button } from "../../components/ui";
 import { useStickyState } from "../components/useStickyState";
 import BrowserPanel from "./BrowserPanel";
 import InstancesPanel from "./InstancesPanel";
+import { CopyButton } from "../components/CopyButton";
 import { cardStyle as cardBaseStyle, monoStyle, mutedStyle } from "@/app/lib/styles";
 import {
   appendEntries,
@@ -15,6 +16,8 @@ import {
   CODE_STORAGE_KEY,
   CONVERSATION_KEY,
   DEFAULT_RUN_TIMEOUT_S,
+  editorEnter,
+  editorTab,
   formatClock,
   formatElapsedSeconds,
   getOrCreateConversationId,
@@ -532,6 +535,18 @@ export default function CodeSandboxClient() {
     setEntries([]);
   }
 
+  /** 受控 textarea：先写值，渲染提交后恢复光位（rAF 等 React 完成提交）。 */
+  function applyEditorEdit(
+    el: HTMLTextAreaElement,
+    edit: { value: string; selStart: number; selEnd: number },
+  ) {
+    updateCode(edit.value);
+    requestAnimationFrame(() => {
+      el.selectionStart = edit.selStart;
+      el.selectionEnd = edit.selEnd;
+    });
+  }
+
   // 终端展示内容：实时流，或选中历史记录的输出快照（回放）。
   const visibleEntries = viewingRun ? viewingRun.output : entries;
 
@@ -659,9 +674,38 @@ export default function CodeSandboxClient() {
             style={editorStyle}
             value={code}
             onChange={(event) => updateCode(event.target.value)}
+            onKeyDown={(event) => {
+              // Ctrl/Cmd+Enter：快速运行（不插入换行）。
+              if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {
+                event.preventDefault();
+                void run();
+                return;
+              }
+              if (event.key === "Tab") {
+                event.preventDefault();
+                const el = event.currentTarget;
+                applyEditorEdit(
+                  el,
+                  editorTab(el.value, el.selectionStart, el.selectionEnd, event.shiftKey),
+                );
+              } else if (
+                event.key === "Enter" &&
+                !event.ctrlKey &&
+                !event.metaKey &&
+                !event.shiftKey
+              ) {
+                event.preventDefault();
+                const el = event.currentTarget;
+                applyEditorEdit(el, editorEnter(el.value, el.selectionStart));
+              }
+            }}
             spellCheck={false}
             aria-label={t("codeLabel")}
           />
+          <div style={{ ...mutedStyle, display: "flex", gap: "var(--space-md)", flexWrap: "wrap" }}>
+            <span>{t("editorMeta", { lines: code.split("\n").length, chars: code.length })}</span>
+            <span>{t("runShortcut")}</span>
+          </div>
           <div style={{ display: "flex", gap: "var(--space-xs)", flexWrap: "wrap", alignItems: "center" }}>
             <Button variant="primary" onClick={run} disabled={busy || !conversationId || !code.trim()}>
               {busy ? t("running") : t("run")}
@@ -688,6 +732,9 @@ export default function CodeSandboxClient() {
                   {t("clear")}
                 </Button>
               )}
+              {visibleEntries.length > 0 ? (
+                <CopyButton value={visibleEntries.map((entry) => entry.text).join("\n")} />
+              ) : null}
             </div>
             <div
               ref={terminalRef}

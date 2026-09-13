@@ -7,6 +7,8 @@ import {
   appendEntries,
   appendRuns,
   clampTimeoutSec,
+  editorEnter,
+  editorTab,
   formatClock,
   formatDateTime,
   formatElapsedSeconds,
@@ -293,5 +295,44 @@ describe("normalizeInstanceRecords", () => {
     expect(normalizeInstanceRecords("nope")).toBeNull();
     expect(normalizeInstanceRecords({})).toBeNull();
     expect(normalizeInstanceRecords({ sandboxes: "not-an-array" })).toBeNull();
+  });
+});
+
+describe("editorTab / editorEnter", () => {
+  it("inserts two spaces at the caret when there is no selection", () => {
+    const r = editorTab("ab", 1, 1, false);
+    expect(r.value).toBe("a  b");
+    expect(r.selStart).toBe(3);
+    expect(r.selEnd).toBe(3);
+  });
+
+  it("indents every covered line for multi-line selections", () => {
+    const r = editorTab("a\nb\nc", 0, 5, false);
+    expect(r.value).toBe("  a\n  b\n  c");
+    expect(r.selStart).toBe(2);
+    expect(r.selEnd).toBe(11);
+  });
+
+  it("shift+tab removes one indent unit per covered line", () => {
+    const r = editorTab("  a\n    b", 0, 8, true);
+    expect(r.value).toBe("a\n  b");
+    expect(r.selStart).toBe(0);
+  });
+
+  it("shift+tab tolerates tab characters", () => {
+    const r = editorTab("\ta", 0, 2, true);
+    expect(r.value).toBe("a");
+  });
+
+  it("enter inherits the current line indent", () => {
+    const r = editorEnter("  x", 3);
+    expect(r.value).toBe("  x\n  ");
+    expect(r.selStart).toBe(6);
+  });
+
+  it("enter adds one extra level after an opening token", () => {
+    const r = editorEnter("if x:", 5);
+    expect(r.value).toBe("if x:\n  ");
+    expect(r.selStart).toBe(8);
   });
 });

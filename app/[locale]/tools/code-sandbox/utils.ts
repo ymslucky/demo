@@ -315,3 +315,85 @@ export function normalizeInstanceRecords(raw: unknown): SandboxInstanceRecord[] 
   }
   return records;
 }
+// ---------------------------------------------------------------------------
+// Editor key behavior (Tab indent / Shift+Tab dedent / Enter auto-indent).
+// Pure cursor math so a plain textarea behaves like a minimal code editor
+// and stays unit-testable without a DOM.
+// ---------------------------------------------------------------------------
+
+export interface EditorEdit {
+  value: string;
+  selStart: number;
+  selEnd: number;
+}
+
+const EDITOR_INDENT = "  ";
+
+/** Leading whitespace of the line containing `pos`. */
+function lineIndent(value: string, pos: number): string {
+  const lineStart = value.lastIndexOf("\n", pos - 1) + 1;
+  const m = /^[ \t]*/.exec(value.slice(lineStart, pos));
+  return m ? m[0] : "";
+}
+
+/**
+ * Tab key: insert one indent unit at the caret, or indent every line
+ * covered by the selection. Shift+Tab removes one unit per covered line.
+ */
+export function editorTab(
+  value: string,
+  selStart: number,
+  selEnd: number,
+  shift: boolean,
+): EditorEdit {
+  if (!shift) {
+    if (selStart === selEnd) {
+      return {
+        value: value.slice(0, selStart) + EDITOR_INDENT + value.slice(selEnd),
+        selStart: selStart + EDITOR_INDENT.length,
+        selEnd: selStart + EDITOR_INDENT.length,
+      };
+    }
+    const lineStart = value.lastIndexOf("\n", selStart - 1) + 1;
+    const block = value.slice(lineStart, selEnd);
+    const lineBreaks = (block.match(/\n/g) || []).length + 1;
+    return {
+      value: value.slice(0, lineStart) + block.replace(/^/gm, EDITOR_INDENT) + value.slice(selEnd),
+      selStart: selStart + EDITOR_INDENT.length,
+      selEnd: selEnd + lineBreaks * EDITOR_INDENT.length,
+    };
+  }
+  // Shift+Tab：选区覆盖的每一行去掉一个缩进单元（2 空格或 1 个 Tab）。
+  const lineStart = value.lastIndexOf("\n", selStart - 1) + 1;
+  const endNl = value.indexOf("\n", selEnd);
+  const end = endNl === -1 ? value.length : endNl;
+  const block = value.slice(lineStart, end);
+  let removedTotal = 0;
+  let removedBeforeSel = 0;
+  const dedented = block.replace(/^( {1,2}|\t)/gm, (s: string, offset: number) => {
+    removedTotal += s.length;
+    if (offset < selStart - lineStart) removedBeforeSel += s.length;
+    return "";
+  });
+  return {
+    value: value.slice(0, lineStart) + dedented + value.slice(end),
+    selStart: Math.max(lineStart, selStart - removedBeforeSel),
+    selEnd: Math.max(lineStart, selEnd - removedTotal),
+  };
+}
+
+/**
+ * Enter key: keep the current line's leading whitespace, and add one
+ * extra indent level when the line ends with an opening token (: { ( [).
+ */
+export function editorEnter(value: string, selStart: number): EditorEdit {
+  const indent = lineIndent(value, selStart);
+  const before = value.slice(0, selStart);
+  const extra = /[:{([]$/.test(before.trimEnd()) ? EDITOR_INDENT : "";
+  const insert = "\n" + indent + extra;
+  return {
+    value: before + insert + value.slice(selStart),
+    selStart: selStart + insert.length,
+    selEnd: selStart + insert.length,
+  };
+}

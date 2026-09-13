@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   applyReorder,
   cloudMirrorKey,
+  filterTodoItems,
   formatDateValue,
   formatDateTimeValue,
   groupSections,
@@ -14,6 +15,8 @@ import {
   parseDateTimeValue,
   parseLocalItems,
   priorityKey,
+  removeDone,
+  sortTodoItems,
   statsSummary,
   trend7Days,
   type TodoItem,
@@ -412,5 +415,41 @@ describe("priorityKey", () => {
     expect(priorityKey(2)).toBe("priorityMedium");
     expect(priorityKey(3)).toBe("priorityHigh");
     expect(priorityKey(99)).toBe("priorityHigh");
+  });
+});
+
+describe("filterTodoItems / sortTodoItems / removeDone", () => {
+  const now = new Date(2026, 8, 13, 12, 0, 0).getTime();
+  const base = [
+    mk("a", { title: "Buy milk" }),
+    mk("b", { title: "Call mom", note: "urgent", done: true, completedAt: 1 }),
+    mk("c", { title: "Pay rent", dueAt: now - 26 * 3_600_000 }), // yesterday
+    mk("d", { title: "Read", priority: 2, createdAt: 50 }),
+    mk("e", { title: "Write", priority: 3, createdAt: 60 }),
+  ];
+
+  it("filters by query across title and note (case-insensitive)", () => {
+    expect(filterTodoItems(base, { query: "MILK", now }).map((i) => i.id)).toEqual(["a"]);
+    expect(filterTodoItems(base, { query: "urgent", now }).map((i) => i.id)).toEqual(["b"]);
+    expect(filterTodoItems(base, { query: "  ", now }).map((i) => i.id)).toEqual(["a", "b", "c", "d", "e"]);
+  });
+
+  it("filters by status facet: active / done / overdue", () => {
+    expect(filterTodoItems(base, { status: "active", now }).map((i) => i.id)).toEqual([
+      "a", "c", "d", "e",
+    ]);
+    expect(filterTodoItems(base, { status: "done", now }).map((i) => i.id)).toEqual(["b"]);
+    expect(filterTodoItems(base, { status: "overdue", now }).map((i) => i.id)).toEqual(["c"]);
+  });
+
+  it("sorts: manual is identity, due asc w/ undated last, priority & created desc", () => {
+    expect(sortTodoItems(base, "manual")).toBe(base);
+    expect(sortTodoItems(base, "due").map((i) => i.id)).toEqual(["c", "a", "b", "d", "e"]);
+    expect(sortTodoItems(base, "priority").map((i) => i.id)).toEqual(["e", "d", "a", "b", "c"]);
+    expect(sortTodoItems(base, "created").map((i) => i.id)).toEqual(["e", "d", "a", "b", "c"]);
+  });
+
+  it("removeDone keeps only pending items", () => {
+    expect(removeDone(base).map((i) => i.id)).toEqual(["a", "c", "d", "e"]);
   });
 });

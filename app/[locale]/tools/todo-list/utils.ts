@@ -350,3 +350,65 @@ export function priorityKey(
   if (priority === 2) return "priorityMedium";
   return "priorityLow";
 }
+// ---------------------------------------------------------------------------
+// List toolbar: search / status filter / sort / clear-completed
+// ---------------------------------------------------------------------------
+
+export type TodoStatusFilter = "all" | "active" | "done" | "overdue";
+export type TodoSortMode = "manual" | "due" | "priority" | "created";
+
+/**
+ * Case-insensitive query across title + note, plus a status facet.
+ `now` is injectable so overdue filtering is deterministic in tests.
+ */
+export function filterTodoItems(
+  items: TodoItem[],
+  {
+    query = "",
+    status = "all",
+    now = Date.now(),
+  }: { query?: string; status?: TodoStatusFilter; now?: number } = {},
+): TodoItem[] {
+  const q = query.trim().toLowerCase();
+  return items.filter((item) => {
+    if (q) {
+      const haystack = (item.title + "\n" + item.note).toLowerCase();
+      if (!haystack.includes(q)) return false;
+    }
+    if (status === "active" && item.done) return false;
+    if (status === "done" && !item.done) return false;
+    if (status === "overdue" && (item.done || !isOverdue(item, now))) return false;
+    return true;
+  });
+}
+
+/**
+ * Sort for display. `manual` is the identity order (array order = user
+ * curated order, the drag-and-drop fact source); the other modes return a
+ * stable sorted copy and never mutate the input.
+ */
+export function sortTodoItems(items: TodoItem[], mode: TodoSortMode): TodoItem[] {
+  if (mode === "manual") return items;
+  const next = [...items];
+  switch (mode) {
+    case "due": {
+      // Dated items first (ascending); undated trail in stable order.
+      return next.sort((a, b) => {
+        const av = a.dueAt > 0 ? a.dueAt : Number.POSITIVE_INFINITY;
+        const bv = b.dueAt > 0 ? b.dueAt : Number.POSITIVE_INFINITY;
+        return av - bv;
+      });
+    }
+    case "priority":
+      return next.sort((a, b) => b.priority - a.priority);
+    case "created":
+      return next.sort((a, b) => b.createdAt - a.createdAt);
+    default:
+      return next;
+  }
+}
+
+/** Drop every completed item (toolbar "clear done" action). */
+export function removeDone(items: TodoItem[]): TodoItem[] {
+  return items.filter((item) => !item.done);
+}
