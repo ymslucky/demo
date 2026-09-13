@@ -208,3 +208,93 @@ export function convertCase(mode: string, input: string): string {
       return input;
   }
 }
+// ---------------------------------------------------------------------------
+// Base64 URL-safe variant (RFC 4648 §5: -_ alphabet, no padding)
+// ---------------------------------------------------------------------------
+
+/** Standard → URL-safe: + → -, / → _, strip = padding. */
+export function base64ToBase64Url(b64: string): string {
+  return b64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
+/** URL-safe → standard: - → +, _ → /, restore = padding. */
+export function base64UrlToBase64(b64url: string): string {
+  const s = b64url.replace(/-/g, "+").replace(/_/g, "/");
+  return s + "=".repeat((4 - (s.length % 4)) % 4);
+}
+
+/** Unicode-safe Base64url encode. */
+export function encodeBase64Url(str: string): string {
+  return base64ToBase64Url(encodeBase64(str));
+}
+
+/** Unicode-safe Base64url decode (accepts padded or unpadded input). */
+export function decodeBase64Url(b64url: string): string {
+  return decodeBase64(base64UrlToBase64(b64url.trim()));
+}
+
+// ---------------------------------------------------------------------------
+// Color history helpers
+// ---------------------------------------------------------------------------
+
+/** Canonical 6-digit hex color (#rrggbb). Guards localStorage reads. */
+export function isHexColor(value: unknown): value is string {
+  return typeof value === "string" && /^#[0-9a-fA-F]{6}$/.test(value);
+}
+
+/**
+ * Front-insert into the color history: canonical lowercase, deduped,
+ * capped at `max` entries.
+ */
+export function pushColorHistory(
+  history: string[],
+  hex: string,
+  max = 8,
+): string[] {
+  const normalized = hex.toLowerCase();
+  return [normalized, ...history.filter((c) => c !== normalized)].slice(0, max);
+}
+
+// ---------------------------------------------------------------------------
+// JSON syntax highlighting tokenizer
+// ---------------------------------------------------------------------------
+
+export type JsonTokenType = "key" | "string" | "number" | "boolean" | "null" | "plain";
+
+export interface JsonToken {
+  type: JsonTokenType;
+  value: string;
+}
+
+const JSON_TOKEN_RE =
+  /("(?:\\.|[^"\\])*")(\s*:)?|(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)|\b(true|false)\b|\bnull\b/g;
+
+/**
+ * Tokenize a JSON document for syntax highlighting. A string token that is
+ * immediately followed by ":" is classified as an object key. Malformed
+ * JSON still tokenizes loosely (the formatter surfaces parse errors).
+ */
+export function tokenizeJson(json: string): JsonToken[] {
+  const tokens: JsonToken[] = [];
+  let last = 0;
+  let m: RegExpExecArray | null;
+  JSON_TOKEN_RE.lastIndex = 0;
+  while ((m = JSON_TOKEN_RE.exec(json)) !== null) {
+    if (m.index > last) {
+      tokens.push({ type: "plain", value: json.slice(last, m.index) });
+    }
+    if (m[1] !== undefined) {
+      tokens.push({ type: m[2] !== undefined ? "key" : "string", value: m[1] });
+      if (m[2] !== undefined) tokens.push({ type: "plain", value: m[2] });
+    } else if (m[3] !== undefined) {
+      tokens.push({ type: "number", value: m[0] });
+    } else if (m[4] !== undefined) {
+      tokens.push({ type: "boolean", value: m[0] });
+    } else {
+      tokens.push({ type: "null", value: m[0] });
+    }
+    last = m.index + m[0].length;
+  }
+  if (last < json.length) tokens.push({ type: "plain", value: json.slice(last) });
+  return tokens;
+}

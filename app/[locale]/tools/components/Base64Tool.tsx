@@ -2,7 +2,12 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { encodeBase64, decodeBase64 } from "../utils";
+import {
+  encodeBase64,
+  decodeBase64,
+  encodeBase64Url,
+  decodeBase64Url,
+} from "../utils";
 import { useStickyState } from "./useStickyState";
 import { Button, Textarea } from "../../components/ui";
 import { ToolActions, ToolResult, ToolShell } from "./ToolShell";
@@ -13,10 +18,11 @@ export default function Base64Tool() {
   const [b64Input, setB64Input] = useStickyState("", "b64Input");
   const [b64Output, setB64Output] = useState("");
   const [b64Err, setB64Err] = useState(false);
+  const [b64UrlSafe, setB64UrlSafe] = useStickyState(false, "b64UrlSafe");
 
   const b64Encode = () => {
     try {
-      setB64Output(encodeBase64(b64Input));
+      setB64Output(b64UrlSafe ? encodeBase64Url(b64Input) : encodeBase64(b64Input));
       setB64Err(false);
     } catch {
       setB64Output(t("errors.encodeFailed"));
@@ -26,7 +32,7 @@ export default function Base64Tool() {
 
   const b64Decode = () => {
     try {
-      setB64Output(decodeBase64(b64Input.trim()));
+      setB64Output(b64UrlSafe ? decodeBase64Url(b64Input.trim()) : decodeBase64(b64Input.trim()));
       setB64Err(false);
     } catch {
       setB64Output(t("errors.invalidBase64"));
@@ -49,6 +55,14 @@ export default function Base64Tool() {
         onChange={(e) => setB64Input(e.target.value)}
       />
       <ToolActions>
+        <Button
+          variant={b64UrlSafe ? "primary" : "secondary"}
+          size="sm"
+          aria-pressed={b64UrlSafe}
+          onClick={() => setB64UrlSafe(!b64UrlSafe)}
+        >
+          {t("actions.urlSafe")}
+        </Button>
         <Button variant="primary" size="sm" onClick={b64Encode}>
           {t("actions.encode")}
         </Button>

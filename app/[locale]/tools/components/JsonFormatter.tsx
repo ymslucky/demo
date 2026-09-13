@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
+import { tokenizeJson } from "../utils";
 import { useStickyState } from "./useStickyState";
 import { Button, Textarea } from "../../components/ui";
 import { ToolActions, ToolResult, ToolShell } from "./ToolShell";
@@ -60,10 +61,20 @@ export default function JsonFormatter() {
         {jsonOutput && !jsonErr ? <CopyButton value={jsonOutput} /> : null}
       </ToolActions>
       <ToolResult tone={jsonErr ? "err" : "ok"}>
-        {jsonOutput}
-        {jsonErr && jsonErrDetail ? (
-          <span className="tool-detail">{jsonErrDetail}</span>
-        ) : null}
+        {jsonErr ? (
+          <>
+            {jsonOutput}
+            {jsonErrDetail ? <span className="tool-detail">{jsonErrDetail}</span> : null}
+          </>
+        ) : (
+          <span className="json-out">
+            {tokenizeJson(jsonOutput).map((tok, i) => (
+              <span key={i} className={"json-tok json-tok--" + tok.type}>
+                {tok.value}
+              </span>
+            ))}
+          </span>
+        )}
       </ToolResult>
     </ToolShell>
   );

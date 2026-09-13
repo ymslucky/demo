@@ -789,6 +789,20 @@
   word-break: break-all;
 }
 
+/* JSON syntax highlighting — theme-aware tokens only, no literals. */
+.json-tok--key {
+  color: var(--color-primary);
+  font-weight: 700;
+}
+.json-tok--number {
+  color: var(--color-accent);
+}
+.json-tok--boolean,
+.json-tok--null,
+.json-tok--plain {
+  color: var(--color-text-muted);
+}
+
 .tool-actions {
   display: flex;
   flex-wrap: wrap;
@@ -865,6 +879,26 @@
 }
 
 /* Color picker */
+.color-history {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+  margin-top: var(--space-xs);
+}
+.color-history-item {
+  width: 22px;
+  height: 22px;
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  padding: 0;
+  transition: var(--transition);
+}
+.color-history-item:hover {
+  transform: translate(-1px, -1px);
+  box-shadow: 2px 2px 0 0 var(--color-border);
+}
+
 .color-row {
   display: flex;
   gap: var(--space-md);

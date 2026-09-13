@@ -8,6 +8,11 @@ import {
   unitData,
   encodeBase64,
   decodeBase64,
+  encodeBase64Url,
+  decodeBase64Url,
+  isHexColor,
+  pushColorHistory,
+  tokenizeJson,
   formatTimezone,
 } from "../app/[locale]/tools/utils";
 
@@ -237,5 +242,60 @@ describe("convertCase: extended naming modes", () => {
   it("constant mode uppercases and joins words with underscores", () => {
     expect(convertCase("constant", "hello world")).toBe("HELLO_WORLD");
     expect(convertCase("constant", "hello-world")).toBe("HELLO_WORLD");
+  });
+});
+
+describe("base64url", () => {
+  it("encodes with the URL-safe alphabet and no padding", () => {
+    const enc = encodeBase64Url("a+b/c=? hello 你好");
+    expect(enc).not.toMatch(/[+/=]/);
+  });
+
+  it("round-trips arbitrary unicode (padded or unpadded input)", () => {
+    const raw = "a+b/c=?\u4f60\u597d\u2192\u00e9";
+    expect(decodeBase64Url(encodeBase64Url(raw))).toBe(raw);
+    expect(decodeBase64Url(encodeBase64(raw))).toBe(raw); // padded standard input
+  });
+});
+
+describe("color history helpers", () => {
+  it("isHexColor accepts only canonical 6-digit hex", () => {
+    expect(isHexColor("#ff0000")).toBe(true);
+    expect(isHexColor("#FFF000")).toBe(true);
+    expect(isHexColor("ff0000")).toBe(false);
+    expect(isHexColor("#ff00")).toBe(false);
+    expect(isHexColor("")).toBe(false);
+    expect(isHexColor(undefined)).toBe(false);
+  });
+
+  it("pushColorHistory dedupes, front-inserts, lowercases and caps", () => {
+    expect(pushColorHistory([], "#FF0000")).toEqual(["#ff0000"]);
+    expect(pushColorHistory(["#ff0000"], "#FF0000")).toEqual(["#ff0000"]);
+    const full = Array.from({ length: 10 }, (_, i) => "#aa000" + i);
+    const next = pushColorHistory(full, "#bb0000");
+    expect(next).toHaveLength(8);
+    expect(next[0]).toBe("#bb0000");
+  });
+});
+
+describe("tokenizeJson", () => {
+  it("classifies keys, strings, numbers, booleans and null", () => {
+    const tokens = tokenizeJson('{"a": 1, "b": [true, null], "c": "x"}');
+    const byType = (type: string) =>
+      tokens.filter((t) => t.type === type).map((t) => t.value);
+    expect(byType("key")).toEqual(['"a"', '"b"', '"c"']);
+    expect(byType("number")).toEqual(["1"]);
+    expect(byType("boolean")).toEqual(["true"]);
+    expect(byType("null")).toEqual(["null"]);
+    expect(byType("string")).toEqual(['"x"']);
+  });
+
+  it("keeps escaped quotes inside strings without splitting", () => {
+    const tokens = tokenizeJson('{"a":"say \\"hi\\""}');
+    const meaningful = tokens.filter(
+      (t) => t.type === "string" || t.type === "key"
+    );
+    expect(meaningful).toHaveLength(2);
+    expect(tokens.some((t) => t.value.includes("say"))).toBe(true);
   });
 });

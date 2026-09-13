@@ -51,6 +51,7 @@
       "swap": "交换 ⇄",
       "copy": "复制",
       "copied": "已复制 ✓",
+      "urlSafe": "URL 安全",
       "open": "进入工具 →"
     },
     "httpCheck": {
@@ -260,6 +261,7 @@
       "rgb": "RGB",
       "hsl": "HSL",
       "textInput": "文本输入",
+      "historyColor": "历史颜色 {color}",
       "categoryLength": "长度",
       "categoryTemperature": "温度",
       "categoryData": "数据容量"

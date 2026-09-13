@@ -2,7 +2,13 @@
 
 import { useRef, useCallback, useEffect } from "react";
 import { useTranslations } from "next-intl";
-import { hexToRgb, rgbToHsl, getColorStrings } from "../utils";
+import {
+  hexToRgb,
+  rgbToHsl,
+  getColorStrings,
+  isHexColor,
+  pushColorHistory,
+} from "../utils";
 import { useStickyState } from "./useStickyState";
 import { Input } from "../../components/ui";
 import { ToolShell } from "./ToolShell";
@@ -25,6 +31,7 @@ export default function ColorPicker() {
     return `hsl(${h}, ${s}%, ${l}%)`;
   })();
   const [colorHsl, setColorHsl] = useStickyState(initialHsl, "colorHsl");
+  const [colorHistory, setColorHistory] = useStickyState<string[]>([], "colorHistory");
 
   // 挂载时将 ref 与 sticky state 同步
   useEffect(() => {
@@ -44,17 +51,23 @@ export default function ColorPicker() {
     if (/^#[0-9a-fA-F]{6}$/.test(val)) {
       if (colorInputRef.current) colorInputRef.current.value = val;
       updateColorValues(val);
+      setColorHistory((prev) => pushColorHistory(prev, val));
     } else if (/^#?[0-9a-fA-F]{6}$/.test(val)) {
       const fixed = val.startsWith("#") ? val : "#" + val;
       setColorHex(fixed);
       if (colorInputRef.current) colorInputRef.current.value = fixed;
       updateColorValues(fixed);
+      setColorHistory((prev) => pushColorHistory(prev, fixed));
     }
   };
+
+  // localStorage 读取防御：只渲染规范 6 位 hex，历史键可能来自旧版本数据。
+  const safeHistory = colorHistory.filter(isHexColor);
 
   const handleColorPick = (val: string) => {
     setColorHex(val);
     updateColorValues(val);
+    setColorHistory((prev) => pushColorHistory(prev, val));
   };
 
   return (
@@ -106,6 +119,20 @@ export default function ColorPicker() {
           </div>
         </div>
       </div>
+      {safeHistory.length > 0 ? (
+        <div className="color-history">
+          {safeHistory.map((hex) => (
+            <button
+              key={hex}
+              type="button"
+              className="color-history-item"
+              style={{ background: hex }}
+              onClick={() => handleColorPick(hex)}
+              aria-label={t("labels.historyColor", { color: hex })}
+            />
+          ))}
+        </div>
+      ) : null}
     </ToolShell>
   );
 }

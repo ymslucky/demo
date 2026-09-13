@@ -51,6 +51,7 @@
       "swap": "Swap ⇄",
       "copy": "Copy",
       "copied": "Copied ✓",
+      "urlSafe": "URL-safe",
       "open": "Open tool →"
     },
     "httpCheck": {
@@ -260,6 +261,7 @@
       "rgb": "RGB",
       "hsl": "HSL",
       "textInput": "Text input",
+      "historyColor": "History color {color}",
       "categoryLength": "Length",
       "categoryTemperature": "Temperature",
       "categoryData": "Data size"
