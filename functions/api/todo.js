@@ -338,8 +338,12 @@ async function readJsonBody(request) {
   }
 }
 
-/** GET：登录后返回自己的清单 { items }。 */
-export async function onRequestGet({ request }) {
+/**
+ * 认证 + KV 上下文统一入口：KV 未绑定回 503（x-kv: unbound），会话无效
+ * 回 401（x-auth-fail 诊断头），业务回调抛错（KV 故障等）回 503
+ * kv-unavailable。各 onRequest* 处理器只保留认证后的业务差异。
+ */
+async function withTodoUser(request, run) {
   const kv = getKv();
   if (!kv) return jsonResponse({ error: "kv-not-configured" }, { "x-kv": "unbound" }, 503);
   try {
@@ -347,21 +351,22 @@ export async function onRequestGet({ request }) {
     if (!uid) {
       return jsonResponse({ error: "unauthorized" }, { "x-auth-fail": reason }, 401);
     }
-    return jsonResponse({ items: await loadItems(kv, uid) });
+    return await run({ kv, uid });
   } catch {
     return jsonResponse({ error: "kv-unavailable" }, {}, 503);
   }
 }
 
+/** GET：登录后返回自己的清单 { items }。 */
+export async function onRequestGet({ request }) {
+  return withTodoUser(request, async ({ kv, uid }) =>
+    jsonResponse({ items: await loadItems(kv, uid) }),
+  );
+}
+
 /** POST：登录后为自己的清单新增一条，返回写入后的清单（201）。 */
 export async function onRequestPost({ request }) {
-  const kv = getKv();
-  if (!kv) return jsonResponse({ error: "kv-not-configured" }, { "x-kv": "unbound" }, 503);
-  try {
-    const { uid, reason } = await readSessionUid(request);
-    if (!uid) {
-      return jsonResponse({ error: "unauthorized" }, { "x-auth-fail": reason }, 401);
-    }
+  return withTodoUser(request, async ({ kv, uid }) => {
     const body = await readJsonBody(request);
     if (!body) return jsonResponse({ error: "invalid-json" }, {}, 400);
     const items = addTodo(await loadItems(kv, uid), body.title, {
@@ -374,20 +379,12 @@ export async function onRequestPost({ request }) {
     if (!items) return jsonResponse({ error: "invalid-title" }, {}, 400);
     await saveItems(kv, uid, items);
     return jsonResponse({ items }, {}, 201);
-  } catch {
-    return jsonResponse({ error: "kv-unavailable" }, {}, 503);
-  }
+  });
 }
 
 /** PATCH：登录后按 id 更新 done/title/note 及四要素（done 切换联动完成时间），返回写入后的清单。 */
 export async function onRequestPatch({ request }) {
-  const kv = getKv();
-  if (!kv) return jsonResponse({ error: "kv-not-configured" }, { "x-kv": "unbound" }, 503);
-  try {
-    const { uid, reason } = await readSessionUid(request);
-    if (!uid) {
-      return jsonResponse({ error: "unauthorized" }, { "x-auth-fail": reason }, 401);
-    }
+  return withTodoUser(request, async ({ kv, uid }) => {
     const body = await readJsonBody(request);
     if (!body) return jsonResponse({ error: "invalid-json" }, {}, 400);
     const id = typeof body.id === "string" && body.id ? body.id : null;
@@ -404,9 +401,7 @@ export async function onRequestPatch({ request }) {
     if (!items) return jsonResponse({ error: "not-found" }, {}, 404);
     await saveItems(kv, uid, items);
     return jsonResponse({ items });
-  } catch {
-    return jsonResponse({ error: "kv-unavailable" }, {}, 503);
-  }
+  });
 }
 
 /**
@@ -416,13 +411,7 @@ export async function onRequestPatch({ request }) {
  * 返回写入后的清单。items 缺失或非数组回 400 invalid-items。
  */
 export async function onRequestPut({ request }) {
-  const kv = getKv();
-  if (!kv) return jsonResponse({ error: "kv-not-configured" }, { "x-kv": "unbound" }, 503);
-  try {
-    const { uid, reason } = await readSessionUid(request);
-    if (!uid) {
-      return jsonResponse({ error: "unauthorized" }, { "x-auth-fail": reason }, 401);
-    }
+  return withTodoUser(request, async ({ kv, uid }) => {
     const body = await readJsonBody(request);
     if (!body) return jsonResponse({ error: "invalid-json" }, {}, 400);
     if (!Array.isArray(body.items)) {
@@ -431,20 +420,12 @@ export async function onRequestPut({ request }) {
     const items = normalizeItems(body.items);
     await saveItems(kv, uid, items);
     return jsonResponse({ items });
-  } catch {
-    return jsonResponse({ error: "kv-unavailable" }, {}, 503);
-  }
+  });
 }
 
 /** DELETE：登录后按 id 删除条目（?id= 优先，回落 body { id }）。 */
 export async function onRequestDelete({ request }) {
-  const kv = getKv();
-  if (!kv) return jsonResponse({ error: "kv-not-configured" }, { "x-kv": "unbound" }, 503);
-  try {
-    const { uid, reason } = await readSessionUid(request);
-    if (!uid) {
-      return jsonResponse({ error: "unauthorized" }, { "x-auth-fail": reason }, 401);
-    }
+  return withTodoUser(request, async ({ kv, uid }) => {
     let id = null;
     try {
       id = new URL(request.url).searchParams.get("id");
@@ -460,7 +441,5 @@ export async function onRequestDelete({ request }) {
     if (!items) return jsonResponse({ error: "not-found" }, {}, 404);
     await saveItems(kv, uid, items);
     return jsonResponse({ items });
-  } catch {
-    return jsonResponse({ error: "kv-unavailable" }, {}, 503);
-  }
+  });
 }

@@ -270,11 +270,11 @@ function cleanOptionalText(value, maxLen) {
 }
 
 /**
- * GET：登录后返回 30 天保留期内的全部实例档案（含所属用户），已到期
- * 记录保留（前端标记状态），仅超龄与畸形记录惰性清除。响应体
- * { sandboxes: [...] }，按最近更新倒序。
+ * 认证 + KV 上下文统一入口：KV 未绑定回 503（x-kv: unbound），会话无效
+ * 回 401（x-auth-fail 诊断头），业务回调抛错（KV 故障等）回 503
+ * kv-unavailable。各 onRequest* 处理器只保留认证后的业务差异。
  */
-export async function onRequestGet({ request }) {
+async function withSandboxUser(request, run) {
   const kv = getKv();
   if (!kv) return jsonResponse({ error: "kv-not-configured" }, { "x-kv": "unbound" }, 503);
   try {
@@ -282,10 +282,21 @@ export async function onRequestGet({ request }) {
     if (!uid) {
       return jsonResponse({ error: "unauthorized" }, { "x-auth-fail": reason }, 401);
     }
-    return jsonResponse({ sandboxes: await listSandboxes(kv, { now: Date.now(), sweep: true }) });
+    return await run({ kv, uid });
   } catch {
     return jsonResponse({ error: "kv-unavailable" }, {}, 503);
   }
+}
+
+/**
+ * GET：登录后返回 30 天保留期内的全部实例档案（含所属用户），已到期
+ * 记录保留（前端标记状态），仅超龄与畸形记录惰性清除。响应体
+ * { sandboxes: [...] }，按最近更新倒序。
+ */
+export async function onRequestGet({ request }) {
+  return withSandboxUser(request, async ({ kv }) =>
+    jsonResponse({ sandboxes: await listSandboxes(kv, { now: Date.now(), sweep: true }) }),
+  );
 }
 
 /**
@@ -293,13 +304,7 @@ export async function onRequestGet({ request }) {
  * 心跳式 upsert，uid 取自会话验签）。instanceId 撞车到他人档案回 403。
  */
 export async function onRequestPost({ request }) {
-  const kv = getKv();
-  if (!kv) return jsonResponse({ error: "kv-not-configured" }, { "x-kv": "unbound" }, 503);
-  try {
-    const { uid, reason } = await readSessionUid(request);
-    if (!uid) {
-      return jsonResponse({ error: "unauthorized" }, { "x-auth-fail": reason }, 401);
-    }
+  return withSandboxUser(request, async ({ kv, uid }) => {
     const body = await readJsonBody(request);
     const instanceId = cleanInstanceId(body?.instanceId);
     if (!instanceId) return jsonResponse({ error: "invalid-instance" }, {}, 400);
@@ -310,20 +315,12 @@ export async function onRequestPost({ request }) {
     });
     if (!record) return jsonResponse({ error: "forbidden" }, {}, 403);
     return jsonResponse({ sandbox: record }, {}, 201);
-  } catch {
-    return jsonResponse({ error: "kv-unavailable" }, {}, 503);
-  }
+  });
 }
 
 /** DELETE：登录后释放自己的实例档案（?instance= 优先，回落 body { instanceId }）。 */
 export async function onRequestDelete({ request }) {
-  const kv = getKv();
-  if (!kv) return jsonResponse({ error: "kv-not-configured" }, { "x-kv": "unbound" }, 503);
-  try {
-    const { uid, reason } = await readSessionUid(request);
-    if (!uid) {
-      return jsonResponse({ error: "unauthorized" }, { "x-auth-fail": reason }, 401);
-    }
+  return withSandboxUser(request, async ({ kv, uid }) => {
     let instanceId = null;
     try {
       instanceId = new URL(request.url).searchParams.get("instance");
@@ -339,7 +336,5 @@ export async function onRequestDelete({ request }) {
     const released = await releaseSandbox(kv, uid, instanceId);
     if (!released) return jsonResponse({ error: "not-found" }, {}, 404);
     return jsonResponse({ ok: true });
-  } catch {
-    return jsonResponse({ error: "kv-unavailable" }, {}, 503);
-  }
+  });
 }
