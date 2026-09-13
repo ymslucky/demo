@@ -412,3 +412,26 @@ export function sortTodoItems(items: TodoItem[], mode: TodoSortMode): TodoItem[]
 export function removeDone(items: TodoItem[]): TodoItem[] {
   return items.filter((item) => !item.done);
 }
+// ---------------------------------------------------------------------------
+// Group management + due-today emphasis
+// ---------------------------------------------------------------------------
+
+/**
+ * Pending with a due date of TODAY (not overdue — isOverdue already covers
+ * past days; this is the actionable "due today" emphasis).
+ */
+export function isDueToday(item: TodoItem, now: number): boolean {
+  if (item.done || item.dueAt <= 0 || isOverdue(item, now)) return false;
+  return startOfDay(item.dueAt) === startOfDay(now);
+}
+
+/**
+ * Rename a group (dissolve: pass "" to move its items back to the default
+ * group). Returns a new array; identity no-op when `from` is the default
+ * group or the trimmed target equals `from`.
+ */
+export function renameGroup(items: TodoItem[], from: string, to: string): TodoItem[] {
+  const target = to.trim().slice(0, MAX_GROUP_LEN);
+  if (from === "" || target === from) return items;
+  return items.map((item) => (item.group === from ? { ...item, group: target } : item));
+}

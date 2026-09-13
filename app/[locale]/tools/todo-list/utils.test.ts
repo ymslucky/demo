@@ -6,6 +6,7 @@ import {
   formatDateValue,
   formatDateTimeValue,
   groupSections,
+  isDueToday,
   isOverdue,
   makeLocalItem,
   normalizeItem,
@@ -16,6 +17,7 @@ import {
   parseLocalItems,
   priorityKey,
   removeDone,
+  renameGroup,
   sortTodoItems,
   statsSummary,
   trend7Days,
@@ -451,5 +453,32 @@ describe("filterTodoItems / sortTodoItems / removeDone", () => {
 
   it("removeDone keeps only pending items", () => {
     expect(removeDone(base).map((i) => i.id)).toEqual(["a", "c", "d", "e"]);
+  });
+});
+
+describe("isDueToday / renameGroup", () => {
+  const now = new Date(2026, 8, 13, 12, 0, 0).getTime();
+
+  it("isDueToday: pending + due today; not overdue, done, other days or undated", () => {
+    const today = new Date(2026, 8, 13, 9, 0, 0).getTime();
+    expect(isDueToday(mk("a", { dueAt: today }), now)).toBe(true);
+    expect(isDueToday(mk("b", { dueAt: today, done: true }), now)).toBe(false);
+    expect(isDueToday(mk("c", { dueAt: now - 26 * 3_600_000 }), now)).toBe(false);
+    expect(isDueToday(mk("d", { dueAt: today + 86_400_000 }), now)).toBe(false);
+    expect(isDueToday(mk("e"), now)).toBe(false);
+  });
+
+  it("renameGroup reassigns matching items, trims, and dissolves to default", () => {
+    const items = [
+      mk("a", { group: "home" }),
+      mk("b", { group: "home" }),
+      mk("c", { group: "work" }),
+    ];
+    const renamed = renameGroup(items, "home", " chores ");
+    expect(renamed.map((i) => i.group)).toEqual(["chores", "chores", "work"]);
+    expect(items[0].group).toBe("home"); // 原数组不变
+    expect(renameGroup(renamed, "chores", "").map((i) => i.group)).toEqual(["", "", "work"]);
+    expect(renameGroup(items, "", "x")).toBe(items); // 默认分组不参与
+    expect(renameGroup(items, "home", "home")).toBe(items); // 同名 no-op
   });
 });

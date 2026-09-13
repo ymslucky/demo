@@ -2125,3 +2125,21 @@ body.todo-dragging {
   background: var(--color-primary);
   color: var(--color-on-primary);
 }
+/* ---- Todo group management + due-today emphasis ---- */
+.todo-group-btn {
+  font-family: inherit;
+  border: none;
+  background: none;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  font-size: var(--fs-sm);
+  padding: 0 0.15rem;
+  line-height: 1;
+}
+.todo-group-btn:hover {
+  color: var(--color-primary);
+}
+.todo-badge--today {
+  background: var(--color-tint-strong);
+  font-weight: 700;
+}

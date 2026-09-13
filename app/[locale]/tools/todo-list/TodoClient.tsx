@@ -14,6 +14,7 @@ import {
   formatDateValue,
   formatDateTimeValue,
   groupSections,
+  isDueToday,
   isOverdue,
   makeLocalItem,
   normalizeItems,
@@ -23,6 +24,7 @@ import {
   parseLocalItems,
   priorityKey,
   removeDone,
+  renameGroup,
   sortTodoItems,
   statsSummary,
   trend7Days,
@@ -202,6 +204,9 @@ function TodoPanel() {
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useStickyState<TodoStatusFilter>("all", "todoStatusFilter");
   const [sortMode, setSortMode] = useStickyState<TodoSortMode>("manual", "todoSortMode");
+  // 分组管理：正在重命名的分组名 + 输入框草稿。
+  const [renamingGroup, setRenamingGroup] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState("");
   const [tab, setTab] = useState<"list" | "stats">("list");
   const [editing, setEditing] = useState<EditDraft | null>(null);
   const [sync, setSync] = useState<SyncState>("idle");
@@ -817,6 +822,13 @@ function TodoPanel() {
     return date.toLocaleDateString(undefined, { month: "numeric", day: "numeric" });
   };
 
+  /** 提交分组重命名（trim + 长度封顶在 renameGroup 内完成）。 */
+  function finishGroupRename() {
+    if (renamingGroup === null) return;
+    commit(renameGroup(items ?? [], renamingGroup, renameValue));
+    setRenamingGroup(null);
+  }
+
   return (
     <section style={cardStyle}>
       <div className="todo-tabs" role="tablist">
@@ -950,19 +962,73 @@ function TodoPanel() {
                 key={section.name === "" ? "__default__" : section.name}
                 className="todo-group"
               >
-                <header className="todo-group-head">
-                  <span className="todo-group-name">
-                    {section.name === "" ? t("defaultGroup") : section.name}
-                  </span>
-                  <span className="todo-group-count">{section.items.length}</span>
-                </header>
+                {renamingGroup === section.name ? (
+                  <form
+                    className="todo-group-head"
+                    onSubmit={(event) => {
+                      event.preventDefault();
+                      finishGroupRename();
+                    }}
+                  >
+                    <input
+                      autoFocus
+                      type="text"
+                      className="todo-search"
+                      value={renameValue}
+                      onChange={(event) => setRenameValue(event.target.value)}
+                      maxLength={MAX_GROUP_LEN}
+                      aria-label={t("renameGroupLabel", { group: section.name })}
+                    />
+                    <button type="submit" className="btn btn--primary btn--sm">
+                      {t("save")}
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn--sm"
+                      onClick={() => setRenamingGroup(null)}
+                    >
+                      {t("cancel")}
+                    </button>
+                  </form>
+                ) : (
+                  <header className="todo-group-head">
+                    <span className="todo-group-name">
+                      {section.name === "" ? t("defaultGroup") : section.name}
+                    </span>
+                    <span className="todo-group-count">{section.items.length}</span>
+                    {section.name !== "" ? (
+                      <>
+                        <button
+                          type="button"
+                          className="todo-group-btn"
+                          aria-label={t("renameGroupLabel", { group: section.name })}
+                          onClick={() => {
+                            setRenamingGroup(section.name);
+                            setRenameValue(section.name);
+                          }}
+                        >
+                          ✎
+                        </button>
+                        <button
+                          type="button"
+                          className="todo-group-btn"
+                          aria-label={t("dissolveGroupLabel", { group: section.name })}
+                          onClick={() => commit(renameGroup(items ?? [], section.name, ""))}
+                        >
+                          ✕
+                        </button>
+                      </>
+                    ) : null}
+                  </header>
+                )}
                 <ul
                   className="todo-list"
                   data-todo-zone={section.name}
                   data-todo-count={section.items.length}
                 >
                   {section.items.map((item, index) => {
-                    const overdue = isOverdue(item, Date.now());
+                    const overdue = isOverdue(item, now);
+                    const dueToday = isDueToday(item, now);
                     const dragging = item.id === dragId;
                     return (
                       <Fragment key={item.id}>
@@ -1037,6 +1103,11 @@ function TodoPanel() {
                                             { month: "numeric", day: "numeric" },
                                           ),
                                         })}
+                                  </span>
+                                ) : null}
+                                {dueToday ? (
+                                  <span className="todo-badge todo-badge--today">
+                                    {t("dueTodayBadge")}
                                   </span>
                                 ) : null}
                                 {item.remindAt > 0 ? (
