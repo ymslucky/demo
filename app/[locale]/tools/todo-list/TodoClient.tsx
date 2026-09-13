@@ -15,6 +15,7 @@ import {
   formatDateTimeValue,
   groupColor,
   groupSections,
+  groupStats,
   insertItemAt,
   isDueToday,
   isOverdue,
@@ -449,6 +450,24 @@ function TodoPanel() {
     return () => document.removeEventListener("keydown", onKey);
   }, []);
 
+  // 批量选择模式下：Delete / Backspace 直接删除选中项。
+  useEffect(() => {
+    if (!selectMode || selectedIds.length === 0) return undefined;
+    const onKey = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      const tag = target?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || target?.isContentEditable) {
+        return;
+      }
+      if (event.key !== "Delete" && event.key !== "Backspace") return;
+      event.preventDefault();
+      commit(removeMany(itemsRef.current ?? [], selectedIds));
+      setSelectedIds([]);
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [selectMode, selectedIds, commit]);
+
   useEffect(() => {
     if (!isLoaded) return undefined;
     aliveRef.current = true;
@@ -873,6 +892,7 @@ function TodoPanel() {
   const doneCount = items.filter((item) => item.done).length;
   const overdueCount = visibleItems.filter((item) => isOverdue(item, now)).length;
   const dueTodayCount = visibleItems.filter((item) => isDueToday(item, now)).length;
+  const groupStatRows = groupStats(visibleItems);
   const stats = statsSummary(visibleItems);
   const rate = stats.total > 0 ? Math.round((stats.done / stats.total) * 100) : 0;
   const trend = trend7Days(visibleItems, now);
@@ -1782,6 +1802,54 @@ function TodoPanel() {
               </div>
             </div>
           )}
+
+          {groupStatRows.length > 0 ? (
+            <div style={{ display: "grid", gap: "var(--space-xs)" }}>
+              <span style={{ fontWeight: 700 }}>{t("statsByGroup")}</span>
+              {groupStatRows.map((row) => (
+                <div
+                  key={row.group || "__default__"}
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "minmax(80px, 160px) 1fr auto",
+                    alignItems: "center",
+                    gap: "var(--space-sm)",
+                  }}
+                >
+                  <span
+                    style={{
+                      ...mutedStyle,
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {row.group === "" ? t("defaultGroup") : row.group}
+                  </span>
+                  <div
+                    style={{
+                      height: 10,
+                      background: "var(--color-tint)",
+                      border: "2px solid var(--color-border)",
+                      borderRadius: "var(--radius-sm)",
+                      overflow: "hidden",
+                    }}
+                  >
+                    <div
+                      style={{
+                        height: "100%",
+                        width: row.total > 0 ? Math.round((row.done / row.total) * 100) + "%" : "0%",
+                        background: "var(--color-accent)",
+                      }}
+                    />
+                  </div>
+                  <span style={mutedStyle}>
+                    {row.done}/{row.total}
+                  </span>
+                </div>
+              ))}
+            </div>
+          ) : null}
         </div>
       )}
 

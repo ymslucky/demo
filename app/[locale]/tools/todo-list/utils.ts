@@ -503,3 +503,19 @@ export function moveManyToGroup(items: TodoItem[], ids: string[], group: string)
   const target = group.trim().slice(0, MAX_GROUP_LEN);
   return items.map((item) => (set.has(item.id) ? { ...item, group: target } : item));
 }
+/** 分组完成聚合（供统计页条形视图；空分组不占行）。 */
+export interface GroupStat {
+  group: string;
+  total: number;
+  done: number;
+}
+
+export function groupStats(items: TodoItem[]): GroupStat[] {
+  return groupSections(items)
+    .map((section) => ({
+      group: section.name,
+      total: section.items.length,
+      done: section.items.filter((item) => item.done).length,
+    }))
+    .filter((stat) => stat.total > 0);
+}

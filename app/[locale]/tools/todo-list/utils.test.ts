@@ -8,6 +8,7 @@ import {
   groupColor,
   groupSections,
   completeMany,
+  groupStats,
   insertItemAt,
   moveManyToGroup,
   removeMany,
@@ -540,5 +541,22 @@ describe("batch selection helpers", () => {
     expect(moved[0].group).toBe("work");
     expect(moved[1].group).toBe("home");
     expect(moved[1].group === " home ").toBe(false);
+  });
+});
+
+describe("groupStats", () => {
+  it("aggregates per group in appearance order and skips empty groups", () => {
+    const items = [
+      mk("a", { group: "" }),
+      mk("b", { group: "home", done: true }),
+      mk("c", { group: "home" }),
+      mk("d", { group: "work" }),
+    ];
+    expect(groupStats(items)).toEqual([
+      { group: "", total: 1, done: 0 },
+      { group: "home", total: 2, done: 1 },
+      { group: "work", total: 1, done: 0 },
+    ]);
+    expect(groupStats([])).toEqual([]);
   });
 });

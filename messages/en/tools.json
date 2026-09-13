@@ -136,6 +136,7 @@
       "statPendingLabel": "Pending",
       "statOverdueLabel": "Overdue",
       "statDueTodayLabel": "Due today",
+      "statsByGroup": "Completion by group",
       "tabBoard": "Board",
       "boardColumnEmpty": "No cards",
       "boardAddPlaceholder": "Add card…",

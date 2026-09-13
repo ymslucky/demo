@@ -136,6 +136,7 @@
       "statPendingLabel": "待办",
       "statOverdueLabel": "已逾期",
       "statDueTodayLabel": "今日到期",
+      "statsByGroup": "按分组完成情况",
       "tabBoard": "看板",
       "boardColumnEmpty": "暂无卡片",
       "boardAddPlaceholder": "添加卡片…",
