@@ -1586,7 +1586,9 @@ function TodoPanel() {
                 {section.items.length === 0 ? (
                   <div style={{ ...mutedStyle, fontSize: "var(--fs-xs)" }}>{t("boardColumnEmpty")}</div>
                 ) : null}
-                {section.items.map((item) => (
+                {section.items.map((item) => {
+                  const overdue = isOverdue(item, now);
+                  return (
                   <article
                     key={item.id}
                     className={item.done ? "todo-card todo-card--done" : "todo-card"}
@@ -1611,7 +1613,24 @@ function TodoPanel() {
                         </span>
                       ) : null}
                       {item.dueAt > 0 ? (
-                        <span className="todo-badge">{formatDateValue(item.dueAt)}</span>
+                        <span
+                          className={
+                            overdue ? "todo-badge todo-badge--overdue" : "todo-badge"
+                          }
+                        >
+                          {formatDateValue(item.dueAt)}
+                          {overdue ? " · " + t("overdueBadge") : ""}
+                        </span>
+                      ) : null}
+                      {item.remindAt > 0 ? (
+                        <span className="todo-badge">
+                          {formatDateTimeValue(item.remindAt)}
+                        </span>
+                      ) : null}
+                      {item.note ? (
+                        <span className="todo-badge" title={item.note} aria-hidden="true">
+                          ✎
+                        </span>
                       ) : null}
                     </span>
                     <div className="todo-card-actions">
@@ -1638,7 +1657,8 @@ function TodoPanel() {
                       </button>
                     </div>
                   </article>
-                ))}
+                  );
+                })}
                 <form
                   className="todo-board-add"
                   onSubmit={(event) => {
