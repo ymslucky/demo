@@ -307,7 +307,7 @@ export default function HttpCheckClient() {
         {payload ? (
           <div style={{ marginBottom: '1rem' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-xs)', marginBottom: '0.35rem' }}>
-              <span style={mutedStyle}>{t("responseTitle")}</span>
+              <span style={{ color: 'var(--color-text-muted)', fontSize: 'var(--fs-sm)' }}>{t("responseTitle")}</span>
               <CopyButton label={t("copyResponse")} value={JSON.stringify(payload, null, 2)} />
             </div>
             <pre
