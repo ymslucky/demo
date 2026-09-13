@@ -2021,9 +2021,18 @@ function TodoPanel() {
               style={{
                 display: "flex",
                 gap: "var(--space-sm)",
-                justifyContent: "flex-end",
+                justifyContent: "space-between",
               }}
             >
+              <button
+                type="button"
+                onClick={() => remove(editing.id)}
+                className="btn btn--sm"
+                style={{ color: "var(--color-err-text)" }}
+              >
+                {t("deleteAction")}
+              </button>
+              <div style={{ display: "flex", gap: "var(--space-sm)" }}>
               <button type="button" onClick={cancelEdit} className="btn btn--sm">
                 {t("cancel")}
               </button>
@@ -2035,6 +2044,7 @@ function TodoPanel() {
               >
                 {t("save")}
               </button>
+              </div>
             </div>
           </div>
         </div>

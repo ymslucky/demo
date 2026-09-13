@@ -14,6 +14,7 @@ export default function JsonFormatter() {
   const [jsonOutput, setJsonOutput] = useState("");
   const [jsonErr, setJsonErr] = useState(false);
   const [jsonErrDetail, setJsonErrDetail] = useState("");
+  const [jsonIndent, setJsonIndent] = useStickyState<"2" | "4">("2", "jsonIndent");
 
   const processJson = (transform: (parsed: unknown) => string) => {
     if (!jsonInput.trim()) {
@@ -32,7 +33,8 @@ export default function JsonFormatter() {
     }
   };
 
-  const jsonFormat = () => processJson((p) => JSON.stringify(p, null, 2));
+  const jsonFormat = () =>
+    processJson((p) => JSON.stringify(p, null, Number(jsonIndent)));
   const jsonMinify = () => processJson((p) => JSON.stringify(p));
   const jsonClear = () => {
     setJsonInput("");
@@ -49,6 +51,15 @@ export default function JsonFormatter() {
         onChange={(e) => setJsonInput(e.target.value)}
       />
       <ToolActions>
+        <select
+          className="todo-prio-select"
+          value={jsonIndent}
+          onChange={(event) => setJsonIndent(event.target.value as "2" | "4")}
+          aria-label={t("labels.indentLabel")}
+        >
+          <option value="2">{t("labels.indent2")}</option>
+          <option value="4">{t("labels.indent4")}</option>
+        </select>
         <Button variant="primary" size="sm" onClick={jsonFormat}>
           {t("actions.format")}
         </Button>
