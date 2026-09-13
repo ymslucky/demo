@@ -5,6 +5,7 @@ import {
   filterTodoItems,
   formatDateValue,
   formatDateTimeValue,
+  groupColor,
   groupSections,
   insertItemAt,
   isDueToday,
@@ -492,5 +493,15 @@ describe("insertItemAt", () => {
     expect(items.map((i) => i.id)).toEqual(["a", "b"]);
     expect(insertItemAt(items, mk("x"), 99).map((i) => i.id)).toEqual(["a", "b", "x"]);
     expect(insertItemAt(items, mk("x"), -5).map((i) => i.id)).toEqual(["x", "a", "b"]);
+  });
+});
+
+describe("groupColor", () => {
+  it("maps a name deterministically onto the token palette", () => {
+    expect(groupColor("home")).toBe(groupColor("home"));
+    expect(groupColor("home")).toMatch(/^var\(--/);
+    expect([groupColor("a"), groupColor("b"), groupColor("c")].every((c) => c.startsWith("var(--"))).toBe(
+      true,
+    );
   });
 });

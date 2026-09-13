@@ -124,6 +124,8 @@
       "statTotal": "Total",
       "statDoneLabel": "Completed",
       "statPendingLabel": "Pending",
+      "statOverdueLabel": "Overdue",
+      "statDueTodayLabel": "Due today",
       "trendTitle": "Last 7 days",
       "trendAdded": "Added",
       "trendCompleted": "Completed",

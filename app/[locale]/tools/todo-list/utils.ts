@@ -445,3 +445,22 @@ export function insertItemAt(items: TodoItem[], item: TodoItem, index: number): 
   next.splice(at, 0, item);
   return next;
 }
+/**
+ * Deterministic accent color for a group name (djb2 hash over a token
+ * palette). Same name -> same color across sessions and devices; the
+ * default group never reaches this helper.
+ */
+const GROUP_PALETTE = [
+  "var(--color-primary)",
+  "var(--color-accent)",
+  "var(--color-primary-light)",
+  "var(--color-text-muted)",
+];
+
+export function groupColor(name: string): string {
+  let hash = 5381;
+  for (let i = 0; i < name.length; i += 1) {
+    hash = ((hash << 5) + hash + name.charCodeAt(i)) >>> 0;
+  }
+  return GROUP_PALETTE[hash % GROUP_PALETTE.length];
+}

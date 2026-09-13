@@ -13,6 +13,7 @@ import {
   filterTodoItems,
   formatDateValue,
   formatDateTimeValue,
+  groupColor,
   groupSections,
   insertItemAt,
   isDueToday,
@@ -851,6 +852,8 @@ function TodoPanel() {
   );
   const sections = groupSections(visibleItems);
   const doneCount = items.filter((item) => item.done).length;
+  const overdueCount = visibleItems.filter((item) => isOverdue(item, now)).length;
+  const dueTodayCount = visibleItems.filter((item) => isDueToday(item, now)).length;
   const stats = statsSummary(visibleItems);
   const rate = stats.total > 0 ? Math.round((stats.done / stats.total) * 100) : 0;
   const trend = trend7Days(visibleItems, now);
@@ -1047,6 +1050,13 @@ function TodoPanel() {
                 ) : (
                   <header className="todo-group-head">
                     <span className="todo-group-name">
+                      {section.name !== "" ? (
+                        <span
+                          aria-hidden="true"
+                          className="todo-group-dot"
+                          style={{ background: groupColor(section.name) }}
+                        />
+                      ) : null}
                       {section.name === "" ? t("defaultGroup") : section.name}
                     </span>
                     <span className="todo-group-count">{section.items.length}</span>
@@ -1337,7 +1347,7 @@ function TodoPanel() {
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+              gridTemplateColumns: "repeat(5, minmax(0, 1fr))",
               gap: "var(--space-sm)",
               marginBottom: "var(--space-md)",
             }}
@@ -1353,6 +1363,28 @@ function TodoPanel() {
             <div style={tileStyle}>
               <span style={tileNumStyle}>{stats.pending}</span>
               <span style={mutedStyle}>{t("statPendingLabel")}</span>
+            </div>
+            <div style={tileStyle}>
+              <span
+                style={{
+                  ...tileNumStyle,
+                  color: overdueCount > 0 ? "var(--color-err-text)" : undefined,
+                }}
+              >
+                {overdueCount}
+              </span>
+              <span style={mutedStyle}>{t("statOverdueLabel")}</span>
+            </div>
+            <div style={tileStyle}>
+              <span
+                style={{
+                  ...tileNumStyle,
+                  color: dueTodayCount > 0 ? "var(--color-primary)" : undefined,
+                }}
+              >
+                {dueTodayCount}
+              </span>
+              <span style={mutedStyle}>{t("statDueTodayLabel")}</span>
             </div>
           </div>
 

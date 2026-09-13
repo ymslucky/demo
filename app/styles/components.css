@@ -2162,3 +2162,13 @@ body.todo-dragging {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* ---- Todo group color dot ---- */
+.todo-group-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: 1px solid var(--color-border);
+  margin-right: 0.4rem;
+  vertical-align: middle;
+}
