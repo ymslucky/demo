@@ -121,6 +121,8 @@ export default function HttpCheckClient() {
     : [];
   // curl 示例的主机名：优先 Host 请求头，回退到回显 URL 的 host。
   const host = all["host"] ?? safeHost(payload?.url);
+  // 请求头筛选（会话内，大小写不敏感子串匹配头名或值）。
+  const [headerFilter, setHeaderFilter] = useState("");
 
   // 非就绪状态下各卡片主体显示的占位文案。
   const placeholder =
@@ -247,6 +249,25 @@ export default function HttpCheckClient() {
         </h3>
         {placeholder ?? (
           <>
+            <div style={{ marginBottom: '0.6rem' }}>
+              <input
+                type="search"
+                value={headerFilter}
+                onChange={(event) => setHeaderFilter(event.target.value)}
+                placeholder={t("headersFilter")}
+                aria-label={t("headersFilter")}
+                style={{
+                  fontFamily: 'inherit',
+                  fontSize: 'var(--fs-sm)',
+                  padding: '0.35rem 0.6rem',
+                  border: '3px solid var(--color-border)',
+                  borderRadius: 'var(--radius-sm)',
+                  background: 'var(--color-surface)',
+                  color: 'var(--color-text)',
+                  width: 'min(100%, 280px)',
+                }}
+              />
+            </div>
             <div style={{ overflowX: 'auto' }}>
               <table
                 style={{
@@ -257,7 +278,13 @@ export default function HttpCheckClient() {
                 }}
               >
                 <tbody>
-                  {sortedHeaders.map(([name, value]) => (
+                  {sortedHeaders
+                    .filter(([name, value]) =>
+                      headerFilter.trim() === ""
+                        ? true
+                        : (name + ": " + value).toLowerCase().includes(headerFilter.trim().toLowerCase()),
+                    )
+                    .map(([name, value]) => (
                     <tr key={name}>
                       <td
                         style={{

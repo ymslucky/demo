@@ -9,6 +9,7 @@ import {
   groupSections,
   completeMany,
   groupStats,
+  highlightSegments,
   insertItemAt,
   parseTodoImport,
   todoExportPayload,
@@ -595,5 +596,26 @@ describe("todo export / import", () => {
     expect(parseTodoImport([{ id: "a", title: "t" }])).toHaveLength(1);
     expect(parseTodoImport(JSON.stringify({ unrelated: true }))).toBeNull();
     expect(parseTodoImport("not json")).toBeNull();
+  });
+});
+
+describe("highlightSegments", () => {
+  it("splits case-insensitively around matches", () => {
+    expect(highlightSegments("Buy Milk", "milk")).toEqual([
+      { text: "Buy ", match: false },
+      { text: "Milk", match: true },
+    ]);
+  });
+
+  it("returns multiple matches and keeps the tail", () => {
+    expect(highlightSegments("ab ab", "ab")).toEqual([
+      { text: "ab", match: true },
+      { text: " ", match: false },
+      { text: "ab", match: true },
+    ]);
+  });
+
+  it("blank query returns a single unmarked segment", () => {
+    expect(highlightSegments("hello", "  ")).toEqual([{ text: "hello", match: false }]);
   });
 });

@@ -561,3 +561,28 @@ export function parseTodoImport(raw: unknown): TodoItem[] | null {
   }
   return null;
 }
+// ---------------------------------------------------------------------------
+// 搜索高亮：把标题按查询切分为匹配/非匹配段（大小写不敏感）。
+// ---------------------------------------------------------------------------
+
+export interface HighlightSegment {
+  text: string;
+  match: boolean;
+}
+
+export function highlightSegments(text: string, query: string): HighlightSegment[] {
+  const q = query.trim().toLowerCase();
+  if (!q) return [{ text, match: false }];
+  const lower = text.toLowerCase();
+  const segments: HighlightSegment[] = [];
+  let from = 0;
+  let at = lower.indexOf(q, from);
+  while (at !== -1) {
+    if (at > from) segments.push({ text: text.slice(from, at), match: false });
+    segments.push({ text: text.slice(at, at + q.length), match: true });
+    from = at + q.length;
+    at = lower.indexOf(q, from);
+  }
+  if (from < text.length) segments.push({ text: text.slice(from), match: false });
+  return segments;
+}

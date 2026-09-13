@@ -16,6 +16,7 @@ import {
   groupColor,
   groupSections,
   groupStats,
+  highlightSegments,
   insertItemAt,
   parseTodoImport,
   todoExportPayload,
@@ -1356,7 +1357,17 @@ function TodoPanel() {
                                   : "todo-item-title"
                               }
                             >
-                              {item.title}
+                              {query.trim()
+                                ? highlightSegments(item.title, query).map((seg, segIndex) =>
+                                    seg.match ? (
+                                      <mark key={segIndex} className="todo-mark">
+                                        {seg.text}
+                                      </mark>
+                                    ) : (
+                                      <span key={segIndex}>{seg.text}</span>
+                                    ),
+                                  )
+                                : item.title}
                             </span>
                             {item.priority > 0 ||
                             item.dueAt > 0 ||
@@ -1604,7 +1615,17 @@ function TodoPanel() {
                         item.done ? "todo-item-title todo-item-title--done" : "todo-item-title"
                       }
                     >
-                      {item.title}
+                      {query.trim()
+                        ? highlightSegments(item.title, query).map((seg, segIndex) =>
+                            seg.match ? (
+                              <mark key={segIndex} className="todo-mark">
+                                {seg.text}
+                              </mark>
+                            ) : (
+                              <span key={segIndex}>{seg.text}</span>
+                            ),
+                          )
+                        : item.title}
                     </span>
                     <span className="todo-item-meta">
                       {item.priority > 0 ? (

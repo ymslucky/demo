@@ -2261,3 +2261,10 @@ body.todo-dragging {
     opacity: 0.6;
   }
 }
+/* ---- Todo search highlight ---- */
+.todo-mark {
+  background: var(--color-tint-strong);
+  color: inherit;
+  border-radius: 2px;
+  padding: 0 1px;
+}
