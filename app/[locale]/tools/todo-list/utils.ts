@@ -256,3 +256,97 @@ export function applyReorder(
   next.splice(flatIndex, 0, { ...dragging, group: targetGroup });
   return next;
 }
+
+// ---------------------------------------------------------------------------
+// localStorage mirror + draft helpers (extracted from TodoClient.tsx so the
+// parsing logic stays unit-testable; TodoClient keeps thin storage wrappers)
+// ---------------------------------------------------------------------------
+
+/** Guest-mirror localStorage key (read through TodoClient's wrapper). */
+export const LOCAL_KEY = "lucky-todo-local-v1";
+
+/** Payload for creating a new item (title required; the rest are optional). */
+export interface TodoDraft {
+  title: string;
+  note: string;
+  dueAt: number;
+  remindAt: number;
+  priority: number;
+  group: string;
+}
+
+/** Cloud mirror key: isolated per account (uid sanitized into the suffix). */
+export function cloudMirrorKey(uid: string): string {
+  return `lucky-todo-cloud-v1-${uid.replace(/[^a-zA-Z0-9_-]/g, "_")}`;
+}
+
+/**
+ * Parse the guest mirror payload: accepts both historical formats, the
+ * { items } wrapper and the bare array. Unusable input degrades to [].
+ */
+export function parseLocalItems(raw: string | null): TodoItem[] {
+  if (!raw) return [];
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    const wrapper = parsed as { items?: unknown } | null;
+    const list = Array.isArray(parsed)
+      ? parsed
+      : Array.isArray(wrapper?.items)
+        ? wrapper.items
+        : null;
+    return list ? (normalizeItems({ items: list }) ?? []) : [];
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Parse a cloud mirror payload ({ items, dirty } wrapper); null when
+ * missing/unusable. dirty means local changes have not been uploaded yet,
+ * so offline changes survive a page close and get re-flushed later.
+ */
+export function parseCloudMirror(
+  raw: string | null,
+): { items: TodoItem[]; dirty: boolean } | null {
+  if (!raw) return null;
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    const wrapper = parsed as { items?: unknown; dirty?: unknown } | null;
+    if (!Array.isArray(wrapper?.items)) return null;
+    return {
+      items: normalizeItems({ items: wrapper.items }) ?? [],
+      dirty: wrapper.dirty === true,
+    };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Build a new pending item. Same id scheme as the edge function's
+ * makeItemId: base36 timestamp + short random segment; `now` is injectable
+ * for deterministic tests.
+ */
+export function makeLocalItem(draft: TodoDraft, now: number = Date.now()): TodoItem {
+  return {
+    id: `${now.toString(36)}${Math.random().toString(36).slice(2, 8)}`,
+    title: draft.title,
+    note: draft.note,
+    done: false,
+    createdAt: now,
+    completedAt: 0,
+    dueAt: draft.dueAt,
+    remindAt: draft.remindAt,
+    priority: draft.priority,
+    group: draft.group,
+  };
+}
+
+/** Priority → i18n key (0 shows no badge, so there is no key for it). */
+export function priorityKey(
+  priority: number,
+): "priorityLow" | "priorityMedium" | "priorityHigh" {
+  if (priority >= 3) return "priorityHigh";
+  if (priority === 2) return "priorityMedium";
+  return "priorityLow";
+}

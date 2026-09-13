@@ -4,19 +4,26 @@ import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, use
 import { useTranslations } from "next-intl";
 import { SignInButton, useUser } from "@clerk/nextjs";
 import {
+  LOCAL_KEY,
   MAX_GROUP_LEN,
   MAX_ITEMS,
   MAX_NOTE_LEN,
   applyReorder,
+  cloudMirrorKey,
   formatDateValue,
   formatDateTimeValue,
   groupSections,
   isOverdue,
+  makeLocalItem,
   normalizeItems,
+  parseCloudMirror,
   parseDateValue,
   parseDateTimeValue,
+  parseLocalItems,
+  priorityKey,
   statsSummary,
   trend7Days,
+  type TodoDraft,
   type TodoItem,
 } from "./utils";
 
@@ -103,76 +110,25 @@ async function fetchItems(
   return { unauthorized: false as const, data: normalizeItems(await res.json()) };
 }
 
-/** 新建条目的四要素载荷（标题必填，其余可选）。 */
-interface TodoDraft {
-  title: string;
-  note: string;
-  dueAt: number;
-  remindAt: number;
-  priority: number;
-  group: string;
-}
-
-const LOCAL_KEY = "lucky-todo-local-v1";
-
-/** 访客本地清单读取：兼容 { items } 包装与裸数组两种历史格式。 */
+/**
+ * 访客/云端镜像的 localStorage 薄包装：解析纯逻辑在 utils.ts（parseLocalItems
+ * / parseCloudMirror，可单测），这里只负责触达 window.localStorage——隐私
+ * 模式等场景下 getItem 本身可能抛错，保持与原实现相同的降级（空清单/null）。
+ */
 function readLocalItems(): TodoItem[] {
   try {
-    const raw = window.localStorage.getItem(LOCAL_KEY);
-    if (!raw) return [];
-    const parsed: unknown = JSON.parse(raw);
-    const wrapper = parsed as { items?: unknown } | null;
-    const list = Array.isArray(parsed)
-      ? parsed
-      : Array.isArray(wrapper?.items)
-        ? wrapper.items
-        : null;
-    return list ? (normalizeItems({ items: list }) ?? []) : [];
+    return parseLocalItems(window.localStorage.getItem(LOCAL_KEY));
   } catch {
     return [];
   }
 }
 
-/** 云端镜像键：按账号隔离（uid 消毒后作后缀）。 */
-function cloudMirrorKey(uid: string): string {
-  return `lucky-todo-cloud-v1-${uid.replace(/[^a-zA-Z0-9_-]/g, "_")}`;
-}
-
-/**
- * 云端镜像读取：{ items, dirty } 包装；缺失/畸形返回 null。dirty 表示
- * 有本地改动尚未上传——离线/关页后重开也能补传，数据不丢。
- */
 function readCloudMirror(key: string): { items: TodoItem[]; dirty: boolean } | null {
   try {
-    const raw = window.localStorage.getItem(key);
-    if (!raw) return null;
-    const parsed: unknown = JSON.parse(raw);
-    const wrapper = parsed as { items?: unknown; dirty?: unknown } | null;
-    if (!Array.isArray(wrapper?.items)) return null;
-    return {
-      items: normalizeItems({ items: wrapper.items }) ?? [],
-      dirty: wrapper.dirty === true,
-    };
+    return parseCloudMirror(window.localStorage.getItem(key));
   } catch {
     return null;
   }
-}
-
-function makeLocalItem(draft: TodoDraft): TodoItem {
-  // 与边缘函数 makeItemId 同构：base36 时间戳 + 短随机段。
-  const now = Date.now();
-  return {
-    id: `${now.toString(36)}${Math.random().toString(36).slice(2, 8)}`,
-    title: draft.title,
-    note: draft.note,
-    done: false,
-    createdAt: now,
-    completedAt: 0,
-    dueAt: draft.dueAt,
-    remindAt: draft.remindAt,
-    priority: draft.priority,
-    group: draft.group,
-  };
 }
 
 /**
@@ -202,12 +158,6 @@ interface DropHint {
   at: number;
 }
 
-/** 优先级 → 文案键（0 不展示徽标，无需键）。 */
-function priorityKey(priority: number): "priorityLow" | "priorityMedium" | "priorityHigh" {
-  if (priority >= 3) return "priorityHigh";
-  if (priority === 2) return "priorityMedium";
-  return "priorityLow";
-}
 
 /** 拖拽手柄的内联 SVG（六点握把）。 */
 function GripIcon() {

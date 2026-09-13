@@ -1,14 +1,19 @@
 import { describe, it, expect } from "vitest";
 import {
   applyReorder,
+  cloudMirrorKey,
   formatDateValue,
   formatDateTimeValue,
   groupSections,
   isOverdue,
+  makeLocalItem,
   normalizeItem,
   normalizeItems,
+  parseCloudMirror,
   parseDateValue,
   parseDateTimeValue,
+  parseLocalItems,
+  priorityKey,
   statsSummary,
   trend7Days,
   type TodoItem,
@@ -337,5 +342,75 @@ describe("trend7Days", () => {
     expect(trend7Days([], now)).toEqual(
       Array.from({ length: 7 }, () => ({ added: 0, completed: 0 })),
     );
+  });
+});
+
+describe("cloudMirrorKey / parseLocalItems / parseCloudMirror", () => {
+  it("cloudMirrorKey 消毒 uid 并按账号隔离", () => {
+    expect(cloudMirrorKey("user_abc-123")).toBe("lucky-todo-cloud-v1-user_abc-123");
+    expect(cloudMirrorKey("a/b:c")).toBe("lucky-todo-cloud-v1-a_b_c");
+  });
+
+  it("parseLocalItems 兼容 { items } 包装与裸数组，畸形输入退化为空", () => {
+    expect(parseLocalItems(null)).toEqual([]);
+    expect(parseLocalItems("not json")).toEqual([]);
+    expect(parseLocalItems('{"unrelated":true}')).toEqual([]);
+    expect(
+      parseLocalItems(JSON.stringify([{ id: "a", title: " milk " }]))
+    ).toHaveLength(1);
+    expect(
+      parseLocalItems(JSON.stringify({ items: [{ id: "b", title: "x" }] }))
+    ).toHaveLength(1);
+    // 畸形条目被守卫丢弃，合法条目保留
+    expect(
+      parseLocalItems(
+        JSON.stringify({ items: [{ id: "c" }, "junk", { id: "d", title: "y" }] })
+      )
+    ).toHaveLength(1);
+  });
+
+  it("parseCloudMirror 读取 { items, dirty }，缺失/畸形返回 null", () => {
+    expect(parseCloudMirror(null)).toBeNull();
+    expect(parseCloudMirror("nope")).toBeNull();
+    expect(parseCloudMirror('{"items":"nope"}')).toBeNull();
+    const mirror = parseCloudMirror(
+      JSON.stringify({ items: [{ id: "a", title: "x" }], dirty: true })
+    );
+    expect(mirror).not.toBeNull();
+    expect(mirror!.dirty).toBe(true);
+    expect(mirror!.items).toHaveLength(1);
+    expect(parseCloudMirror('{"items":[]}')!.dirty).toBe(false);
+  });
+});
+
+describe("makeLocalItem", () => {
+  it("注入 now 时字段确定，id 以 base36 时间戳开头", () => {
+    const now = 1_700_000_000_000;
+    const item = makeLocalItem(
+      { title: " milk ", note: "n", dueAt: 5, remindAt: 6, priority: 2, group: "g" },
+      now,
+    );
+    expect(item).toMatchObject({
+      title: " milk ", // 标题清洗交给上游守卫，这里原样透传
+      note: "n",
+      done: false,
+      createdAt: now,
+      completedAt: 0,
+      dueAt: 5,
+      remindAt: 6,
+      priority: 2,
+      group: "g",
+    });
+    expect(item.id.startsWith(now.toString(36))).toBe(true);
+  });
+});
+
+describe("priorityKey", () => {
+  it("0/1 → priorityLow，2 → priorityMedium，≥3 → priorityHigh", () => {
+    expect(priorityKey(0)).toBe("priorityLow");
+    expect(priorityKey(1)).toBe("priorityLow");
+    expect(priorityKey(2)).toBe("priorityMedium");
+    expect(priorityKey(3)).toBe("priorityHigh");
+    expect(priorityKey(99)).toBe("priorityHigh");
   });
 });
