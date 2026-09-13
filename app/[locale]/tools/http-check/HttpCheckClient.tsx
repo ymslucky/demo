@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import CodeBlock from "../../blog/components/CodeBlock";
+import { tokenizeJson } from "../utils";
 import { buildCurl, extractClientIp, parseUserAgent } from "./utils";
 import { CopyButton } from "../components/CopyButton";
 
@@ -303,6 +304,36 @@ export default function HttpCheckClient() {
             {t("openApi")} ↗
           </a>
         </p>
+        {payload ? (
+          <div style={{ marginBottom: '1rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-xs)', marginBottom: '0.35rem' }}>
+              <span style={mutedStyle}>{t("responseTitle")}</span>
+              <CopyButton label={t("copyResponse")} value={JSON.stringify(payload, null, 2)} />
+            </div>
+            <pre
+              style={{
+                margin: 0,
+                padding: 'var(--space-sm)',
+                border: '3px solid var(--color-border)',
+                borderRadius: 'var(--radius-sm)',
+                background: 'var(--color-bg)',
+                fontFamily: 'var(--font-mono)',
+                fontSize: 'var(--fs-sm)',
+                lineHeight: 1.6,
+                whiteSpace: 'pre-wrap',
+                wordBreak: 'break-all',
+                maxHeight: 280,
+                overflowY: 'auto',
+              }}
+            >
+              {tokenizeJson(JSON.stringify(payload, null, 2)).map((tok, index) => (
+                <span key={index} className={'json-tok json-tok--' + tok.type}>
+                  {tok.value}
+                </span>
+              ))}
+            </pre>
+          </div>
+        ) : null}
         {placeholder ?? (
           <CodeBlock
             title={`curl · ${host}`}

@@ -79,7 +79,9 @@
       "copyCurl": "Copy as cURL",
       "apiCard": "JSON echo API",
       "apiDesc": "The same data is also available as JSON — send any request to /api/echo for debugging.",
-      "openApi": "View JSON output"
+      "openApi": "View JSON output",
+      "responseTitle": "Response JSON (/api/headers)",
+      "copyResponse": "Copy response"
     },
     "todo": {
       "gateSignIn": "Sign in / Sign up",
