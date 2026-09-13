@@ -1220,6 +1220,14 @@ function TodoPanel() {
             <p className="todo-dnd-hint">{t("keyboardHint")}</p>
           ) : null}
           {items.length > 0 ? <p className="todo-dnd-hint">{t("shortcutsHint")}</p> : null}
+          {query.trim() !== "" ? (
+            <p className="todo-dnd-hint">
+              {t("searchCount", {
+                matched: visibleItems.length,
+                total: items.length,
+              })}
+            </p>
+          ) : null}
 
           {sections.map((section) => {
             const hintAt =

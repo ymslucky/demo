@@ -314,6 +314,17 @@ export default function HttpCheckClient() {
                     headers: all,
                   })}
                 />
+                {all.cookie ? (
+                  <p
+                    style={{
+                      margin: '0.35rem 0 0',
+                      fontSize: 'var(--fs-xs)',
+                      color: 'var(--color-text-muted)',
+                    }}
+                  >
+                    {t("curlCookieHint")}
+                  </p>
+                ) : null}
               </div>
             ) : null}
             <p style={{ margin: '1rem 0 0', fontSize: 'var(--fs-sm)', color: 'var(--color-text-muted)' }}>
