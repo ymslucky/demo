@@ -219,7 +219,7 @@ function TodoPanel() {
   // 批量多选：模式开关 + 已选 id（会话内状态）。
   const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const [tab, setTab] = useState<"list" | "stats">("list");
+  const [tab, setTab] = useState<"list" | "board" | "stats">("list");
   const [editing, setEditing] = useState<EditDraft | null>(null);
   const [sync, setSync] = useState<SyncState>("idle");
   const [dragId, setDragId] = useState<string | null>(null);
@@ -237,6 +237,7 @@ function TodoPanel() {
   const titleInputRef = useRef<HTMLInputElement | null>(null);
   const listTabRef = useRef<HTMLButtonElement | null>(null);
   const statsTabRef = useRef<HTMLButtonElement | null>(null);
+  const boardTabRef = useRef<HTMLButtonElement | null>(null);
 
   // ---- 同步层 refs：内存清单镜像 + 脏标记 + 冲刷调度 ----
   const itemsRef = useRef<TodoItem[] | null>(null);
@@ -814,9 +815,12 @@ function TodoPanel() {
         return;
       }
       event.preventDefault();
-      const next = tab === "list" ? "stats" : "list";
+      const order = ["list", "board", "stats"] as const;
+      const index = order.indexOf(tab);
+      const forward = event.key === "ArrowRight" || event.key === "ArrowDown";
+      const next = order[(index + (forward ? 1 : order.length - 1)) % order.length];
       setTab(next);
-      (next === "list" ? listTabRef : statsTabRef).current?.focus();
+      (next === "list" ? listTabRef : next === "board" ? boardTabRef : statsTabRef).current?.focus();
     },
     [tab],
   );
@@ -905,6 +909,19 @@ function TodoPanel() {
           onKeyDown={onTabKeyDown}
         >
           {t("tabList")}
+        </button>
+        <button
+          ref={boardTabRef}
+          type="button"
+          role="tab"
+          id="todo-tab-board"
+          aria-selected={tab === "board"}
+          aria-controls="todo-panel-board"
+          className="todo-tab"
+          onClick={() => setTab("board")}
+          onKeyDown={onTabKeyDown}
+        >
+          {t("tabBoard")}
         </button>
         <button
           ref={statsTabRef}
@@ -1438,6 +1455,75 @@ function TodoPanel() {
               </div>
             )}
           </div>
+        </div>
+      ) : tab === "board" ? (
+        <div role="tabpanel" id="todo-panel-board" aria-labelledby="todo-tab-board">
+          {items.length === 0 ? <p style={mutedStyle}>{t("empty")}</p> : null}
+          <div className="todo-board">
+            {sections.map((section) => (
+              <section
+                key={section.name === "" ? "__default__" : section.name}
+                className="todo-board-col"
+                onDragOver={(event) => event.preventDefault()}
+                onDrop={(event) => {
+                  event.preventDefault();
+                  const id = event.dataTransfer.getData("text/todo-id");
+                  if (!id) return;
+                  const column = sections.find((entry) => entry.name === section.name);
+                  const next = applyReorder(items ?? [], id, section.name, column ? column.items.length : 0);
+                  if (next) commit(next);
+                }}
+              >
+                <header className="todo-board-head">
+                  <span
+                    aria-hidden="true"
+                    className="todo-group-dot"
+                    style={{
+                      background:
+                        section.name === "" ? "var(--color-text-muted)" : groupColor(section.name),
+                    }}
+                  />
+                  <span>{section.name === "" ? t("defaultGroup") : section.name}</span>
+                  <span className="todo-group-count">{section.items.length}</span>
+                </header>
+                {section.items.length === 0 ? (
+                  <div style={{ ...mutedStyle, fontSize: "var(--fs-xs)" }}>{t("boardColumnEmpty")}</div>
+                ) : null}
+                {section.items.map((item) => (
+                  <article
+                    key={item.id}
+                    className={item.done ? "todo-card todo-card--done" : "todo-card"}
+                    draggable
+                    onDragStart={(event) => {
+                      event.dataTransfer.setData("text/todo-id", item.id);
+                      event.dataTransfer.effectAllowed = "move";
+                    }}
+                  >
+                    <span
+                      className={
+                        item.done ? "todo-item-title todo-item-title--done" : "todo-item-title"
+                      }
+                    >
+                      {item.title}
+                    </span>
+                    <span className="todo-item-meta">
+                      {item.priority > 0 ? (
+                        <span className={"todo-prio todo-prio--" + item.priority}>
+                          {t(priorityKey(item.priority))}
+                        </span>
+                      ) : null}
+                      {item.dueAt > 0 ? (
+                        <span className="todo-badge">{formatDateValue(item.dueAt)}</span>
+                      ) : null}
+                    </span>
+                  </article>
+                ))}
+              </section>
+            ))}
+          </div>
+          {items.length > 0 && visibleItems.length === 0 ? (
+            <p style={mutedStyle}>{t("noMatch")}</p>
+          ) : null}
         </div>
       ) : (
         <div role="tabpanel" id="todo-panel-stats" aria-labelledby="todo-tab-stats">

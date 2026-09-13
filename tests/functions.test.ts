@@ -19,10 +19,12 @@ import { countOnline, sessionKey } from "../functions/api/presence.js";
 import { extractClientIp } from "../functions/api/echo.js";
 import {
   listSandboxes,
+  maskEmail,
   normalizeSandboxRecord,
   releaseSandbox,
   sandboxKey,
   upsertSandbox,
+  userLabelFromClerkUser,
 } from "../functions/api/sandboxes.js";
 
 /**
@@ -940,5 +942,29 @@ describe("sandboxes listSandboxes", () => {
     expect(kv.store.has("sb_old")).toBe(false);
     expect(kv.store.has("sb_noxp")).toBe(false);
     expect(kv.store.has("sb_junk")).toBe(false);
+  });
+});
+
+describe("sandbox user label helpers", () => {
+  it("maskEmail keeps the domain and masks the local part", () => {
+    expect(maskEmail("alice@example.com")).toBe("al***@example.com");
+    expect(maskEmail("@example.com")).toBe("@example.com");
+  });
+
+  it("userLabelFromClerkUser prefers username, then primary email, then name", () => {
+    expect(userLabelFromClerkUser({ id: "user_1", username: " alice " })).toBe("alice");
+    expect(
+      userLabelFromClerkUser({
+        id: "user_1",
+        primary_email_address_id: "e2",
+        email_addresses: [
+          { id: "e1", email_address: "old@example.com" },
+          { id: "e2", email_address: "alice@example.com" },
+        ],
+      }),
+    ).toBe("al***@example.com");
+    expect(userLabelFromClerkUser({ id: "user_1", first_name: "Alice", last_name: "Li" })).toBe("Alice Li");
+    expect(userLabelFromClerkUser({ id: "user_1" })).toBeNull();
+    expect(userLabelFromClerkUser(null)).toBeNull();
   });
 });

@@ -131,3 +131,15 @@ export function formatRemainingMs(ms: number): string {
   const s = totalSec % 60;
   return m > 0 ? `${m}m ${s}s` : `${s}s`;
 }
+/** 实例 ID 缩略展示：超 10 位取前 8 位加省略号（完整值经 title 查看）。 */
+export function shortInstanceId(id: string): string {
+  return id.length > 10 ? id.slice(0, 8) + "…" : id;
+}
+
+/**
+ * uid 脱敏：保留前 8 位与末 4 位（user_2Ab…KlMn），服务端富化失败时
+ * 作为所属用户列的兜底展示——绝不完整展示加密 ID。
+ */
+export function maskUid(uid: string): string {
+  return uid.length > 14 ? uid.slice(0, 8) + "…" + uid.slice(-4) : uid;
+}

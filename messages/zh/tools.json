@@ -136,6 +136,8 @@
       "statPendingLabel": "待办",
       "statOverdueLabel": "已逾期",
       "statDueTodayLabel": "今日到期",
+      "tabBoard": "看板",
+      "boardColumnEmpty": "暂无卡片",
       "trendTitle": "近 7 天动态",
       "trendAdded": "新增",
       "trendCompleted": "完成",

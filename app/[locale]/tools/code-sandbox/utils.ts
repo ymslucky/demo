@@ -280,6 +280,8 @@ export function formatClock(ts: number): string {
 /** 实例列表条目（/api/sandboxes 返回的 KV 记录，含所属用户与生命周期）。 */
 export interface SandboxInstanceRecord {
   uid: string;
+  /** 所属用户展示标签（服务端富化：用户名 / 脱敏邮箱）；缺省回退脱敏 uid。 */
+  userLabel?: string;
   instanceId: string;
   createdAt: number;
   updatedAt: number;
@@ -311,6 +313,7 @@ export function normalizeInstanceRecords(raw: unknown): SandboxInstanceRecord[] 
       updatedAt,
       expiresAt: typeof obj.expiresAt === "string" && obj.expiresAt ? obj.expiresAt : undefined,
       externalUrl: typeof obj.externalUrl === "string" && obj.externalUrl ? obj.externalUrl : undefined,
+      userLabel: typeof obj.userLabel === "string" && obj.userLabel ? obj.userLabel.slice(0, 64) : undefined,
     });
   }
   return records;

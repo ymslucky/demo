@@ -2184,3 +2184,47 @@ body.todo-dragging {
   border-radius: var(--radius-sm);
   background: var(--color-tint);
 }
+/* ---- Todo kanban board ---- */
+.todo-board {
+  display: flex;
+  gap: var(--space-sm);
+  overflow-x: auto;
+  align-items: stretch;
+  padding-bottom: var(--space-sm);
+}
+.todo-board-col {
+  flex: 0 0 240px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  border: 3px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg);
+  padding: var(--space-xs);
+  min-height: 220px;
+}
+.todo-board-head {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-weight: 800;
+  padding: 0.25rem 0.15rem;
+}
+.todo-card {
+  display: grid;
+  gap: 0.3rem;
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  padding: 0.5rem 0.6rem;
+  cursor: grab;
+  box-shadow: var(--shadow-sm);
+}
+.todo-card--done {
+  opacity: 0.6;
+}
+.todo-card .todo-item-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}

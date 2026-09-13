@@ -294,9 +294,22 @@ async function withSandboxUser(request, run) {
  * { sandboxes: [...] }，按最近更新倒序。
  */
 export async function onRequestGet({ request }) {
-  return withSandboxUser(request, async ({ kv }) =>
-    jsonResponse({ sandboxes: await listSandboxes(kv, { now: Date.now(), sweep: true }) }),
-  );
+  return withSandboxUser(request, async ({ kv }) => {
+    const records = await listSandboxes(kv, { now: Date.now(), sweep: true });
+    // 所属用户富化（用户名 / 脱敏邮箱）；出网受限时静默回退脱敏 uid。
+    let userLabels = {};
+    try {
+      userLabels = await fetchUserLabels(records.map((record) => record.uid));
+    } catch {
+      userLabels = {};
+    }
+    return jsonResponse({
+      sandboxes: records.map((record) => ({
+        ...record,
+        userLabel: userLabels[record.uid],
+      })),
+    });
+  });
 }
 
 /**
@@ -337,4 +350,77 @@ export async function onRequestDelete({ request }) {
     if (!released) return jsonResponse({ error: "not-found" }, {}, 404);
     return jsonResponse({ ok: true });
   });
+}
+// ---------------------------------------------------------------------------
+// 所属用户展示富化：把 uid（加密 ID）映射为用户名 / 邮箱（脱敏）。
+// - CLERK_SECRET_KEY 缺失或 api.clerk.com 出网受限（生产已知）时静默
+//   降级为空表——前端回退展示脱敏 uid，功能不中断；
+// - 模块级缓存 10 分钟，避免每次列表都消耗 Clerk Backend API 配额。
+// ---------------------------------------------------------------------------
+
+const USER_LABEL_TTL = 10 * 60 * 1000;
+const userLabelCache = new Map();
+
+/** 邮箱脱敏：保留前两位 + 域名（alice@example.com → al***@example.com）。 */
+export function maskEmail(email) {
+  const at = email.indexOf("@");
+  if (at <= 0) return email;
+  return email.slice(0, at).slice(0, 2) + "***" + email.slice(at);
+}
+
+/**
+ * Clerk 用户对象 → 展示标签：username 优先，其次主邮箱（脱敏），
+ * 再次姓名；无法得出返回 null（调用方回退脱敏 uid）。导出仅供测试。
+ */
+export function userLabelFromClerkUser(user) {
+  if (!user || typeof user !== "object") return null;
+  if (typeof user.username === "string" && user.username.trim()) {
+    return user.username.trim().slice(0, 64);
+  }
+  const emails = Array.isArray(user.email_addresses) ? user.email_addresses : [];
+  const primary = emails.find((e) => e && e.id === user.primary_email_address_id) ?? emails[0];
+  if (primary && typeof primary.email_address === "string") {
+    return maskEmail(primary.email_address);
+  }
+  const name = [user.first_name, user.last_name].filter(Boolean).join(" ").trim();
+  return name ? name.slice(0, 64) : null;
+}
+
+/**
+ * 批量换取用户标签：GET /v1/users?user_ids=…（Clerk Backend API）。
+ * 返回 { uid: label }；任何失败（无 SK / 出网受限 / 非 2xx）静默返回
+ * {}——列表功能永不因此中断。导出仅供测试。
+ */
+export async function fetchUserLabels(uids) {
+  const sk = globalThis.process?.env?.CLERK_SECRET_KEY;
+  const pending = [...new Set(uids.filter((uid) => typeof uid === "string" && uid))].filter(
+    (uid) => !(userLabelCache.get(uid)?.expiresAt > Date.now()),
+  );
+  const cached = {};
+  for (const uid of uids) {
+    const hit = userLabelCache.get(uid);
+    if (hit?.expiresAt > Date.now()) cached[uid] = hit.label;
+  }
+  if (!sk || pending.length === 0) return cached;
+  try {
+    const query = new URLSearchParams({ limit: String(pending.length) });
+    for (const uid of pending) query.append("user_ids", uid);
+    const res = await fetch("https://api.clerk.com/v1/users?" + query, {
+      headers: { Authorization: "Bearer " + sk },
+      cache: "no-store",
+    });
+    if (!res.ok) return cached;
+    const users = await res.json();
+    const expiresAt = Date.now() + USER_LABEL_TTL;
+    for (const user of Array.isArray(users) ? users : []) {
+      const label = userLabelFromClerkUser(user);
+      if (label && typeof user.id === "string") {
+        labels[user.id] = label;
+        userLabelCache.set(user.id, { label, expiresAt });
+      }
+    }
+    return { ...cached, ...labels };
+  } catch {
+    return cached;
+  }
 }

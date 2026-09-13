@@ -14,7 +14,9 @@ import {
   filterInstances,
   formatRemainingMs,
   groupInstances,
+  maskUid,
   instanceStatus,
+  shortInstanceId,
   sortInstances,
   type InstanceGroupKey,
   type InstanceSortKey,
@@ -22,7 +24,6 @@ import {
   type SortDirection,
 } from "./instances";
 import { formatDateTime, remainingMs, type SandboxInstanceRecord } from "./utils";
-import { CopyButton } from "../components/CopyButton";
 
 /**
  * 实例列表子页：Neo-Brutalism 表格组件，纯前端本地筛选（文本 / 状态 /
@@ -101,12 +102,6 @@ const thButtonStyle = {
   gap: "0.3rem",
 } as const;
 
-/** 外部地址短展示：去协议、超长截断（完整地址见 title 与链接本身）。 */
-function shortUrl(url: string): string {
-  const bare = url.replace(/^https?:\/\//, "");
-  return bare.length > 42 ? `${bare.slice(0, 41)}…` : bare;
-}
-
 type InstancesPanelProps = {
   records: SandboxInstanceRecord[];
   loading: boolean;
@@ -157,7 +152,6 @@ export default function InstancesPanel({ records, loading, error, onRefresh, now
     { id: "updated", sortKey: "updatedAt", label: t("instancesColUpdated") },
     { id: "expires", sortKey: "expiresAt", label: t("instancesColExpires") },
     { id: "remaining", label: t("instancesColRemaining") },
-    { id: "url", label: t("instancesColUrl") },
   ];
 
   return (
@@ -288,7 +282,7 @@ export default function InstancesPanel({ records, loading, error, onRefresh, now
               {/* 统计行：总数 + 筛选命中数（筛选生效时一并展示）。 */}
               <tr>
                 <td
-                  colSpan={8}
+                  colSpan={7}
                   style={{
                     ...tdStyle,
                     background: "var(--color-tint)",
@@ -327,7 +321,7 @@ function GroupBlock({ groupKey, groupRecords, grouped, now, statusLabel, groupNa
       {grouped ? (
         <tr>
           <td
-            colSpan={8}
+            colSpan={7}
             style={{
               ...tdStyle,
               background: "var(--color-tint-strong)",
@@ -345,15 +339,14 @@ function GroupBlock({ groupKey, groupRecords, grouped, now, statusLabel, groupNa
         return (
           <tr key={record.instanceId}>
             <td style={tdStyle}>
-              <span style={{ display: "inline-flex", alignItems: "center", gap: "0.3rem" }}>
-                <span style={{ wordBreak: "break-all" }}>{record.instanceId}</span>
-                <CopyButton value={record.instanceId} />
-              </span>
+              <span title={record.instanceId}>{shortInstanceId(record.instanceId)}</span>
             </td>
             <td style={{ ...tdStyle, whiteSpace: "nowrap" }}>
               <span style={statusBadgeStyle(status)}>{statusLabel(status)}</span>
             </td>
-            <td style={tdStyle}>{record.uid}</td>
+            <td style={tdStyle}>
+              <span title={record.uid}>{record.userLabel ?? maskUid(record.uid)}</span>
+            </td>
             <td style={{ ...tdStyle, whiteSpace: "nowrap" }}>{formatDateTime(record.createdAt)}</td>
             <td style={{ ...tdStyle, whiteSpace: "nowrap" }}>{formatDateTime(record.updatedAt)}</td>
             <td style={{ ...tdStyle, whiteSpace: "nowrap" }}>
@@ -361,15 +354,6 @@ function GroupBlock({ groupKey, groupRecords, grouped, now, statusLabel, groupNa
             </td>
             <td style={{ ...tdStyle, whiteSpace: "nowrap" }}>
               {remaining === null ? "—" : formatRemainingMs(remaining)}
-            </td>
-            <td style={tdStyle}>
-              {record.externalUrl ? (
-                <a href={record.externalUrl} target="_blank" rel="noreferrer" title={record.externalUrl}>
-                  {shortUrl(record.externalUrl)}
-                </a>
-              ) : (
-                "—"
-              )}
             </td>
           </tr>
         );

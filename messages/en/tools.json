@@ -136,6 +136,8 @@
       "statPendingLabel": "Pending",
       "statOverdueLabel": "Overdue",
       "statDueTodayLabel": "Due today",
+      "tabBoard": "Board",
+      "boardColumnEmpty": "No cards",
       "trendTitle": "Last 7 days",
       "trendAdded": "Added",
       "trendCompleted": "Completed",

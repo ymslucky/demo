@@ -4,7 +4,9 @@ import {
   formatRemainingMs,
   groupInstances,
   instanceStatus,
+  maskUid,
   parseDayRange,
+  shortInstanceId,
   sortInstances,
   type InstanceFilter,
 } from "./instances";
@@ -97,5 +99,21 @@ describe("instance table helpers", () => {
     expect(formatRemainingMs(0)).toBe("0s");
     expect(formatRemainingMs(-5)).toBe("0s");
     expect(formatRemainingMs(NaN)).toBe("0s");
+  });
+});
+
+describe("display helpers", () => {
+  it("shortInstanceId keeps short ids and trims long ones", () => {
+    expect(shortInstanceId("abc")).toBe("abc");
+    expect(shortInstanceId("abcdefghij")).toBe("abcdefghij");
+    expect(shortInstanceId("abcdefghijk")).toBe("abcdefgh…");
+  });
+
+  it("maskUid keeps only the head and tail of long uids", () => {
+    const masked = maskUid("user_2AbCdEfGhIjKlMn");
+    expect(masked.startsWith("user_2Ab")).toBe(true);
+    expect(masked.endsWith("KlMn")).toBe(true);
+    expect(masked).toHaveLength(13);
+    expect(maskUid("short_id")).toBe("short_id");
   });
 });
