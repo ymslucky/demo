@@ -61,9 +61,12 @@ clerkMiddleware()" → 500；本地 `next dev` 完全正常（纯环境差异，
   关卡**（包内 `verifySessionDetailed` 的 `allowedIssuers` 参数，验签时
   强制）——与边缘函数 §3.3 同理（防
   任意 iss + 自造 JWKS 伪造身份）。PEM / SK 通道签名绑定实例，iss 校验
-  仅在 `CLERK_ISSUER` 显式设置时执行（claimsGate）。azp 在两处均为可选
-  加固：`CLERK_AZP_ORIGINS` 设置时，azp 存在且不命中才拒绝（缺失放行
-  ——旧实例可能不带 azp）。
+  仅在 `CLERK_ISSUER` 显式设置时执行（claimsGate）。azp 校验强度随通道
+  而异：JWKS 通道经包内 `verifySessionDetailed`（azpApex 由 issuer 派生）
+  **无条件**执行 azp↔apex 强制——azp 存在且不属本站 apex 即拒绝（不受
+  `CLERK_AZP_ORIGINS` 控制；缺失仍放行）；`CLERK_AZP_ORIGINS` 只是各通道
+  之上的附加精确 origin 白名单复检——在 PEM / SK 通道里它是唯一的 azp
+  关卡（设置时 azp 存在且不命中才拒绝）。
 - 先例：admin 页面门控（readAdminAccess 判别联合四态：面板 / no-key
   指引 / no-session 诊断 / not-admin 说明）与角色 server actions
   （readAdminClaims 静默拒绝）均走该路径。
@@ -160,10 +163,11 @@ parse | alg:<x> | iss | azp | nbf | exp | sts | kid | sig | crypto | no-cookie |
 [tests/auth-core.test.ts](../../tests/auth-core.test.ts)：注入 JWKS / crypto /
 `fetchJwks` 固定 @lucky/auth-core 的全部验签导出（`verifySessionDetailed`、
 `verifyRs256`、`isTokenFresh` 等）——不触真实网络。关键用例：issuer/azp 钉死、
-nbf/sts 关卡、kid 强制刷新，以及一条 **broken-subtle 回归**（crypto 桩：
+nbf/sts 关卡、kid 强制刷新。**broken-subtle 回归**（crypto 桩：
 `importKey`/`verify` 抛异常但 `digest` 可用——模拟边缘环境——RS256 仍须验签
-通过）。[tests/functions.test.ts](../../tests/functions.test.ts) 保留 re-export
-冒烟（钉住 todo.js 链路）与 todo 业务用例；
+通过）归属 [tests/functions.test.ts](../../tests/functions.test.ts)（钉住边缘
+函数链路上的同一份包验签），该文件另保留 re-export 冒烟（钉住 todo.js 链路）
+与 todo 业务用例；
 [tests/session.test.ts](../../tests/session.test.ts) 固定 SSR 通道链。修改包
 导出签名必须在同一提交中核对 functions / agents / app 三处调用点并更新
 对应测试（见 AGENTS.md 同步表）。

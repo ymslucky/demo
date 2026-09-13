@@ -18,7 +18,8 @@
  * 登录验证（Clerk 会话，对齐官方手动验签清单）：验签核心由 npm 包
  * @lucky/auth-core 提供（与 functions/api/todo.js 共用同一单一真源）——
  * __session cookie 中的会话 JWT 按 header.alg 分派验签，RS256 走纯 JS
- * BigInt 实现（边缘运行时 crypto.subtle 不支持 RSA，见 verifyRs256），
+ * BigInt 实现（边缘运行时 crypto.subtle 不支持 RSA；RS256 验签由
+ * @lucky/auth-core 的 verifyRs256 提供），
  * issuer 白名单 / azp 判定基准由 SITE_DOMAIN 派生，默认 rdom.cn。
  *
  * 错误语义：401 unauthorized（附 x-auth-fail 诊断头）、400 invalid-json /

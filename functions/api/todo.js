@@ -16,7 +16,8 @@
  * - 读取 __session cookie 中的 Clerk 会话 JWT，按 header.alg 分派验签：
  *   ES256 = ECDSA P-256 + SHA-256（Web Crypto）；RS256 = RSASSA-PKCS1-v1_5
  *   + SHA-256（纯 JS BigInt 实现——生产实例密钥型为 RSA，而边缘运行时
- *   crypto.subtle 不支持 RSA，实测 importKey/verify 抛异常，见 verifyRs256）；
+ *   crypto.subtle 不支持 RSA，实测 importKey/verify 抛异常；RS256 验签由
+ *   @lucky/auth-core 的 verifyRs256 提供）；
  *   其余算法直接拒绝；
  * - 钉死 issuer：payload.iss 必须命中 ALLOWED_ISSUERS 白名单，JWKS 只从
  *   白名单实例回源——绝不信任 token 内任意 iss（否则攻击者可自造 JWKS
