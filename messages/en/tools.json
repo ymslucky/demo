@@ -279,7 +279,10 @@
       "browserRemoveStep": "Remove step",
       "browserDuplicateStep": "Duplicate step",
       "browserShotDownload": "Download shot",
-      "browserCanvasHint": "Drag node headers to arrange; connectors show execution order; drag empty space to pan",
+      "browserCanvasHint": "Drag node headers to arrange; connectors show execution order; drag empty space to pan; Ctrl + wheel to zoom",
+      "browserZoomIn": "Zoom in",
+      "browserZoomOut": "Zoom out",
+      "browserResetLayout": "Reset layout",
       "instancesClearFilters": "Clear filters",
       "browserUnavailable": "Browser operations are unavailable in this sandbox.",
       "hint": "Tip: the sandbox instance is reused per browser session. Python / JavaScript run in a Jupyter kernel, Bash runs directly, Go / Java are written to source files and run via toolchains."
