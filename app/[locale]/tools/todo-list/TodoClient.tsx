@@ -842,8 +842,14 @@ function TodoPanel() {
 
   if (status === "loading") {
     return (
-      <section style={cardStyle}>
-        <p style={mutedStyle}>{t("loading")}</p>
+      <section style={cardStyle} aria-busy="true">
+        <span className="sr-only">{t("loading")}</span>
+        <div style={{ display: "grid", gap: "var(--space-sm)" }}>
+          <div className="skeleton-line skeleton-line--wide" />
+          <div className="skeleton-line skeleton-line--wide" />
+          <div className="skeleton-block" />
+          <div className="skeleton-block" />
+        </div>
       </section>
     );
   }

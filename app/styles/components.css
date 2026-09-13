@@ -2233,3 +2233,31 @@ body.todo-dragging {
   font-family: var(--font-mono);
   font-size: var(--fs-sm);
 }
+/* ---- Loading skeletons（实色 tint 脉动；视觉契约：无模糊） ---- */
+.skeleton-line,
+.skeleton-block {
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-tint);
+  animation: skeleton-pulse 1.4s ease-in-out infinite;
+}
+.skeleton-line {
+  height: 0.9rem;
+}
+.skeleton-line--wide {
+  width: 60%;
+}
+.skeleton-block {
+  height: 3.2rem;
+}
+@keyframes skeleton-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .skeleton-line,
+  .skeleton-block {
+    animation: none;
+    opacity: 0.6;
+  }
+}

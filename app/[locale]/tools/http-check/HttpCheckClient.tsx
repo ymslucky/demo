@@ -122,7 +122,16 @@ export default function HttpCheckClient() {
 
   // 非就绪状态下各卡片主体显示的占位文案。
   const placeholder =
-    status === "loading" ? t("loading") : status === "error" ? t("loadError") : null;
+    status === "loading" ? (
+      <div style={{ display: "grid", gap: "var(--space-xs)" }} aria-busy="true">
+        <span className="sr-only">{t("loading")}</span>
+        <div className="skeleton-line" />
+        <div className="skeleton-line skeleton-line--wide" />
+        <div className="skeleton-block" />
+      </div>
+    ) : status === "error" ? (
+      t("loadError")
+    ) : null;
 
   return (
     <>
