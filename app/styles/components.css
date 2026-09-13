@@ -2143,3 +2143,22 @@ body.todo-dragging {
   background: var(--color-tint-strong);
   font-weight: 700;
 }
+/* ---- Todo undo-delete toast ---- */
+.todo-undo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  margin-top: var(--space-xs);
+  padding: 0.5rem 0.75rem;
+  border: 3px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-tint);
+}
+.todo-undo-text {
+  font-size: var(--fs-sm);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

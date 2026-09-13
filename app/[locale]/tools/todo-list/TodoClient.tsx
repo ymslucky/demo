@@ -14,6 +14,7 @@ import {
   formatDateValue,
   formatDateTimeValue,
   groupSections,
+  insertItemAt,
   isDueToday,
   isOverdue,
   makeLocalItem,
@@ -207,6 +208,9 @@ function TodoPanel() {
   // 分组管理：正在重命名的分组名 + 输入框草稿。
   const [renamingGroup, setRenamingGroup] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
+  // 撤销删除：单槽位（新删除覆盖旧撤销），6 秒后自动过期。
+  const [undo, setUndo] = useState<{ item: TodoItem; index: number } | null>(null);
+  const undoTimerRef = useRef(0);
   const [tab, setTab] = useState<"list" | "stats">("list");
   const [editing, setEditing] = useState<EditDraft | null>(null);
   const [sync, setSync] = useState<SyncState>("idle");
@@ -219,6 +223,9 @@ function TodoPanel() {
 
   // 卸载后丢弃过期响应，避免对已卸载组件 setState。
   const aliveRef = useRef(true);
+  // 快捷键落点：新建输入框（N）与搜索框（/）。
+  const addInputRef = useRef<HTMLInputElement | null>(null);
+  const searchRef = useRef<HTMLInputElement | null>(null);
   const titleInputRef = useRef<HTMLInputElement | null>(null);
   const listTabRef = useRef<HTMLButtonElement | null>(null);
   const statsTabRef = useRef<HTMLButtonElement | null>(null);
@@ -403,6 +410,34 @@ function TodoPanel() {
     if (dirtyRef.current) scheduleFlush(0);
   }, [userId, persist, scheduleFlush]);
 
+  // 全局快捷键（非输入态）：/ 聚焦搜索，N 聚焦新建输入框。
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      const tag = target?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || target?.isContentEditable) {
+        return;
+      }
+      if (event.ctrlKey || event.metaKey || event.altKey) return;
+      if (event.key === "/") {
+        const el = searchRef.current;
+        if (el) {
+          event.preventDefault();
+          el.focus();
+        }
+      } else if (event.key === "n" || event.key === "N") {
+        const el = addInputRef.current;
+        if (el) {
+          event.preventDefault();
+          el.focus();
+          el.select();
+        }
+      }
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, []);
+
   useEffect(() => {
     if (!isLoaded) return undefined;
     aliveRef.current = true;
@@ -471,7 +506,15 @@ function TodoPanel() {
     (id: string) => {
       // 若正编辑该条目则一并关闭弹窗。
       setEditing((current) => (current?.id === id ? null : current));
-      commit((itemsRef.current ?? []).filter((entry) => entry.id !== id));
+      const list = itemsRef.current ?? [];
+      const index = list.findIndex((entry) => entry.id === id);
+      commit(list.filter((entry) => entry.id !== id));
+      // 撤销删除：记录原位置，单槽位 + 6 秒过期（新删除覆盖旧撤销）。
+      if (index !== -1) {
+        setUndo({ item: list[index], index });
+        window.clearTimeout(undoTimerRef.current);
+        undoTimerRef.current = window.setTimeout(() => setUndo(null), 6000);
+      }
     },
     [commit],
   );
@@ -829,6 +872,14 @@ function TodoPanel() {
     setRenamingGroup(null);
   }
 
+  /** 撤销删除：把条目插回原位置（越界自动收敛）。 */
+  function undoDelete() {
+    if (!undo) return;
+    window.clearTimeout(undoTimerRef.current);
+    commit(insertItemAt(itemsRef.current ?? [], undo.item, undo.index));
+    setUndo(null);
+  }
+
   return (
     <section style={cardStyle}>
       <div className="todo-tabs" role="tablist">
@@ -871,6 +922,7 @@ function TodoPanel() {
           >
             <input
               type="text"
+              ref={addInputRef}
               className="todo-add-input"
               value={draft}
               onChange={(event) => setDraft(event.target.value)}
@@ -902,6 +954,7 @@ function TodoPanel() {
             <div className="todo-toolbar">
               <input
                 type="search"
+                ref={searchRef}
                 className="todo-search"
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
@@ -953,6 +1006,7 @@ function TodoPanel() {
           {items.length > 0 && sortMode === "manual" ? (
             <p className="todo-dnd-hint">{t("keyboardHint")}</p>
           ) : null}
+          {items.length > 0 ? <p className="todo-dnd-hint">{t("shortcutsHint")}</p> : null}
 
           {sections.map((section) => {
             const hintAt =
@@ -1167,6 +1221,17 @@ function TodoPanel() {
 
           {items.length > 0 && visibleItems.length === 0 ? (
             <p style={mutedStyle}>{t("noMatch")}</p>
+          ) : null}
+
+          {undo ? (
+            <div className="todo-undo" role="status">
+              <span className="todo-undo-text">
+                {t("undoDeleted", { title: undo.item.title })}
+              </span>
+              <button type="button" className="todo-chip" onClick={undoDelete}>
+                {t("undoAction")}
+              </button>
+            </div>
           ) : null}
 
           {/* 状态监控区：数据来源、最近写入、后台同步指示。 */}

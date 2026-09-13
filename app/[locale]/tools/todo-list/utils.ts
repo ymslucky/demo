@@ -435,3 +435,13 @@ export function renameGroup(items: TodoItem[], from: string, to: string): TodoIt
   if (from === "" || target === from) return items;
   return items.map((item) => (item.group === from ? { ...item, group: target } : item));
 }
+/**
+ * Insert an item at `index` (clamped) without mutating the input — the
+ * restore path of the undo-delete toast.
+ */
+export function insertItemAt(items: TodoItem[], item: TodoItem, index: number): TodoItem[] {
+  const at = Math.max(0, Math.min(index, items.length));
+  const next = [...items];
+  next.splice(at, 0, item);
+  return next;
+}

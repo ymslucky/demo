@@ -6,6 +6,7 @@ import {
   formatDateValue,
   formatDateTimeValue,
   groupSections,
+  insertItemAt,
   isDueToday,
   isOverdue,
   makeLocalItem,
@@ -480,5 +481,16 @@ describe("isDueToday / renameGroup", () => {
     expect(renameGroup(renamed, "chores", "").map((i) => i.group)).toEqual(["", "", "work"]);
     expect(renameGroup(items, "", "x")).toBe(items); // 默认分组不参与
     expect(renameGroup(items, "home", "home")).toBe(items); // 同名 no-op
+  });
+});
+
+describe("insertItemAt", () => {
+  it("inserts clamped and does not mutate the input", () => {
+    const items = [mk("a"), mk("b")];
+    const next = insertItemAt(items, mk("x"), 1);
+    expect(next.map((i) => i.id)).toEqual(["a", "x", "b"]);
+    expect(items.map((i) => i.id)).toEqual(["a", "b"]);
+    expect(insertItemAt(items, mk("x"), 99).map((i) => i.id)).toEqual(["a", "b", "x"]);
+    expect(insertItemAt(items, mk("x"), -5).map((i) => i.id)).toEqual(["x", "a", "b"]);
   });
 });
