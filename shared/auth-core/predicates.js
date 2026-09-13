@@ -1,17 +1,12 @@
 /**
- * shared/auth-core.js —— Clerk 会话判定的单一真源（零依赖纯 JS）。
+ * shared/auth-core/predicates.js —— Clerk 会话判定的单一真源（零依赖纯 JS）。
  * 本文件由 index.js 聚合导出（@lucky/auth-core 出口）。
  *
- * 复用方式（双通道，见 AGENTS.md §0.1）：
- * - Next SSR 层（app/lib / 直接 `import` 本模块——运行时有模块解析；
- * - 自包含层（functions 下各 js、agents 下 code-run 的 ts）由
- *   scripts/sync-shared.cjs 把本文件**全文**注入目标文件内的一对
- *   "shared:auth-core" 开始/结束标记区间（EdgeOne 边缘函数与 Makers
- *   agents 单文件部署、禁止运行时 import——构建期分发是唯一复用通道）。
- *   区间内容随提交进仓库，函数文件保持可独立部署；`npm test` 前置
- *   `sync-shared.cjs --check` 防漂移。
+ * 复用方式（见 AGENTS.md §0.1）：三大层（Next SSR 的 app/lib、EdgeOne
+ * 边缘函数 functions/、Makers agents 的 code-run）以标准 import 复用
+ * npm 包 @lucky/auth-core（file: 依赖随 npm install 就位，边缘函数经
+ * node_modules 解析）。
  *
- * 修改本文件后必须运行 `node scripts/sync-shared.cjs` 同步区间。
  * 全部为纯函数：不触网络、不读环境（env 由调用方读取后传入），三大
  * 运行时（EO 边缘 / Makers agents / Node SSR）行为一致。
  */

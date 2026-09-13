@@ -378,26 +378,21 @@ describe("todo four-element fields (dueAt/remindAt/priority/group)", () => {
   });
 });
 
-describe("todo site apex derivation", () => {
-  it("siteApex strips protocol / path / www and rejects empties", () => {
-    expect(siteApex("rdom.cn")).toBe("rdom.cn");
+// Re-export smoke checks: the auth primitives come from @lucky/auth-core
+// via todo.js's re-export surface (single source). The full assertion
+// matrices live in tests/auth-core.test.ts — these only pin the chain.
+describe("todo auth-core re-export smoke", () => {
+  it("forwards the shared predicates", () => {
     expect(siteApex("https://www.rdom.cn/zh/tools/")).toBe("rdom.cn");
-    expect(siteApex("  HTTP://RDOM.CN  ")).toBe("rdom.cn");
-    expect(siteApex(undefined)).toBeNull();
     expect(siteApex("   ")).toBeNull();
-    expect(siteApex("https://")).toBeNull();
-  });
-});
-
-describe("todo azp same-party check", () => {
-  it("isAllowedAzp accepts the apex and any subdomain, rejects lookalikes", () => {
-    expect(isAllowedAzp("https://rdom.cn", "rdom.cn")).toBe(true);
-    expect(isAllowedAzp("https://www.rdom.cn", "rdom.cn")).toBe(true);
     expect(isAllowedAzp("https://app.rdom.cn/zh/", "rdom.cn")).toBe(true);
-    expect(isAllowedAzp("https://APP.RDOM.CN", "rdom.cn")).toBe(true);
     expect(isAllowedAzp("https://rdom.cn.evil.com", "rdom.cn")).toBe(false);
-    expect(isAllowedAzp("https://notrdom.cn", "rdom.cn")).toBe(false);
-    expect(isAllowedAzp(undefined, "rdom.cn")).toBe(false);
+  });
+
+  it("forwards the token helpers and the pure-JS RS256 verifier", async () => {
+    expect(parseTokenPayload("a.b")).toBeNull();
+    expect(isTokenFresh({ exp: 2_000_000_000 }, 1_000_000_000_000)).toBe(true);
+    await expect(verifyRs256({}, "x", new Uint8Array(8), crypto)).resolves.toBe(false);
   });
 });
 
@@ -478,37 +473,6 @@ describe("todo session token helpers", () => {
     expect(readSessionToken(fakeRequest("other=1"))).toBeNull();
     expect(readSessionToken(fakeRequest(undefined))).toBeNull();
     expect(readSessionToken(null)).toBeNull();
-  });
-
-  it("parseTokenPayload splits a well-formed JWT and rejects malformed ones", () => {
-    const token = `${b64urlJson({ alg: "ES256", kid: "k" })}.${b64urlJson({
-      sub: "u1",
-      exp: 2_000_000_000,
-    })}.c2ln`;
-    const parsed = parseTokenPayload(token);
-    expect(parsed?.header).toEqual({ alg: "ES256", kid: "k" });
-    expect(parsed?.payload).toEqual({ sub: "u1", exp: 2_000_000_000 });
-
-    expect(parseTokenPayload("a.b")).toBeNull(); // missing signature
-    expect(parseTokenPayload("a..c2ln")).toBeNull(); // empty payload segment
-    expect(parseTokenPayload("!!!.!!!.!!!")).toBeNull(); // not base64
-    expect(parseTokenPayload(42 as unknown as string)).toBeNull();
-  });
-
-  it("isTokenFresh checks exp/nbf (seconds) against now (ms) with clerk skew tolerance", () => {
-    expect(isTokenFresh({ exp: 2_000_000_000 }, 1_000_000_000_000)).toBe(true);
-    // 5s tolerance: an exp within CLOCK_SKEW_S is still accepted.
-    expect(isTokenFresh({ exp: 1_000_000_003 }, 1_000_000_000_000)).toBe(true);
-    expect(isTokenFresh({ exp: 999_999_990 }, 1_000_000_000_000)).toBe(false);
-    expect(isTokenFresh({}, 1_000_000_000_000)).toBe(false);
-
-    // nbf inside the tolerance window is accepted, beyond it is rejected.
-    expect(
-      isTokenFresh({ exp: 2_000_000_000, nbf: 1_000_000_003 }, 1_000_000_000_000),
-    ).toBe(true);
-    expect(
-      isTokenFresh({ exp: 2_000_000_000, nbf: 1_000_000_100 }, 1_000_000_000_000),
-    ).toBe(false);
   });
 
   it("verifySessionToken validates signature, alg, kid, iss and exp", async () => {
@@ -614,33 +578,6 @@ describe("todo session token helpers", () => {
     await expect(
       verifySessionToken(mismatched, { jwks: [jwk], allowedIssuers: [ISS] }),
     ).resolves.toBeNull();
-  });
-
-  it("verifyRs256 validates RSA signatures with pure BigInt math (no subtle.verify)", async () => {
-    const { privateKey, jwk } = await makeRsaKey("rsa-key");
-    const signingInput = `${b64urlJson({ alg: "RS256", kid: "rsa-key" })}.${b64urlJson({
-      sub: "u",
-      exp: 1_900_000_000,
-    })}`;
-    const signature = new Uint8Array(
-      await crypto.subtle.sign(
-        { name: "RSASSA-PKCS1-v1_5" },
-        privateKey,
-        encoder.encode(signingInput),
-      ),
-    );
-
-    await expect(verifyRs256(jwk, signingInput, signature, crypto)).resolves.toBe(true);
-
-    const flipped = signature.slice();
-    flipped[0] ^= 0xff;
-    await expect(verifyRs256(jwk, signingInput, flipped, crypto)).resolves.toBe(false);
-
-    // Malformed inputs degrade to false instead of throwing.
-    await expect(
-      verifyRs256({ ...jwk, n: "!!!" }, signingInput, signature, crypto),
-    ).resolves.toBe(false);
-    await expect(verifyRs256(jwk, signingInput, signature.slice(1), crypto)).resolves.toBe(false);
   });
 
   it("verifyTokenDetailed verifies RS256 without RSA support in crypto.subtle (edge regression)", async () => {
