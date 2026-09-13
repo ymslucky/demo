@@ -230,8 +230,15 @@ export default function InstancesPanel({ records, loading, error, onRefresh, now
 
       {error ? (
         <p style={{ ...mutedStyle, margin: 0 }}>{error}</p>
+      ) : loading ? (
+        <div style={{ display: "grid", gap: "var(--space-xs)" }} aria-busy="true">
+          <span className="sr-only">{t("instancesLoading")}</span>
+          <div className="skeleton-block" />
+          <div className="skeleton-block" />
+          <div className="skeleton-block" />
+        </div>
       ) : records.length === 0 ? (
-        <p style={{ ...mutedStyle, margin: 0 }}>{loading ? t("instancesLoading") : t("instancesEmpty")}</p>
+        <p style={{ ...mutedStyle, margin: 0 }}>{t("instancesEmpty")}</p>
       ) : sorted.length === 0 ? (
         <p style={{ ...mutedStyle, margin: 0 }}>{t("instancesNoMatch")}</p>
       ) : (

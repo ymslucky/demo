@@ -213,6 +213,9 @@ export default function CodeSandboxClient() {
   const [runs, setRuns] = useState<RunRecord[]>([]);
   const [viewingRun, setViewingRun] = useState<RunRecord | null>(null);
   const [busy, setBusy] = useState(false);
+  // 销毁实例为破坏性操作：两步确认（首次点击仅进入确认态，3 秒后自动还原）。
+  const [confirmReset, setConfirmReset] = useState(false);
+  const confirmResetTimerRef = useRef(0);
   const [info, setInfo] = useState<SandboxSnapshot | null>(null);
   const [sandboxActive, setSandboxActive] = useState(false);
   const [unavailable, setUnavailable] = useState(false);
@@ -245,6 +248,9 @@ export default function CodeSandboxClient() {
     const el = terminalRef.current;
     if (el) el.scrollTop = el.scrollHeight;
   }, [entries, viewingRun]);
+
+  // 卸载时清理确认态计时器。
+  useEffect(() => () => window.clearTimeout(confirmResetTimerRef.current), []);
 
   const code = normalizeCode(codeMap[lang] ?? languageDef(lang).sample);
   const timeoutSec = clampTimeoutSec(DEFAULT_RUN_TIMEOUT_S);
@@ -416,6 +422,12 @@ export default function CodeSandboxClient() {
 
   async function reset() {
     if (busy || !conversationId) return;
+    if (!confirmReset) {
+      setConfirmReset(true);
+      confirmResetTimerRef.current = window.setTimeout(() => setConfirmReset(false), 3000);
+      return;
+    }
+    setConfirmReset(false);
     setBusy(true);
     // 销毁前记下当前实例：成功后同步从 KV 档案中删除。
     const instanceId = info?.instanceId;
@@ -636,8 +648,12 @@ export default function CodeSandboxClient() {
           <Button onClick={extend} disabled={busy || !conversationId}>
             {t("extend")}
           </Button>
-          <Button onClick={reset} disabled={busy || !conversationId}>
-            {t("reset")}
+          <Button
+            variant={confirmReset ? "primary" : undefined}
+            onClick={reset}
+            disabled={busy || !conversationId}
+          >
+            {confirmReset ? t("resetConfirm") : t("reset")}
           </Button>
         </div>
       </section>

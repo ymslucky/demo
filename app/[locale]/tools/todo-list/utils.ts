@@ -519,3 +519,17 @@ export function groupStats(items: TodoItem[]): GroupStat[] {
     }))
     .filter((stat) => stat.total > 0);
 }
+/**
+ * 批量恢复：按删除前的原索引重插（索引升序逐个插入以保持相对位置，
+ * 越界自动收敛）。与 removeMany/removeDone 构成可撤销的删除链路。
+ */
+export function restoreMany(
+  items: TodoItem[],
+  removed: Array<{ item: TodoItem; index: number }>,
+): TodoItem[] {
+  const next = [...items];
+  for (const { item, index } of [...removed].sort((a, b) => a.index - b.index)) {
+    next.splice(Math.max(0, Math.min(index, next.length)), 0, item);
+  }
+  return next;
+}

@@ -25,6 +25,7 @@ import {
   priorityKey,
   removeDone,
   renameGroup,
+  restoreMany,
   sortTodoItems,
   statsSummary,
   trend7Days,
@@ -558,5 +559,23 @@ describe("groupStats", () => {
       { group: "work", total: 1, done: 0 },
     ]);
     expect(groupStats([])).toEqual([]);
+  });
+});
+
+describe("restoreMany", () => {
+  it("restores removed items at their original indices in order", () => {
+    const items = [mk("a"), mk("b"), mk("c"), mk("d")];
+    const afterDelete = removeMany(items, ["b", "d"]);
+    expect(afterDelete.map((i) => i.id)).toEqual(["a", "c"]);
+    const restored = restoreMany(afterDelete, [
+      { item: mk("b"), index: 1 },
+      { item: mk("d"), index: 3 },
+    ]);
+    expect(restored.map((i) => i.id)).toEqual(["a", "b", "c", "d"]);
+  });
+
+  it("clamps out-of-range indices", () => {
+    const restored = restoreMany([mk("a")], [{ item: mk("x"), index: 99 }]);
+    expect(restored.map((i) => i.id)).toEqual(["a", "x"]);
   });
 });

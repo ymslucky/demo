@@ -17,6 +17,7 @@ import {
   groupSections,
   groupStats,
   insertItemAt,
+  restoreMany,
   isDueToday,
   isOverdue,
   completeMany,
@@ -217,7 +218,7 @@ function TodoPanel() {
   // 看板列内快速添加的草稿（按分组名分键）。
   const [boardDrafts, setBoardDrafts] = useState<Record<string, string>>({});
   // 撤销删除：单槽位（新删除覆盖旧撤销），6 秒后自动过期。
-  const [undo, setUndo] = useState<{ item: TodoItem; index: number } | null>(null);
+  const [undo, setUndo] = useState<{ entries: Array<{ item: TodoItem; index: number }> } | null>(null);
   const undoTimerRef = useRef(0);
   // 批量多选：模式开关 + 已选 id（会话内状态）。
   const [selectMode, setSelectMode] = useState(false);
@@ -539,9 +540,9 @@ function TodoPanel() {
       const list = itemsRef.current ?? [];
       const index = list.findIndex((entry) => entry.id === id);
       commit(list.filter((entry) => entry.id !== id));
-      // 撤销删除：记录原位置，单槽位 + 6 秒过期（新删除覆盖旧撤销）。
+      // 撤销删除：记录原位置，6 秒内可恢复。
       if (index !== -1) {
-        setUndo({ item: list[index], index });
+        setUndo({ entries: [{ item: list[index], index }] });
         window.clearTimeout(undoTimerRef.current);
         undoTimerRef.current = window.setTimeout(() => setUndo(null), 6000);
       }
@@ -914,11 +915,11 @@ function TodoPanel() {
     setRenamingGroup(null);
   }
 
-  /** 撤销删除：把条目插回原位置（越界自动收敛）。 */
+  /** 撤销删除：把条目按原位置恢复（单条与批量共用，越界自动收敛）。 */
   function undoDelete() {
     if (!undo) return;
     window.clearTimeout(undoTimerRef.current);
-    commit(insertItemAt(itemsRef.current ?? [], undo.item, undo.index));
+    commit(restoreMany(itemsRef.current ?? [], undo.entries));
     setUndo(null);
   }
 
@@ -1070,7 +1071,15 @@ function TodoPanel() {
                 <button
                   type="button"
                   className="todo-chip"
-                  onClick={() => commit(removeDone(items))}
+                  onClick={() => {
+                    const entries = items
+                      .map((item, index) => ({ item, index }))
+                      .filter(({ item }) => item.done);
+                    commit(removeMany(items, entries.map(({ item }) => item.id)));
+                    setUndo({ entries });
+                    window.clearTimeout(undoTimerRef.current);
+                    undoTimerRef.current = window.setTimeout(() => setUndo(null), 6000);
+                  }}
                 >
                   {t("clearCompleted", { count: doneCount })}
                 </button>
@@ -1125,8 +1134,15 @@ function TodoPanel() {
                     type="button"
                     className="todo-chip"
                     onClick={() => {
+                      const idSet = new Set(selectedIds);
+                      const entries = items
+                        .map((item, index) => ({ item, index }))
+                        .filter(({ item }) => idSet.has(item.id));
                       commit(removeMany(items, selectedIds));
+                      setUndo({ entries });
                       setSelectedIds([]);
+                      window.clearTimeout(undoTimerRef.current);
+                      undoTimerRef.current = window.setTimeout(() => setUndo(null), 6000);
                     }}
                   >
                     {t("deleteSelected", { count: selectedIds.length })}
@@ -1391,7 +1407,9 @@ function TodoPanel() {
           {undo ? (
             <div className="todo-undo" role="status">
               <span className="todo-undo-text">
-                {t("undoDeleted", { title: undo.item.title })}
+                {undo.entries.length === 1
+                  ? t("undoDeleted", { title: undo.entries[0].item.title })
+                  : t("undoDeletedMany", { count: undo.entries.length })}
               </span>
               <button type="button" className="todo-chip" onClick={undoDelete}>
                 {t("undoAction")}

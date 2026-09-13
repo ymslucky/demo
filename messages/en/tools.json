@@ -107,6 +107,7 @@
       "dissolveGroupLabel": "Dissolve group {group} (moves to default)",
       "undoDeleted": "Deleted \"{title}\"",
       "undoAction": "Undo",
+      "undoDeletedMany": "Deleted {count} items",
       "shortcutsHint": "Shortcuts: / search · N new",
       "selectMode": "Select",
       "exitSelect": "Exit select",

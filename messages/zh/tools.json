@@ -107,6 +107,7 @@
       "dissolveGroupLabel": "解散分组 {group}（移回默认分组）",
       "undoDeleted": "已删除「{title}」",
       "undoAction": "撤销",
+      "undoDeletedMany": "已删除 {count} 项",
       "shortcutsHint": "快捷键：/ 搜索 · N 新建",
       "selectMode": "多选",
       "exitSelect": "退出多选",
