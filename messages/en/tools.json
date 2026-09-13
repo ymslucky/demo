@@ -113,6 +113,8 @@
       "undoAction": "Undo",
       "undoDeletedMany": "Deleted {count} items",
       "deleteAction": "Delete",
+      "capacityTitle": "List reached the {count} item limit",
+      "codeNearLimit": "{used}/{limit} characters used — nearing the limit",
       "shortcutsHint": "Shortcuts: / search · N new",
       "selectMode": "Select",
       "exitSelect": "Exit select",

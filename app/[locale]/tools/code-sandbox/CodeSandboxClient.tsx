@@ -29,6 +29,7 @@ import {
   normalizeRunPayload,
   randomId,
   remainingMs,
+  MAX_CODE_LEN,
   filterConsole,
   rotateConversationId,
   type ConsoleEntry,
@@ -742,6 +743,11 @@ export default function CodeSandboxClient() {
           />
           <div style={{ ...mutedStyle, display: "flex", gap: "var(--space-md)", flexWrap: "wrap" }}>
             <span>{t("editorMeta", { lines: code.split("\n").length, chars: code.length })}</span>
+            {code.length > MAX_CODE_LEN * 0.9 ? (
+              <span style={{ color: "var(--color-err-text)" }}>
+                {t("codeNearLimit", { used: code.length, limit: MAX_CODE_LEN })}
+              </span>
+            ) : null}
             <span>{t("runShortcut")}</span>
           </div>
           <div style={{ display: "flex", gap: "var(--space-xs)", flexWrap: "wrap", alignItems: "center" }}>

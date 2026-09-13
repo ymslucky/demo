@@ -1099,7 +1099,8 @@ function TodoPanel() {
             </select>
             <button
               type="submit"
-              disabled={draft.trim().length === 0}
+              disabled={draft.trim().length === 0 || items.length >= MAX_ITEMS}
+              title={items.length >= MAX_ITEMS ? t("capacityTitle", { count: MAX_ITEMS }) : undefined}
               className="btn btn--primary btn--sm"
             >
               {t("add")}

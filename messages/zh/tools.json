@@ -113,6 +113,8 @@
       "undoAction": "撤销",
       "undoDeletedMany": "已删除 {count} 项",
       "deleteAction": "删除",
+      "capacityTitle": "清单已达 {count} 条上限",
+      "codeNearLimit": "已用 {used}/{limit} 字符，接近上限",
       "shortcutsHint": "快捷键：/ 搜索 · N 新建",
       "selectMode": "多选",
       "exitSelect": "退出多选",
