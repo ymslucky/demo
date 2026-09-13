@@ -246,8 +246,21 @@ export default function CodeSandboxClient() {
     return () => window.clearInterval(timer);
   }, [expiresAt, tab]);
 
-  // 终端自动滚底（实时流更新或历史回放切换时）。
+  // 终端智能跟随：用户上翻阅读时暂停自动滚底，滚回底部即恢复。
+  const stickToBottomRef = useRef(true);
   useEffect(() => {
+    const el = terminalRef.current;
+    if (!el) return undefined;
+    const onScroll = () => {
+      stickToBottomRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 40;
+    };
+    el.addEventListener("scroll", onScroll);
+    return () => el.removeEventListener("scroll", onScroll);
+  }, []);
+
+  // 自动滚底仅在"贴底"状态下生效；切换历史回放时恢复贴底。
+  useEffect(() => {
+    stickToBottomRef.current = true;
     const el = terminalRef.current;
     if (el) el.scrollTop = el.scrollHeight;
   }, [entries, viewingRun]);
