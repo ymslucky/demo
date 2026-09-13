@@ -751,7 +751,22 @@ export default function CodeSandboxClient() {
             <div style={{ display: "flex", alignItems: "center", gap: "var(--space-xs)", flexWrap: "wrap" }}>
               <h2 style={{ margin: 0, fontSize: "var(--fs-xl)" }}>{t("consoleTitle")}</h2>
               {viewingRun ? (
-                <Button onClick={() => setViewingRun(null)}>{t("backToLive")}</Button>
+                <>
+                  <Button onClick={() => setViewingRun(null)}>{t("backToLive")}</Button>
+                  <Button
+                    onClick={() => {
+                      if (!viewingRun) return;
+                      setLang(viewingRun.language);
+                      setCodeMap((prev) => ({
+                        ...prev,
+                        [viewingRun.language]: normalizeCode(viewingRun.code),
+                      }));
+                      setViewingRun(null);
+                    }}
+                  >
+                    {t("historyLoadCode")}
+                  </Button>
+                </>
               ) : (
                 <Button onClick={clearTerminal} disabled={busy}>
                   {t("clear")}
@@ -830,9 +845,7 @@ export default function CodeSandboxClient() {
                     type="button"
                     style={historyItemStyle(viewingRun?.id === record.id)}
                     onClick={() => {
-                      // 点击历史 = 直接把该次运行的语言与代码替换进编辑器，并回放输出。
-                      setLang(record.language);
-                      setCodeMap((prev) => ({ ...prev, [record.language]: normalizeCode(record.code) }));
+                      // 点击历史 = 仅回放输出；覆盖编辑器需显式点击「载入代码」。
                       setViewingRun(record);
                     }}
                   >

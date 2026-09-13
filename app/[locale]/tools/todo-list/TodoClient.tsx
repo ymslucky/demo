@@ -1008,6 +1008,20 @@ function TodoPanel() {
     </>
   );
 
+  // 撤销删除条：清单与看板两视图共享（看板卡片也可触发删除）。
+  const undoToastNode = undo ? (
+    <div className="todo-undo" role="status">
+      <span className="todo-undo-text">
+        {undo.entries.length === 1
+          ? t("undoDeleted", { title: undo.entries[0].item.title })
+          : t("undoDeletedMany", { count: undo.entries.length })}
+      </span>
+      <button type="button" className="todo-chip" onClick={undoDelete}>
+        {t("undoAction")}
+      </button>
+    </div>
+  ) : null;
+
   return (
     <section style={cardStyle}>
       <div className="todo-tabs" role="tablist">
@@ -1442,18 +1456,7 @@ function TodoPanel() {
             <p style={mutedStyle}>{t("noMatch")}</p>
           ) : null}
 
-          {undo ? (
-            <div className="todo-undo" role="status">
-              <span className="todo-undo-text">
-                {undo.entries.length === 1
-                  ? t("undoDeleted", { title: undo.entries[0].item.title })
-                  : t("undoDeletedMany", { count: undo.entries.length })}
-              </span>
-              <button type="button" className="todo-chip" onClick={undoDelete}>
-                {t("undoAction")}
-              </button>
-            </div>
-          ) : null}
+          {undoToastNode}
 
           {/* 状态监控区：数据来源、最近写入、后台同步指示。 */}
           <div style={{ marginTop: "var(--space-md)", display: "grid", gap: "var(--space-xs)" }}>
@@ -1552,6 +1555,7 @@ function TodoPanel() {
         <div role="tabpanel" id="todo-panel-board" aria-labelledby="todo-tab-board">
           {items.length === 0 ? <p style={mutedStyle}>{t("empty")}</p> : null}
           {items.length > 0 ? <div className="todo-toolbar">{toolbarNode}</div> : null}
+          {undoToastNode}
           <div className="todo-board">
             {sections.map((section) => (
               <section
