@@ -430,6 +430,17 @@ function TodoPanel() {
     if (dirtyRef.current) scheduleFlush(0);
   }, [userId, persist, scheduleFlush]);
 
+  // 快捷键面板开关（? 呼出 / Esc 或点击遮罩关闭）。
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  useEffect(() => {
+    if (!shortcutsOpen) return undefined;
+    const onEsc = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setShortcutsOpen(false);
+    };
+    document.addEventListener("keydown", onEsc);
+    return () => document.removeEventListener("keydown", onEsc);
+  }, [shortcutsOpen]);
+
   // 全局快捷键（非输入态）：/ 聚焦搜索，N 聚焦新建输入框。
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -445,6 +456,9 @@ function TodoPanel() {
           event.preventDefault();
           el.focus();
         }
+      } else if (event.key === "?") {
+        event.preventDefault();
+        setShortcutsOpen(true);
       } else if (event.key === "n" || event.key === "N") {
         const el = addInputRef.current;
         if (el) {
@@ -1219,7 +1233,15 @@ function TodoPanel() {
           {items.length > 0 && sortMode === "manual" && !selectMode ? (
             <p className="todo-dnd-hint">{t("keyboardHint")}</p>
           ) : null}
-          {items.length > 0 ? <p className="todo-dnd-hint">{t("shortcutsHint")}</p> : null}
+          {items.length > 0 ? (
+            <button
+              type="button"
+              className="todo-dnd-hint"
+              onClick={() => setShortcutsOpen(true)}
+            >
+              {t("shortcutsHintMore")}
+            </button>
+          ) : null}
           {query.trim() !== "" ? (
             <p className="todo-dnd-hint">
               {t("searchCount", {
@@ -1988,6 +2010,29 @@ function TodoPanel() {
           </div>
         </div>
       )}
+
+      {shortcutsOpen ? (
+        <div className="todo-modal-overlay" onClick={() => setShortcutsOpen(false)}>
+          <div
+            className="todo-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="todo-shortcuts-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <h3 id="todo-shortcuts-title" style={{ marginTop: 0 }}>
+              {t("shortcutsTitle")}
+            </h3>
+            <ul style={{ margin: 0, paddingLeft: "1.2rem", display: "grid", gap: "6px" }}>
+              <li>{t("scSearch")}</li>
+              <li>{t("scNew")}</li>
+              <li>{t("scMove")}</li>
+              <li>{t("scDrag")}</li>
+              <li>{t("scDelete")}</li>
+            </ul>
+          </div>
+        </div>
+      ) : null}
 
       {/* 编辑弹窗：四要素 + 分组；遮罩点击 / Esc / 关闭按钮均可退出。 */}
       {editing ? (

@@ -175,6 +175,7 @@ export default function HttpCheckClient() {
                   }}
                 >
                   {clientIp.ip}
+                  <CopyButton value={clientIp.ip} />
                 </p>
                 <p style={{ margin: 0, fontSize: 'var(--fs-sm)', color: 'var(--color-text-muted)' }}>
                   {t("ipSource")}：<code className="blog-inline-code">{clientIp.source}</code>
