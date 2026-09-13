@@ -2,8 +2,12 @@ import { describe, expect, it } from "vitest";
 import {
   browserStepArg,
   browserStepReady,
+  canvasSize,
   duplicateBrowserStep,
   makeBrowserStep,
+  moveStepTo,
+  nodePosition,
+  CANVAS_MARGIN,
   moveBrowserStep,
   normalizeBrowserPayload,
   normalizeBrowserSteps,
@@ -125,5 +129,44 @@ describe("normalizeBrowserPayload", () => {
     expect(payload?.liveUrl).toBe("");
     expect(payload?.sandbox.instanceId).toBeUndefined();
     expect(payload?.error).toBe("");
+  });
+});
+
+describe("canvas helpers", () => {
+  it("nodePosition falls back to a 3-column grid for unpositioned steps", () => {
+    const steps = [makeBrowserStep("goto", "a"), makeBrowserStep("goto", "b"), makeBrowserStep("goto", "c"), makeBrowserStep("close", "d")];
+    expect(nodePosition(steps[0], 0)).toEqual({ x: CANVAS_MARGIN, y: CANVAS_MARGIN });
+    expect(nodePosition(steps[1], 1).x).toBeGreaterThan(CANVAS_MARGIN);
+    expect(nodePosition(steps[1], 1).y).toBe(CANVAS_MARGIN);
+    expect(nodePosition(steps[3], 3).y).toBeGreaterThan(nodePosition(steps[2], 2).y);
+  });
+
+  it("persisted x/y win over the default grid", () => {
+    const s = makeBrowserStep("goto", "s");
+    s.x = 500;
+    s.y = 300;
+    expect(nodePosition(s, 2)).toEqual({ x: 500, y: 300 });
+  });
+
+  it("moveStepTo clamps to non-negative ints and preserves order", () => {
+    const steps = [makeBrowserStep("goto", "a"), makeBrowserStep("goto", "b")];
+    const moved = moveStepTo(steps, "b", -40, 120.6);
+    expect(moved[0]).toBe(steps[0]);
+    expect(moved[1]).toMatchObject({ id: "b", x: 0, y: 121 });
+  });
+
+  it("canvasSize wraps all nodes with margin", () => {
+    const steps = [makeBrowserStep("goto", "a")];
+    steps[0].x = 1000;
+    steps[0].y = 600;
+    const size = canvasSize(steps);
+    expect(size.width).toBeGreaterThan(1000);
+    expect(size.height).toBeGreaterThan(600);
+  });
+
+  it("normalizeBrowserSteps preserves persisted node positions", () => {
+    const steps = normalizeBrowserSteps([{ id: "a", op: "goto", url: "https://x.com", x: 40, y: 60 }]);
+    expect(steps?.[0]).toMatchObject({ x: 40, y: 60 });
+    expect(normalizeBrowserSteps([{ id: "a", op: "goto", url: "https://x.com", x: -5 }])?.[0].x).toBeUndefined();
   });
 });

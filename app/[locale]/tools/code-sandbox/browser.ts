@@ -35,6 +35,9 @@ export interface BrowserStep {
   text: string;
   script: string;
   fullPage: boolean;
+  /** 画布节点坐标（可选；缺省时按索引生成网格默认位）。 */
+  x?: number;
+  y?: number;
 }
 
 export const BROWSER_STORAGE_KEY = "lucky-sandbox-browser-steps-v1";
@@ -101,6 +104,8 @@ export function normalizeBrowserSteps(raw: unknown): BrowserStep[] | null {
       text: typeof obj.text === "string" ? obj.text : "",
       script: typeof obj.script === "string" ? obj.script : "",
       fullPage: obj.fullPage === true,
+      x: typeof obj.x === "number" && Number.isFinite(obj.x) && obj.x >= 0 ? obj.x : undefined,
+      y: typeof obj.y === "number" && Number.isFinite(obj.y) && obj.y >= 0 ? obj.y : undefined,
     });
   }
   return steps;
@@ -182,4 +187,47 @@ export function duplicateBrowserStep(steps: BrowserStep[], id: string): BrowserS
   if (index === -1) return steps;
   const copy = { ...steps[index], id: randomId() };
   return [...steps.slice(0, index + 1), copy, ...steps.slice(index + 1)];
+}
+// ---------------------------------------------------------------------------
+// Canvas model：步进节点的空间布局（自由拖拽定位 + 顺序连接线）。
+// 执行顺序仍是数组顺序；坐标只影响空间布局，随步骤持久化。
+// ---------------------------------------------------------------------------
+
+export const NODE_W = 232;
+export const NODE_H = 96;
+export const CANVAS_MARGIN = 24;
+
+/**
+ * 节点坐标：持久化过 x/y 的用原值；否则按索引生成 3 列网格默认位，
+ * 旧数据（无坐标）零迁移成本地接入画布。
+ */
+export function nodePosition(step: BrowserStep, index: number): { x: number; y: number } {
+  if (typeof step.x === "number" && typeof step.y === "number") {
+    return { x: step.x, y: step.y };
+  }
+  const col = index % 3;
+  const row = Math.floor(index / 3);
+  return {
+    x: CANVAS_MARGIN + col * (NODE_W + 28),
+    y: CANVAS_MARGIN + row * (NODE_H + 24),
+  };
+}
+
+/** 移动节点到 (x, y)：坐标钳制为非负整数；数组顺序（执行序）不变。 */
+export function moveStepTo(steps: BrowserStep[], id: string, x: number, y: number): BrowserStep[] {
+  const cx = Math.max(0, Math.round(x));
+  const cy = Math.max(0, Math.round(y));
+  return steps.map((step) => (step.id === id ? { ...step, x: cx, y: cy } : step));
+}
+
+/** 画布内容尺寸：包裹全部节点再加余量（保证滚动能到达任意节点）。 */
+export function canvasSize(steps: BrowserStep[]): { width: number; height: number } {
+  let width = 800;
+  let height = 480;
+  steps.forEach((step, index) => {
+    const { x, y } = nodePosition(step, index);
+    width = Math.max(width, x + NODE_W + CANVAS_MARGIN);
+    height = Math.max(height, y + NODE_H + CANVAS_MARGIN);
+  });
+  return { width, height };
 }

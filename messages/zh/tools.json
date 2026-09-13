@@ -278,6 +278,7 @@
       "browserRemoveStep": "删除步骤",
       "browserDuplicateStep": "复制步骤",
       "browserShotDownload": "下载截图",
+      "browserCanvasHint": "拖拽节点标题调整布局；连接线即执行顺序；拖动空白处平移画布",
       "instancesClearFilters": "清除筛选",
       "browserUnavailable": "当前沙箱不支持浏览器操作。",
       "hint": "提示：沙箱实例按浏览器会话复用；Python / JavaScript 在 Jupyter 内核中执行，Bash 直接跑命令，Go / Java 写入源文件后调用工具链。"

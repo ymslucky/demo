@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Button } from "../../components/ui";
 import { useStickyState } from "../components/useStickyState";
@@ -10,8 +10,13 @@ import {
   BROWSER_STORAGE_KEY,
   browserStepArg,
   browserStepReady,
+  canvasSize,
   duplicateBrowserStep,
   makeBrowserStep,
+  moveStepTo,
+  nodePosition,
+  NODE_H,
+  NODE_W,
   moveBrowserStep,
   normalizeBrowserPayload,
   normalizeBrowserSteps,
@@ -50,36 +55,6 @@ const smallBtnStyle = {
   color: "var(--color-text)",
   cursor: "pointer",
 } as const;
-
-// 队列主按钮：可点时切换查看器到该步截图（含序号 / 操作 / 参数 / 结果）。
-const queueMainStyle = (clickable: boolean) =>
-  ({
-    fontFamily: "inherit",
-    display: "flex",
-    alignItems: "center",
-    gap: "var(--space-xs)",
-    flex: 1,
-    minWidth: 0,
-    padding: "0.4rem 0.6rem",
-    border: "2px solid var(--color-border)",
-    borderRadius: "var(--radius-sm)",
-    fontSize: "var(--fs-sm)",
-    textAlign: "left",
-    background: "var(--color-bg)",
-    color: "var(--color-text)",
-    cursor: clickable ? "pointer" : "default",
-  }) as const;
-
-const queueItemStyle = (active: boolean) =>
-  ({
-    display: "flex",
-    alignItems: "stretch",
-    gap: "var(--space-xs)",
-    padding: "0.15rem",
-    border: active ? "3px solid var(--color-primary)" : "3px solid transparent",
-    borderRadius: "var(--radius-sm)",
-    background: active ? "var(--color-tint)" : "transparent",
-  }) as const;
 
 const stepIndexBadgeStyle = {
   flexShrink: 0,
@@ -166,9 +141,71 @@ export default function BrowserPanel({ conversationId, post, mergeSnapshot, repo
   const [liveUrl, setLiveUrl] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // 画布交互：节点拖拽（本地态，pointerup 落盘）+ 背景平移（滚动条位移）。
+  const canvasRef = useRef<HTMLDivElement | null>(null);
+  const [dragPos, setDragPos] = useState<{ id: string; x: number; y: number } | null>(null);
+  const dragRef = useRef<{ id: string; startX: number; startY: number; origX: number; origY: number } | null>(null);
+  const panRef = useRef<{ startX: number; startY: number; scrollLeft: number; scrollTop: number } | null>(null);
+
+  function startNodeDrag(event: React.PointerEvent, step: BrowserStep) {
+    if (busy || event.button !== 0) return;
+    event.stopPropagation();
+    const index = steps.indexOf(step);
+    const pos = nodePosition(step, index);
+    dragRef.current = { id: step.id, startX: event.clientX, startY: event.clientY, origX: pos.x, origY: pos.y };
+    setDragPos({ id: step.id, x: pos.x, y: pos.y });
+    (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
+  }
+
+  function moveNode(event: React.PointerEvent) {
+    const drag = dragRef.current;
+    if (!drag) return;
+    setDragPos({
+      id: drag.id,
+      x: Math.max(0, drag.origX + (event.clientX - drag.startX)),
+      y: Math.max(0, drag.origY + (event.clientY - drag.startY)),
+    });
+  }
+
+  function endNodeDrag() {
+    const drag = dragRef.current;
+    if (!drag) return;
+    dragRef.current = null;
+    setStored((prev) =>
+      moveStepTo(normalizeBrowserSteps(prev) ?? [], drag.id, dragPos?.x ?? drag.origX, dragPos?.y ?? drag.origY),
+    );
+    setDragPos(null);
+  }
+
+  function startPan(event: React.PointerEvent) {
+    if (event.button !== 0) return;
+    const el = canvasRef.current;
+    if (!el) return;
+    panRef.current = {
+      startX: event.clientX,
+      startY: event.clientY,
+      scrollLeft: el.scrollLeft,
+      scrollTop: el.scrollTop,
+    };
+    el.setPointerCapture(event.pointerId);
+  }
+
+  function panMove(event: React.PointerEvent) {
+    const pan = panRef.current;
+    const el = canvasRef.current;
+    if (!pan || !el) return;
+    el.scrollLeft = pan.scrollLeft - (event.clientX - pan.startX);
+    el.scrollTop = pan.scrollTop - (event.clientY - pan.startY);
+  }
+
+  function endPan() {
+    panRef.current = null;
+  }
 
   const resultFor = (stepId: string): BrowserStepResult | undefined =>
     results.find((item) => item.stepId === stepId)?.result;
+
+  const size = useMemo(() => canvasSize(steps), [steps]);
 
   // 查看器默认跟随最新一张截图；点击队列行（有截图的步骤）可切换回看。
   const latestShotId = useMemo(() => {
@@ -357,109 +394,218 @@ export default function BrowserPanel({ conversationId, post, mergeSnapshot, repo
           ) : null}
         </div>
 
+        <p style={{ ...mutedStyle, margin: 0 }}>{t("browserCanvasHint")}</p>
         {error ? (
           <p style={{ ...mutedStyle, margin: 0, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{error}</p>
         ) : null}
 
-        {steps.length === 0 ? (
-          <div style={mutedStyle}>{t("browserQueueEmpty")}</div>
-        ) : (
-          <ol
-            style={{
-              listStyle: "none",
-              margin: 0,
-              padding: 0,
-              display: "grid",
-              gap: "var(--space-xs)",
-              alignContent: "start",
-              minHeight: 0,
-              overflowY: "auto",
-            }}
-          >
+        <div
+          ref={canvasRef}
+          onPointerDown={startPan}
+          onPointerMove={(event) => {
+            moveNode(event);
+            panMove(event);
+          }}
+          onPointerUp={() => {
+            endNodeDrag();
+            endPan();
+          }}
+          style={{
+            position: "relative",
+            overflow: "auto",
+            minHeight: 280,
+            flex: 1,
+            border: "3px dashed var(--color-border)",
+            borderRadius: "var(--radius-sm)",
+            background: "var(--color-bg)",
+          }}
+        >
+          <div style={{ position: "relative", width: size.width, height: size.height }}>
+            <svg
+              width={size.width}
+              height={size.height}
+              style={{ position: "absolute", inset: 0, pointerEvents: "none" }}
+            >
+              <defs>
+                <marker
+                  id="browser-arrow"
+                  viewBox="0 0 10 10"
+                  refX="9"
+                  refY="5"
+                  markerWidth="7"
+                  markerHeight="7"
+                  orient="auto-start-reverse"
+                >
+                  <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--color-border)" />
+                </marker>
+              </defs>
+              {steps.slice(0, -1).map((step, index) => {
+                const a = nodePosition(steps[index], index);
+                const b = nodePosition(steps[index + 1], index + 1);
+                const ax = a.x + NODE_W;
+                const ay = a.y + NODE_H / 2;
+                const bx = b.x;
+                const by = b.y + NODE_H / 2;
+                const midX = (ax + bx) / 2;
+                return (
+                  <path
+                    key={step.id}
+                    d={`M ${ax} ${ay} C ${midX} ${ay}, ${midX} ${by}, ${bx} ${by}`}
+                    stroke="var(--color-border)"
+                    strokeWidth="2"
+                    fill="none"
+                    markerEnd="url(#browser-arrow)"
+                  />
+                );
+              })}
+            </svg>
+            {steps.length === 0 ? (
+              <div style={{ ...mutedStyle, position: "absolute", left: 24, top: 24 }}>
+                {t("browserQueueEmpty")}
+              </div>
+            ) : null}
             {steps.map((step, index) => {
               const result = resultFor(step.id);
               const hasShot = Boolean(result?.base64Image);
+              const pos =
+                dragPos && dragPos.id === step.id
+                  ? { x: dragPos.x, y: dragPos.y }
+                  : nodePosition(step, index);
+              const dragging = dragPos?.id === step.id;
+              const running = activeIndex === index;
               return (
-                <li key={step.id} style={queueItemStyle(activeIndex === index)}>
-                  <button
-                    type="button"
-                    style={queueMainStyle(hasShot)}
-                    disabled={!hasShot}
-                    onClick={() => setViewShotId(step.id)}
-                    title={result?.content}
+                <div
+                  key={step.id}
+                  style={{
+                    position: "absolute",
+                    left: pos.x,
+                    top: pos.y,
+                    width: NODE_W,
+                    border: dragging || running ? "3px solid var(--color-primary)" : "2px solid var(--color-border)",
+                    borderRadius: "var(--radius-sm)",
+                    background: "var(--color-surface)",
+                    boxShadow: "var(--shadow-sm)",
+                    opacity: dragging ? 0.92 : 1,
+                  }}
+                >
+                  <div
+                    onPointerDown={(event) => startNodeDrag(event, step)}
+                    onPointerMove={moveNode}
+                    onPointerUp={endNodeDrag}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "0.3rem",
+                      padding: "0.3rem 0.4rem",
+                      cursor: dragging ? "grabbing" : "grab",
+                      touchAction: "none",
+                    }}
                   >
                     <span style={stepIndexBadgeStyle} aria-hidden="true">
                       {index + 1}
                     </span>
-                    <span style={{ fontWeight: 800, whiteSpace: "nowrap" }}>{t(opLabelKey(step.op))}</span>
-                    {browserStepArg(step) ? (
-                      <span style={{ ...monoStyle, ...mutedStyle, wordBreak: "break-all" }}>
-                        {browserStepArg(step)}
-                      </span>
-                    ) : null}
+                    <span
+                      style={{
+                        fontWeight: 800,
+                        fontSize: "var(--fs-xs)",
+                        whiteSpace: "nowrap",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                      }}
+                    >
+                      {t(opLabelKey(step.op))}
+                    </span>
                     {result ? (
                       <span style={resultBadgeStyle(result.ok)} aria-hidden="true">
                         {result.ok ? "✓" : "✗"}
                       </span>
                     ) : null}
-                    {result && !result.ok && result.error ? (
-                      <span style={{ ...mutedStyle, color: "var(--color-err-text)", wordBreak: "break-word" }}>
-                        {result.error}
-                      </span>
+                  </div>
+                  {browserStepArg(step) ? (
+                    <div
+                      style={{
+                        ...monoStyle,
+                        ...mutedStyle,
+                        fontSize: "var(--fs-xs)",
+                        wordBreak: "break-all",
+                        padding: "0 0.4rem 0.3rem",
+                      }}
+                    >
+                      {browserStepArg(step)}
+                    </div>
+                  ) : null}
+                  {result && !result.ok && result.error ? (
+                    <div
+                      style={{
+                        ...mutedStyle,
+                        color: "var(--color-err-text)",
+                        fontSize: "var(--fs-xs)",
+                        wordBreak: "break-word",
+                        padding: "0 0.4rem 0.3rem",
+                      }}
+                    >
+                      {result.error}
+                    </div>
+                  ) : null}
+                  <div style={{ display: "flex", gap: "0.2rem", padding: "0 0.3rem 0.3rem" }}>
+                    {hasShot ? (
+                      <button
+                        type="button"
+                        style={smallBtnStyle}
+                        aria-label={t("browserShotTitle")}
+                        onClick={() => setViewShotId(step.id)}
+                      >
+                        🖼
+                      </button>
                     ) : null}
-                    {result?.summary ? (
-                      <span style={{ ...mutedStyle, marginLeft: "auto", whiteSpace: "nowrap" }}>
-                        {result.summary}
-                      </span>
-                    ) : null}
-                  </button>
-                  <button
-                    type="button"
-                    style={smallBtnStyle}
-                    aria-label={t("browserDuplicateStep")}
-                    disabled={busy}
-                    onClick={() =>
-                      setStored((prev) => duplicateBrowserStep(normalizeBrowserSteps(prev) ?? [], step.id))
-                    }
-                  >
-                    ⧉
-                  </button>
-                  <button
-                    type="button"
-                    style={smallBtnStyle}
-                    aria-label={t("browserMoveUp")}
-                    disabled={busy || index === 0}
-                    onClick={() =>
-                      setStored((prev) => moveBrowserStep(normalizeBrowserSteps(prev) ?? [], step.id, -1))
-                    }
-                  >
-                    ↑
-                  </button>
-                  <button
-                    type="button"
-                    style={smallBtnStyle}
-                    aria-label={t("browserMoveDown")}
-                    disabled={busy || index === steps.length - 1}
-                    onClick={() =>
-                      setStored((prev) => moveBrowserStep(normalizeBrowserSteps(prev) ?? [], step.id, 1))
-                    }
-                  >
-                    ↓
-                  </button>
-                  <button
-                    type="button"
-                    style={smallBtnStyle}
-                    aria-label={t("browserRemoveStep")}
-                    disabled={busy}
-                    onClick={() => setStored((prev) => removeBrowserStep(normalizeBrowserSteps(prev) ?? [], step.id))}
-                  >
-                    ✕
-                  </button>
-                </li>
+                    <button
+                      type="button"
+                      style={smallBtnStyle}
+                      aria-label={t("browserMoveUp")}
+                      disabled={busy || index === 0}
+                      onClick={() =>
+                        setStored((prev) => moveBrowserStep(normalizeBrowserSteps(prev) ?? [], step.id, -1))
+                      }
+                    >
+                      ↑
+                    </button>
+                    <button
+                      type="button"
+                      style={smallBtnStyle}
+                      aria-label={t("browserMoveDown")}
+                      disabled={busy || index === steps.length - 1}
+                      onClick={() =>
+                        setStored((prev) => moveBrowserStep(normalizeBrowserSteps(prev) ?? [], step.id, 1))
+                      }
+                    >
+                      ↓
+                    </button>
+                    <button
+                      type="button"
+                      style={smallBtnStyle}
+                      aria-label={t("browserDuplicateStep")}
+                      disabled={busy}
+                      onClick={() =>
+                        setStored((prev) => duplicateBrowserStep(normalizeBrowserSteps(prev) ?? [], step.id))
+                      }
+                    >
+                      ⧉
+                    </button>
+                    <button
+                      type="button"
+                      style={smallBtnStyle}
+                      aria-label={t("browserRemoveStep")}
+                      disabled={busy}
+                      onClick={() => setStored((prev) => removeBrowserStep(normalizeBrowserSteps(prev) ?? [], step.id))}
+                    >
+                      ✕
+                    </button>
+                  </div>
+                </div>
               );
             })}
-          </ol>
-        )}
+          </div>
+        </div>
       </section>
 
       <section style={panelStyle} aria-label={t("browserShotTitle")}>
