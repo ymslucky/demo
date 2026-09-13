@@ -7,7 +7,11 @@ import {
   formatDateTimeValue,
   groupColor,
   groupSections,
+  completeMany,
   insertItemAt,
+  moveManyToGroup,
+  removeMany,
+  toggleId,
   isDueToday,
   isOverdue,
   makeLocalItem,
@@ -503,5 +507,38 @@ describe("groupColor", () => {
     expect([groupColor("a"), groupColor("b"), groupColor("c")].every((c) => c.startsWith("var(--"))).toBe(
       true,
     );
+  });
+});
+
+describe("batch selection helpers", () => {
+  it("toggleId toggles membership without mutating", () => {
+    expect(toggleId(["a"], "b")).toEqual(["a", "b"]);
+    expect(toggleId(["a", "b"], "a")).toEqual(["b"]);
+  });
+
+  it("completeMany stamps completion once and clears on undone", () => {
+    const now = 1_700_000_000_000;
+    const items = [
+      mk("a", { done: true, completedAt: 42 }),
+      mk("b"),
+    ];
+    const done = completeMany(items, ["b"], true, now);
+    expect(done[0].completedAt).toBe(42); // 已完成的保持原时间（幂等）
+    expect(done[1]).toMatchObject({ done: true, completedAt: now });
+    const undone = completeMany(done, ["a", "b"], false);
+    expect(undone.every((i) => !i.done && i.completedAt === 0)).toBe(true);
+  });
+
+  it("removeMany deletes only selected ids", () => {
+    const items = [mk("a"), mk("b"), mk("c")];
+    expect(removeMany(items, ["a", "c"]).map((i) => i.id)).toEqual(["b"]);
+  });
+
+  it("moveManyToGroup trims the target and moves only selected items", () => {
+    const items = [mk("a", { group: "work" }), mk("b")];
+    const moved = moveManyToGroup(items, ["b"], " home ");
+    expect(moved[0].group).toBe("work");
+    expect(moved[1].group).toBe("home");
+    expect(moved[1].group === " home ").toBe(false);
   });
 });

@@ -18,16 +18,20 @@ import {
   insertItemAt,
   isDueToday,
   isOverdue,
+  completeMany,
   makeLocalItem,
+  moveManyToGroup,
   normalizeItems,
   parseCloudMirror,
   parseDateValue,
   parseDateTimeValue,
   parseLocalItems,
   priorityKey,
+  removeMany,
   removeDone,
   renameGroup,
   sortTodoItems,
+  toggleId,
   statsSummary,
   trend7Days,
   type TodoDraft,
@@ -212,6 +216,9 @@ function TodoPanel() {
   // 撤销删除：单槽位（新删除覆盖旧撤销），6 秒后自动过期。
   const [undo, setUndo] = useState<{ item: TodoItem; index: number } | null>(null);
   const undoTimerRef = useRef(0);
+  // 批量多选：模式开关 + 已选 id（会话内状态）。
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [tab, setTab] = useState<"list" | "stats">("list");
   const [editing, setEditing] = useState<EditDraft | null>(null);
   const [sync, setSync] = useState<SyncState>("idle");
@@ -995,6 +1002,17 @@ function TodoPanel() {
                 <option value="priority">{t("sortPriority")}</option>
                 <option value="created">{t("sortCreated")}</option>
               </select>
+              <button
+                type="button"
+                className={selectMode ? "todo-chip todo-chip--on" : "todo-chip"}
+                aria-pressed={selectMode}
+                onClick={() => {
+                  setSelectMode(!selectMode);
+                  setSelectedIds([]);
+                }}
+              >
+                {t("selectMode")}
+              </button>
               {doneCount > 0 ? (
                 <button
                   type="button"
@@ -1006,7 +1024,75 @@ function TodoPanel() {
               ) : null}
             </div>
           ) : null}
-          {items.length > 0 && sortMode === "manual" ? (
+          {selectMode ? (
+            <div className="todo-bulk-bar" role="toolbar" aria-label={t("bulkActions")}>
+              <span style={mutedStyle}>{t("selectedCount", { count: selectedIds.length })}</span>
+              <button
+                type="button"
+                className="todo-chip"
+                onClick={() => setSelectedIds(visibleItems.map((item) => item.id))}
+              >
+                {t("selectAll")}
+              </button>
+              {selectedIds.length > 0 ? (
+                <>
+                  <button
+                    type="button"
+                    className="todo-chip"
+                    onClick={() => commit(completeMany(items, selectedIds, true))}
+                  >
+                    {t("markDone")}
+                  </button>
+                  <button
+                    type="button"
+                    className="todo-chip"
+                    onClick={() => commit(completeMany(items, selectedIds, false))}
+                  >
+                    {t("markUndone")}
+                  </button>
+                  <select
+                    className="todo-prio-select"
+                    value=""
+                    aria-label={t("moveToGroup")}
+                    onChange={(event) => {
+                      const target = event.target.value;
+                      if (!target) return;
+                      commit(moveManyToGroup(items, selectedIds, target === "__default__" ? "" : target));
+                    }}
+                  >
+                    <option value="">{t("moveToGroup")}</option>
+                    {groupNames.map((name) => (
+                      <option key={name} value={name}>
+                        {name}
+                      </option>
+                    ))}
+                    <option value="__default__">{t("defaultGroup")}</option>
+                  </select>
+                  <button
+                    type="button"
+                    className="todo-chip"
+                    onClick={() => {
+                      commit(removeMany(items, selectedIds));
+                      setSelectedIds([]);
+                    }}
+                  >
+                    {t("deleteSelected", { count: selectedIds.length })}
+                  </button>
+                </>
+              ) : null}
+              <button
+                type="button"
+                className="todo-chip"
+                onClick={() => {
+                  setSelectMode(false);
+                  setSelectedIds([]);
+                }}
+              >
+                {t("exitSelect")}
+              </button>
+            </div>
+          ) : null}
+          {items.length > 0 && sortMode === "manual" && !selectMode ? (
             <p className="todo-dnd-hint">{t("keyboardHint")}</p>
           ) : null}
           {items.length > 0 ? <p className="todo-dnd-hint">{t("shortcutsHint")}</p> : null}
@@ -1105,30 +1191,42 @@ function TodoPanel() {
                           data-todo-group={section.name}
                           data-todo-idx={index}
                         >
-                          <button
-                            type="button"
-                            className="todo-grip"
-                            aria-label={t("moveItem", { title: item.title })}
-                            onPointerDown={(event) => onGripPointerDown(event, item.id)}
-                            onKeyDown={(event) => {
-                              if (event.key === "ArrowUp") {
-                                event.preventDefault();
-                                moveBy(item.id, -1);
-                              } else if (event.key === "ArrowDown") {
-                                event.preventDefault();
-                                moveBy(item.id, 1);
-                              }
-                            }}
-                          >
-                            <GripIcon />
-                          </button>
-                          <input
-                            type="checkbox"
-                            className="todo-check"
-                            checked={item.done}
-                            onChange={() => toggle(item)}
-                            aria-label={item.title}
-                          />
+                          {selectMode ? (
+                            <input
+                              type="checkbox"
+                              className="todo-check"
+                              checked={selectedIds.includes(item.id)}
+                              onChange={() => setSelectedIds((prev) => toggleId(prev, item.id))}
+                              aria-label={t("selectItem", { title: item.title })}
+                            />
+                          ) : (
+                            <>
+                              <button
+                                type="button"
+                                className="todo-grip"
+                                aria-label={t("moveItem", { title: item.title })}
+                                onPointerDown={(event) => onGripPointerDown(event, item.id)}
+                                onKeyDown={(event) => {
+                                  if (event.key === "ArrowUp") {
+                                    event.preventDefault();
+                                    moveBy(item.id, -1);
+                                  } else if (event.key === "ArrowDown") {
+                                    event.preventDefault();
+                                    moveBy(item.id, 1);
+                                  }
+                                }}
+                              >
+                                <GripIcon />
+                              </button>
+                              <input
+                                type="checkbox"
+                                className="todo-check"
+                                checked={item.done}
+                                onChange={() => toggle(item)}
+                                aria-label={item.title}
+                              />
+                            </>
+                          )}
                           <div className="todo-item-main">
                             <span
                               className={
@@ -1201,22 +1299,26 @@ function TodoPanel() {
                               </span>
                             ) : null}
                           </div>
-                          <button
-                            type="button"
-                            onClick={() => startEdit(item)}
-                            aria-label={t("editItem", { title: item.title })}
-                            style={iconBtnStyle}
-                          >
-                            ✎
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => remove(item.id)}
-                            aria-label={t("deleteItem", { title: item.title })}
-                            style={iconBtnStyle}
-                          >
-                            ×
-                          </button>
+                          {!selectMode ? (
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => startEdit(item)}
+                                aria-label={t("editItem", { title: item.title })}
+                                style={iconBtnStyle}
+                              >
+                                ✎
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => remove(item.id)}
+                                aria-label={t("deleteItem", { title: item.title })}
+                                style={iconBtnStyle}
+                              >
+                                ×
+                              </button>
+                            </>
+                          ) : null}
                         </li>
                       </Fragment>
                     );

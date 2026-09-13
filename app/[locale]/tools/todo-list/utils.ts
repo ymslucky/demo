@@ -464,3 +464,42 @@ export function groupColor(name: string): string {
   }
   return GROUP_PALETTE[hash % GROUP_PALETTE.length];
 }
+// ---------------------------------------------------------------------------
+// Batch selection helpers (select mode)
+// ---------------------------------------------------------------------------
+
+/** Toggle membership of `id` in the selection list. */
+export function toggleId(ids: string[], id: string): string[] {
+  return ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id];
+}
+
+/**
+ * Set `done` for every selected id. Completing keeps an existing
+ * completedAt (idempotent re-runs do not re-stamp); unsetting clears it.
+ */
+export function completeMany(
+  items: TodoItem[],
+  ids: string[],
+  done: boolean,
+  now = Date.now(),
+): TodoItem[] {
+  const set = new Set(ids);
+  return items.map((item) =>
+    set.has(item.id)
+      ? { ...item, done, completedAt: done ? (item.completedAt > 0 ? item.completedAt : now) : 0 }
+      : item,
+  );
+}
+
+/** Remove every selected id at once. */
+export function removeMany(items: TodoItem[], ids: string[]): TodoItem[] {
+  const set = new Set(ids);
+  return items.filter((item) => !set.has(item.id));
+}
+
+/** Move every selected item into `group` (trimmed, capped; "" = default). */
+export function moveManyToGroup(items: TodoItem[], ids: string[], group: string): TodoItem[] {
+  const set = new Set(ids);
+  const target = group.trim().slice(0, MAX_GROUP_LEN);
+  return items.map((item) => (set.has(item.id) ? { ...item, group: target } : item));
+}

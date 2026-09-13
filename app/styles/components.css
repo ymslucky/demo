@@ -2172,3 +2172,15 @@ body.todo-dragging {
   margin-right: 0.4rem;
   vertical-align: middle;
 }
+/* ---- Todo bulk-selection action bar ---- */
+.todo-bulk-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-xs);
+  margin-top: var(--space-xs);
+  padding: 0.5rem 0.75rem;
+  border: 3px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-tint);
+}
