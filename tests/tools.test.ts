@@ -222,3 +222,20 @@ describe("formatTimezone", () => {
     expect(formatTimezone(d)).toBe("UTC+00:00");
   });
 });
+
+describe("convertCase: extended naming modes", () => {
+  it("kebab mode lowercases and joins words with hyphens", () => {
+    expect(convertCase("kebab", "Hello World")).toBe("hello-world");
+    expect(convertCase("kebab", "foo_bar baz")).toBe("foo-bar-baz");
+  });
+
+  it("pascal mode title-cases concatenated words", () => {
+    expect(convertCase("pascal", "hello world")).toBe("HelloWorld");
+    expect(convertCase("pascal", "hello-world_foo")).toBe("HelloWorldFoo");
+  });
+
+  it("constant mode uppercases and joins words with underscores", () => {
+    expect(convertCase("constant", "hello world")).toBe("HELLO_WORLD");
+    expect(convertCase("constant", "hello-world")).toBe("HELLO_WORLD");
+  });
+});

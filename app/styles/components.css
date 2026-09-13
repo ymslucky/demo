@@ -779,6 +779,16 @@
   margin-top: var(--space-xs);
 }
 
+/* Muted mono detail line (live timestamp metadata, JSON error position). */
+.tool-detail {
+  display: block;
+  margin: 2px 0 0;
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  color: var(--color-text-muted);
+  word-break: break-all;
+}
+
 .tool-actions {
   display: flex;
   flex-wrap: wrap;

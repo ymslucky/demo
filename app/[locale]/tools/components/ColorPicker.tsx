@@ -6,6 +6,7 @@ import { hexToRgb, rgbToHsl, getColorStrings } from "../utils";
 import { useStickyState } from "./useStickyState";
 import { Input } from "../../components/ui";
 import { ToolShell } from "./ToolShell";
+import { CopyButton } from "./CopyButton";
 
 export default function ColorPicker() {
   const t = useTranslations("tools");
@@ -79,6 +80,7 @@ export default function ColorPicker() {
               value={colorHex}
               onChange={(e) => handleHexInput(e.target.value)}
             />
+            <CopyButton value={colorHex} />
           </div>
           <div className="color-line">
             <span className="color-label">{t("labels.rgb")}</span>
@@ -89,6 +91,7 @@ export default function ColorPicker() {
               value={colorRgb}
               aria-label={t("labels.rgbValue")}
             />
+            <CopyButton value={colorRgb} />
           </div>
           <div className="color-line">
             <span className="color-label">{t("labels.hsl")}</span>
@@ -99,6 +102,7 @@ export default function ColorPicker() {
               value={colorHsl}
               aria-label={t("labels.hslValue")}
             />
+            <CopyButton value={colorHsl} />
           </div>
         </div>
       </div>

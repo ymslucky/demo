@@ -6,6 +6,7 @@ import { encodeBase64, decodeBase64 } from "../utils";
 import { useStickyState } from "./useStickyState";
 import { Button, Textarea } from "../../components/ui";
 import { ToolActions, ToolResult, ToolShell } from "./ToolShell";
+import { CopyButton } from "./CopyButton";
 
 export default function Base64Tool() {
   const t = useTranslations("tools");
@@ -57,6 +58,7 @@ export default function Base64Tool() {
         <Button variant="secondary" size="sm" onClick={b64Clear}>
           {t("actions.clear")}
         </Button>
+        {b64Output && !b64Err ? <CopyButton value={b64Output} /> : null}
       </ToolActions>
       <ToolResult tone={b64Err ? "err" : "ok"}>{b64Output}</ToolResult>
     </ToolShell>

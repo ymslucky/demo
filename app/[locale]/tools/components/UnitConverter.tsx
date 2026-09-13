@@ -6,6 +6,7 @@ import { unitData, convertUnit } from "../utils";
 import { useStickyState } from "./useStickyState";
 import { Button, Input } from "../../components/ui";
 import { ToolActions, ToolShell } from "./ToolShell";
+import { CopyButton } from "./CopyButton";
 
 export default function UnitConverter() {
   const t = useTranslations("tools");
@@ -107,6 +108,7 @@ export default function UnitConverter() {
         <Button variant="secondary" size="sm" onClick={swapUnits}>
           {t("actions.swap")}
         </Button>
+        {unitResult ? <CopyButton value={unitResult} /> : null}
       </ToolActions>
     </ToolShell>
   );

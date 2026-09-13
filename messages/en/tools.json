@@ -49,6 +49,8 @@
       "decode": "← Decode",
       "refresh": "Refresh",
       "swap": "Swap ⇄",
+      "copy": "Copy",
+      "copied": "Copied ✓",
       "open": "Open tool →"
     },
     "httpCheck": {
@@ -277,14 +279,18 @@
       "invalidJson": "✗ Invalid JSON"
     },
     "timestamp": {
-      "secondsMs": "Seconds: {seconds}    Milliseconds: {milliseconds}"
+      "secondsMs": "Seconds: {seconds}    Milliseconds: {milliseconds}",
+      "nowMeta": "Milliseconds: {ms} · {timezone}"
     },
     "caseModes": {
       "upper": "UPPER",
       "lower": "lower",
       "title": "Title",
       "camel": "camelCase",
-      "snake": "snake_case"
+      "snake": "snake_case",
+      "kebab": "kebab-case",
+      "pascal": "PascalCase",
+      "constant": "CONSTANT_CASE"
     }
   }
 }

@@ -6,6 +6,7 @@ import { convertCase } from "../utils";
 import { useStickyState } from "./useStickyState";
 import { Button, Textarea } from "../../components/ui";
 import { ToolActions, ToolResult, ToolShell } from "./ToolShell";
+import { CopyButton } from "./CopyButton";
 
 export default function CaseConverter() {
   const t = useTranslations("tools");
@@ -61,6 +62,28 @@ export default function CaseConverter() {
         >
           {t("caseModes.snake")}
         </Button>
+        <Button
+          variant="secondary"
+          size="sm"
+          onClick={() => handleConvertCase("kebab")}
+        >
+          {t("caseModes.kebab")}
+        </Button>
+        <Button
+          variant="secondary"
+          size="sm"
+          onClick={() => handleConvertCase("pascal")}
+        >
+          {t("caseModes.pascal")}
+        </Button>
+        <Button
+          variant="secondary"
+          size="sm"
+          onClick={() => handleConvertCase("constant")}
+        >
+          {t("caseModes.constant")}
+        </Button>
+        {caseOutput ? <CopyButton value={caseOutput} /> : null}
       </ToolActions>
       <ToolResult>{caseOutput}</ToolResult>
     </ToolShell>

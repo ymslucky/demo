@@ -164,7 +164,15 @@ export function formatTimezone(d: Date): string {
 // 大小写转换
 // ---------------------------------------------------------------------------
 
-export type CaseMode = "upper" | "lower" | "title" | "camel" | "snake";
+export type CaseMode =
+  | "upper"
+  | "lower"
+  | "title"
+  | "camel"
+  | "snake"
+  | "kebab"
+  | "pascal"
+  | "constant";
 
 export function convertCase(mode: string, input: string): string {
   if (!input) return "";
@@ -186,6 +194,16 @@ export function convertCase(mode: string, input: string): string {
     }
     case "snake":
       return input.trim().toLowerCase().replace(/[\s-]+/g, "_");
+    case "kebab":
+      return input.trim().toLowerCase().replace(/[\s_]+/g, "-");
+    case "pascal": {
+      const parts = input.toLowerCase().split(/[\s_-]+/).filter(Boolean);
+      return parts
+        .map((p) => p.charAt(0).toUpperCase() + p.slice(1))
+        .join("");
+    }
+    case "constant":
+      return input.trim().toUpperCase().replace(/[\s-]+/g, "_");
     default:
       return input;
   }

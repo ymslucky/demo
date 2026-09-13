@@ -49,6 +49,8 @@
       "decode": "← 解码",
       "refresh": "刷新",
       "swap": "交换 ⇄",
+      "copy": "复制",
+      "copied": "已复制 ✓",
       "open": "进入工具 →"
     },
     "httpCheck": {
@@ -277,14 +279,18 @@
       "invalidJson": "✗ 无效的 JSON"
     },
     "timestamp": {
-      "secondsMs": "秒: {seconds}   毫秒: {milliseconds}"
+      "secondsMs": "秒: {seconds}   毫秒: {milliseconds}",
+      "nowMeta": "毫秒：{ms} · {timezone}"
     },
     "caseModes": {
       "upper": "大写",
       "lower": "小写",
       "title": "标题格式",
       "camel": "驼峰式",
-      "snake": "蛇形式"
+      "snake": "蛇形式",
+      "kebab": "短横线式",
+      "pascal": "帕斯卡式",
+      "constant": "常量式"
     }
   }
 }
