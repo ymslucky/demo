@@ -17,6 +17,7 @@ build/
 # IDE / Editor
 .vscode/
 .idea/
+.trae/
 *.swp
 *.swo
 *~
