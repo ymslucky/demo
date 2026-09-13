@@ -213,6 +213,8 @@ function TodoPanel() {
   // 分组管理：正在重命名的分组名 + 输入框草稿。
   const [renamingGroup, setRenamingGroup] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
+  // 看板列内快速添加的草稿（按分组名分键）。
+  const [boardDrafts, setBoardDrafts] = useState<Record<string, string>>({});
   // 撤销删除：单槽位（新删除覆盖旧撤销），6 秒后自动过期。
   const [undo, setUndo] = useState<{ item: TodoItem; index: number } | null>(null);
   const undoTimerRef = useRef(0);
@@ -1498,6 +1500,7 @@ function TodoPanel() {
                       event.dataTransfer.setData("text/todo-id", item.id);
                       event.dataTransfer.effectAllowed = "move";
                     }}
+                    onClick={() => startEdit(item)}
                   >
                     <span
                       className={
@@ -1518,6 +1521,33 @@ function TodoPanel() {
                     </span>
                   </article>
                 ))}
+                <form
+                  className="todo-board-add"
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    const value = (boardDrafts[section.name] ?? "").trim();
+                    if (!value) return;
+                    commit([
+                      makeLocalItem(
+                        { title: value, note: "", dueAt: 0, remindAt: 0, priority: 0, group: section.name },
+                      ),
+                      ...(itemsRef.current ?? []),
+                    ]);
+                    setBoardDrafts((prev) => ({ ...prev, [section.name]: "" }));
+                  }}
+                >
+                  <input
+                    type="text"
+                    className="todo-search"
+                    value={boardDrafts[section.name] ?? ""}
+                    onChange={(event) =>
+                      setBoardDrafts((prev) => ({ ...prev, [section.name]: event.target.value }))
+                    }
+                    placeholder={t("boardAddPlaceholder")}
+                    aria-label={t("boardAddPlaceholder")}
+                    maxLength={200}
+                  />
+                </form>
               </section>
             ))}
           </div>

@@ -6,6 +6,8 @@ import {
   hexToRgb,
   rgbToHsl,
   getColorStrings,
+  contrastRatio,
+  expandShortHex,
   isHexColor,
   pushColorHistory,
 } from "../utils";
@@ -64,6 +66,15 @@ export default function ColorPicker() {
   // localStorage 读取防御：只渲染规范 6 位 hex，历史键可能来自旧版本数据。
   const safeHistory = colorHistory.filter(isHexColor);
 
+  // 十六进制合法时的对比度（对白底 / 黑底），非法输入显示占位。
+  const validHex = /^#[0-9a-fA-F]{6}$/.test(colorHex);
+  const contrastWhite = validHex
+    ? contrastRatio(hexToRgb(colorHex), [255, 255, 255]).toFixed(2) + ":1"
+    : "—";
+  const contrastBlack = validHex
+    ? contrastRatio(hexToRgb(colorHex), [0, 0, 0]).toFixed(2) + ":1"
+    : "—";
+
   const handleColorPick = (val: string) => {
     setColorHex(val);
     updateColorValues(val);
@@ -92,6 +103,16 @@ export default function ColorPicker() {
               type="text"
               value={colorHex}
               onChange={(e) => handleHexInput(e.target.value)}
+              onBlur={() => {
+                // 失焦时展开 #abc 短格式（输入中展开会干扰 6 位输入）。
+                if (/^#[0-9a-fA-F]{3}$/.test(colorHex)) {
+                  const full = expandShortHex(colorHex);
+                  setColorHex(full);
+                  if (colorInputRef.current) colorInputRef.current.value = full;
+                  updateColorValues(full);
+                  setColorHistory((prev) => pushColorHistory(prev, full));
+                }
+              }}
             />
             <CopyButton value={colorHex} />
           </div>
@@ -116,6 +137,14 @@ export default function ColorPicker() {
               aria-label={t("labels.hslValue")}
             />
             <CopyButton value={colorHsl} />
+          </div>
+          <div className="color-line">
+            <span className="color-label">{t("labels.contrastWhite")}</span>
+            <span className="color-contrast">{contrastWhite}</span>
+          </div>
+          <div className="color-line">
+            <span className="color-label">{t("labels.contrastBlack")}</span>
+            <span className="color-contrast">{contrastBlack}</span>
           </div>
         </div>
       </div>

@@ -6,8 +6,11 @@ import {
   convertCase,
   convertUnit,
   unitData,
+  contrastRatio,
   encodeBase64,
   decodeBase64,
+  expandShortHex,
+  relativeLuminance,
   encodeBase64Url,
   decodeBase64Url,
   isHexColor,
@@ -297,5 +300,25 @@ describe("tokenizeJson", () => {
     );
     expect(meaningful).toHaveLength(2);
     expect(tokens.some((t) => t.value.includes("say"))).toBe(true);
+  });
+});
+
+describe("WCAG contrast + short hex", () => {
+  it("relativeLuminance bounds white=1 and black=0", () => {
+    expect(relativeLuminance([255, 255, 255])).toBeCloseTo(1, 5);
+    expect(relativeLuminance([0, 0, 0])).toBeCloseTo(0, 5);
+  });
+
+  it("contrastRatio spans 1..21 with the bright side up", () => {
+    expect(contrastRatio([0, 0, 0], [255, 255, 255])).toBeCloseTo(21, 1);
+    expect(contrastRatio([255, 255, 255], [0, 0, 0])).toBeCloseTo(21, 1);
+    expect(contrastRatio([255, 255, 255], [255, 255, 255])).toBeCloseTo(1, 5);
+  });
+
+  it("expandShortHex doubles digits, leaves other input alone", () => {
+    expect(expandShortHex("#abc")).toBe("#aabbcc");
+    expect(expandShortHex("#AbC")).toBe("#AAbbCC");
+    expect(expandShortHex("#abcd")).toBe("#abcd");
+    expect(expandShortHex("abc")).toBe("abc");
   });
 });

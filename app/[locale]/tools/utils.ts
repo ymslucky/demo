@@ -298,3 +298,34 @@ export function tokenizeJson(json: string): JsonToken[] {
   if (last < json.length) tokens.push({ type: "plain", value: json.slice(last) });
   return tokens;
 }
+// ---------------------------------------------------------------------------
+// WCAG contrast + short-hex expansion (color picker maturity)
+// ---------------------------------------------------------------------------
+
+/** WCAG 2.x relative luminance of an sRGB triple. */
+export function relativeLuminance(rgb: [number, number, number]): number {
+  const lin = (c: number) => {
+    const s = c / 255;
+    return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
+  };
+  return 0.2126 * lin(rgb[0]) + 0.7152 * lin(rgb[1]) + 0.0722 * lin(rgb[2]);
+}
+
+/** WCAG contrast ratio between two sRGB triples (1..21, bright side up). */
+export function contrastRatio(
+  a: [number, number, number],
+  b: [number, number, number],
+): number {
+  const la = relativeLuminance(a);
+  const lb = relativeLuminance(b);
+  const [hi, lo] = la >= lb ? [la, lb] : [lb, la];
+  return (hi + 0.05) / (lo + 0.05);
+}
+
+/** #abc → #aabbcc；非三位短格式原样返回。 */
+export function expandShortHex(value: string): string {
+  if (/^#[0-9a-fA-F]{3}$/.test(value)) {
+    return "#" + value.slice(1).split("").map((c) => c + c).join("");
+  }
+  return value;
+}
