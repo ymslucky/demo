@@ -10,6 +10,7 @@ import {
   BROWSER_STORAGE_KEY,
   browserStepArg,
   browserStepReady,
+  duplicateBrowserStep,
   makeBrowserStep,
   moveBrowserStep,
   normalizeBrowserPayload,
@@ -415,6 +416,17 @@ export default function BrowserPanel({ conversationId, post, mergeSnapshot, repo
                   <button
                     type="button"
                     style={smallBtnStyle}
+                    aria-label={t("browserDuplicateStep")}
+                    disabled={busy}
+                    onClick={() =>
+                      setStored((prev) => duplicateBrowserStep(normalizeBrowserSteps(prev) ?? [], step.id))
+                    }
+                  >
+                    ⧉
+                  </button>
+                  <button
+                    type="button"
+                    style={smallBtnStyle}
                     aria-label={t("browserMoveUp")}
                     disabled={busy || index === 0}
                     onClick={() =>
@@ -467,6 +479,16 @@ export default function BrowserPanel({ conversationId, post, mergeSnapshot, repo
               style={{ ...mutedStyle, marginLeft: "auto", whiteSpace: "nowrap" }}
             >
               {t("browserLiveView")}
+            </a>
+          ) : null}
+          {shot ? (
+            <a
+              className="btn btn--sm"
+              style={{ textDecoration: "none" }}
+              href={"data:image/png;base64," + shot}
+              download="sandbox-step.png"
+            >
+              {t("browserShotDownload")}
             </a>
           ) : null}
         </div>

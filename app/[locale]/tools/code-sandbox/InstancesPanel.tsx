@@ -22,6 +22,7 @@ import {
   type SortDirection,
 } from "./instances";
 import { formatDateTime, remainingMs, type SandboxInstanceRecord } from "./utils";
+import { CopyButton } from "../components/CopyButton";
 
 /**
  * 实例列表子页：Neo-Brutalism 表格组件，纯前端本地筛选（文本 / 状态 /
@@ -216,6 +217,18 @@ export default function InstancesPanel({ records, loading, error, onRefresh, now
             <option value="status">{t("instancesGroupStatus")}</option>
           </select>
         </span>
+        {filtersActive ? (
+          <Button
+            onClick={() => {
+              setText("");
+              setStatus("all");
+              setCreatedFrom("");
+              setCreatedTo("");
+            }}
+          >
+            {t("instancesClearFilters")}
+          </Button>
+        ) : null}
         <Button onClick={onRefresh} disabled={loading}>
           {loading ? t("instancesLoading") : t("instancesRefresh")}
         </Button>
@@ -331,7 +344,12 @@ function GroupBlock({ groupKey, groupRecords, grouped, now, statusLabel, groupNa
         const remaining = remainingMs(record.expiresAt, now);
         return (
           <tr key={record.instanceId}>
-            <td style={tdStyle}>{record.instanceId}</td>
+            <td style={tdStyle}>
+              <span style={{ display: "inline-flex", alignItems: "center", gap: "0.3rem" }}>
+                <span style={{ wordBreak: "break-all" }}>{record.instanceId}</span>
+                <CopyButton value={record.instanceId} />
+              </span>
+            </td>
             <td style={{ ...tdStyle, whiteSpace: "nowrap" }}>
               <span style={statusBadgeStyle(status)}>{statusLabel(status)}</span>
             </td>

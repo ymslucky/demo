@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   browserStepArg,
   browserStepReady,
+  duplicateBrowserStep,
   makeBrowserStep,
   moveBrowserStep,
   normalizeBrowserPayload,
@@ -9,6 +10,30 @@ import {
   removeBrowserStep,
   type BrowserStep,
 } from "./browser";
+
+describe("duplicateBrowserStep", () => {
+  const step = (over: Partial<BrowserStep>): BrowserStep => ({
+    ...makeBrowserStep("goto", "seed"),
+    ...over,
+  });
+
+  it("inserts a fresh-id copy right after the original", () => {
+    const steps = [step({ id: "a" }), step({ id: "b" })];
+    const next = duplicateBrowserStep(steps, "a");
+    expect(next).toHaveLength(3);
+    expect(next[0].id).toBe("a");
+    expect(next[1].id).not.toBe("a");
+    expect(next[1].op).toBe(steps[0].op);
+    expect(next[1].url).toBe(steps[0].url);
+    expect(next[2].id).toBe("b");
+    expect(steps).toHaveLength(2); // 原数组不变
+  });
+
+  it("is an identity no-op for unknown ids", () => {
+    const steps = [step({ id: "a" })];
+    expect(duplicateBrowserStep(steps, "ghost")).toBe(steps);
+  });
+});
 
 /** Unit coverage for the browser-workbench pure logic (moved from utils.test.ts). */
 

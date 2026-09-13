@@ -173,3 +173,13 @@ export function normalizeBrowserPayload(raw: unknown): BrowserPayload | null {
     error: typeof obj.error === "string" ? obj.error : "",
   };
 }
+/**
+ * Duplicate a step in place: a fresh-id copy is inserted directly after
+ * the original (identity no-op when the id is unknown).
+ */
+export function duplicateBrowserStep(steps: BrowserStep[], id: string): BrowserStep[] {
+  const index = steps.findIndex((step) => step.id === id);
+  if (index === -1) return steps;
+  const copy = { ...steps[index], id: randomId() };
+  return [...steps.slice(0, index + 1), copy, ...steps.slice(index + 1)];
+}
