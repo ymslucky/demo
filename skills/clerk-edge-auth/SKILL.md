@@ -5,11 +5,13 @@ description: "本仓库的 Clerk 认证知识：proxy.ts 中间件组合、Clerk
 
 # Clerk 边缘认证
 
-> **铁则**：边缘函数验证会话只认 §3 的八步清单；RS256 验签只用纯 JS `verifyRs256`——绝不"简化"回 `crypto.subtle.verify`。
+> **铁则**：边缘函数验证会话只认 §3 的八步清单；RS256 验签只用纯 JS `verifyRs256`（由 @lucky/auth-core 统一提供）——绝不"简化"回 `crypto.subtle.verify`。
 
-以下每条规则都可在源码中验证。标准实现在
-[functions/api/counter.js](../../functions/api/counter.js)；测试固定在
-[tests/functions.test.ts](../../tests/functions.test.ts)。
+以下每条规则都可在源码中验证。八步验签的标准实现收敛在 npm 包
+@lucky/auth-core（[shared/auth-core](../../shared/auth-core/)——todo.js /
+sandboxes.js / agents/code-run / app/lib/session.ts 三层 import 同一份）；
+验签矩阵测试固定在 [tests/auth-core.test.ts](../../tests/auth-core.test.ts)，
+集成与业务用例固定在 [tests/functions.test.ts](../../tests/functions.test.ts)。
 
 ## 1. 双认证层
 
@@ -36,9 +38,10 @@ clerkMiddleware()" → 500；本地 `next dev` 完全正常（纯环境差异，
    也是免 JWKS 获取 RTT 的性能余量。仅适用 RS256 实例；支持 `\n` 转义。
 2. **JWKS 通道（生产默认）**：token iss 命中白名单（`CLERK_ISSUER` 显式
    列表，或 `SITE_DOMAIN` 派生 `https://clerk.<apex>`——派生规则与边缘
-   函数逐字对齐，未配置默认 rdom.cn）→ jose `createRemoteJWKSet` 从该
-   iss 的公开端点 `<iss>/.well-known/jwks.json` 取公钥（模块级缓存 + kid
-   轮换自愈）+ `jwtVerify`（issuer/alg ES256+RS256/clockTolerance 5s）。
+   函数逐字对齐，未配置默认 rdom.cn）→ 包内 `verifySessionDetailed`
+   （@lucky/auth-core，八步逐关）从该 iss 的公开端点
+   `<iss>/.well-known/jwks.json` 取公钥（模块级缓存 + kid 未命中强制
+   刷新自愈；issuer 白名单 / alg ES256+RS256 / 5s 时钟容差由包逐关强制）。
    **存在理由**：verifyToken 的 SK 回源打 `api.clerk.com/v1/jwks`，生产
    环境出网不可达（线上 verify-failed 且摘要为空）——工具页边缘函数
    正是靠这条自定义域 JWKS 通道一直正常。安全关卡同边缘函数：JWKS URL
@@ -55,7 +58,8 @@ clerkMiddleware()" → 500；本地 `next dev` 完全正常（纯环境差异，
 注入或令牌未刷新）。**"一点击就跳首页"式静默失败是排障的头号敌人**——
 与边缘函数 `x-auth-fail` 响应头同一哲学。
 - **issuer / azp 的校验语义随通道而异**：JWKS 通道的 iss 白名单是**必需
-  关卡**（jose `issuer` 参数，验签时强制）——与边缘函数 §3.3 同理（防
+  关卡**（包内 `verifySessionDetailed` 的 `allowedIssuers` 参数，验签时
+  强制）——与边缘函数 §3.3 同理（防
   任意 iss + 自造 JWKS 伪造身份）。PEM / SK 通道签名绑定实例，iss 校验
   仅在 `CLERK_ISSUER` 显式设置时执行（claimsGate）。azp 在两处均为可选
   加固：`CLERK_AZP_ORIGINS` 设置时，azp 存在且不命中才拒绝（缺失放行
@@ -101,7 +105,10 @@ clerkMiddleware()" → 500；本地 `next dev` 完全正常（纯环境差异，
 
 ## 3. 会话 JWT 手动验签清单（官方流程）
 
-按 `verifyTokenDetailed`（[functions/api/todo.js](../../functions/api/todo.js)）实现：
+验签实现已收敛至 @lucky/auth-core 包（`verifySessionDetailed`，源在
+[shared/auth-core/verify.js](../../shared/auth-core/verify.js)；todo.js /
+sandboxes.js / agents / SSR 三层 import 同一份），本节保留八步清单语义与
+诊断契约：
 
 1. **解析** `__session` cookie 中的 JWT；格式非法 → 拒绝。
 2. **按 `header.alg` 分派**：只有 `ES256` 和 `RS256` 放行。Clerk 实例并不统一——
@@ -124,7 +131,9 @@ clerkMiddleware()" → 500；本地 `next dev` 完全正常（纯环境差异，
 
 **生产事故**：EdgeOne 边缘运行时的 `crypto.subtle` 不支持 RSA——所有 RS256
 `importKey`/`verify` 调用直接抛异常，线上表现为 `x-auth-fail: crypto`，而同一
-token 在本地 Node 验签正常（所以测试一直全绿）。因此：
+token 在本地 Node 验签正常（所以测试一直全绿）。`verifyRs256` /
+`verifyEs256` 均已收敛至 @lucky/auth-core（verify.js）——三层共用同一份
+实现，不再各自持有副本。因此：
 
 - **RS256** → `verifyRs256`：纯 JS 实现 RFC 8017 RSASSA-PKCS1-v1_5——BigInt
   `modPow`（`s^e mod n`，e=65537 仅 17 bit → 亚毫秒级）、EMSA-PKCS1-v1_5 填充块
@@ -147,12 +156,17 @@ parse | alg:<x> | iss | azp | nbf | exp | sts | kid | sig | crypto | no-cookie |
 
 ## 6. 测试契约
 
-[tests/functions.test.ts](../../tests/functions.test.ts) 用注入的 JWKS / crypto /
-`fetchJwks` 固定所有导出的纯逻辑（`verifyTokenDetailed`、`verifyRs256`、
-`isTokenFresh` 等）——不触真实网络。关键用例：issuer/azp 钉死、nbf/sts 关卡、
-kid 强制刷新，以及一条 **broken-subtle 回归**（crypto 桩：`importKey`/`verify`
-抛异常但 `digest` 可用——模拟边缘环境——RS256 仍须验签通过）。修改导出签名必须
-在同一提交中更新该测试。
+验签矩阵的单一真源测试在
+[tests/auth-core.test.ts](../../tests/auth-core.test.ts)：注入 JWKS / crypto /
+`fetchJwks` 固定 @lucky/auth-core 的全部验签导出（`verifySessionDetailed`、
+`verifyRs256`、`isTokenFresh` 等）——不触真实网络。关键用例：issuer/azp 钉死、
+nbf/sts 关卡、kid 强制刷新，以及一条 **broken-subtle 回归**（crypto 桩：
+`importKey`/`verify` 抛异常但 `digest` 可用——模拟边缘环境——RS256 仍须验签
+通过）。[tests/functions.test.ts](../../tests/functions.test.ts) 保留 re-export
+冒烟（钉住 todo.js 链路）与 todo 业务用例；
+[tests/session.test.ts](../../tests/session.test.ts) 固定 SSR 通道链。修改包
+导出签名必须在同一提交中核对 functions / agents / app 三处调用点并更新
+对应测试（见 AGENTS.md 同步表）。
 
 ## 7. 红旗信号
 

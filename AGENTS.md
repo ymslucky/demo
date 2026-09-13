@@ -42,7 +42,8 @@ UI 组件（客户端，零平台依赖）
   └─ app/lib/    —— Next SSR（会话验签通道、共享样式/RBAC）
 
 shared/auth-core/（npm 依赖包 @lucky/auth-core：跨层纯判定逻辑单一
-真源——issuer 派生 / azp / 角色名。三层以标准 import 复用：SSR 与
+真源——issuer 派生 / azp / 角色名；含八步验签核心（RS256 BigInt +
+ES256 + JWKS 缓存）——三层验签单一真源。三层以标准 import 复用：SSR 与
 agents 直接 import，边缘函数经 node_modules 解析（官方 @supabase
 示例背书）；file: 依赖随 npm install 就位，零构建步骤。）
 ```
@@ -114,7 +115,7 @@ npm run build  # next build --webpack；构建守卫：路由表必须出现 `ƒ
 3. **`app/**/*.ts(x)` 代码 CJK-free**：字符串字面量、JSX 文本、标识符不得含中日韩字符；注释中允许中文。由 `tests/i18n.test.ts` 强制——完整范围与机制见 `i18n-locale-routing` skill。
 4. **用户可见文案与 ARIA 标签一律走 next-intl**（`useTranslations` / `getTranslations`）。TSX 中硬编码含人类语言词的 `aria-label` 会让测试失败；机器专用属性豁免。
 5. **根布局是 `app/` 中唯一的 `<script>` 渲染者**——防 FOUC 主题脚本契约见 `neo-brutalism-ui` skill；由 `tests/theme-i18n.test.ts` 强制执行。
-6. **边缘函数中 RS256 绝不使用 Web Crypto**（边缘运行时缺 RSA——改用纯 JS `verifyRs256`）。完整验签清单见 `clerk-edge-auth` skill。
+6. **边缘函数中 RS256 绝不使用 Web Crypto**（边缘运行时缺 RSA——改用纯 JS `verifyRs256`；实现已收敛至 @lucky/auth-core 包，SSR / 边缘函数 / agents 三层共用同一份）。完整验签清单见 `clerk-edge-auth` skill。
 7. **禁止 HTML 边缘缓存**（页面含认证状态 UI → 跨用户缓存泄漏）。缓存规则见 `edgeone-functions-kv` skill。
 8. **`@swc/helpers` 固定在 `0.5.17`**，通过 `package.json` → `"overrides"`。只有验证 `next build --webpack` 与 `next dev --turbopack` 都能编译 App Router 之后才可升级。
 
@@ -170,7 +171,7 @@ npm run build  # next build --webpack；构建守卫：路由表必须出现 `ƒ
 | Clerk 密钥（绝不提交） | `.env.local` |
 | Clerk 组件主题化（`clerkAppearance` + `auth-*` 类） | `app/[locale]/layout.tsx` + [app/styles/clerk.css](app/styles/clerk.css) |
 | Presence 心跳（在线人数，KV） | [functions/api/presence.js](functions/api/presence.js) + [Presence.tsx](app/[locale]/components/Presence.tsx) |
-| TODO List（登录门控，KV；手动 JWT 验签，按账号隔离） | [functions/api/todo.js](functions/api/todo.js) + [TodoClient.tsx](app/[locale]/tools/todo-list/TodoClient.tsx) |
+| TODO List（登录门控，KV；JWT 验签走 @lucky/auth-core，按账号隔离） | [functions/api/todo.js](functions/api/todo.js) + [TodoClient.tsx](app/[locale]/tools/todo-list/TodoClient.tsx) |
 | http-check 调试端点 | [functions/api/echo.js](functions/api/echo.js) · [functions/api/headers.js](functions/api/headers.js) |
 | 边缘函数单元测试（假 KV、纯逻辑） | [tests/functions.test.ts](tests/functions.test.ts) |
 | RSS 订阅路由 | [app/feed.xml/route.ts](app/feed.xml/route.ts) |
