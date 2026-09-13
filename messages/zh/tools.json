@@ -108,6 +108,7 @@
       "undoDeleted": "已删除「{title}」",
       "undoAction": "撤销",
       "shortcutsHint": "快捷键：/ 搜索 · N 新建",
+      "statsFiltered": "当前统计范围：筛选结果 {count}/{total} 条",
       "deleteItem": "删除「{title}」",
       "editItem": "编辑「{title}」",
       "titleLabel": "标题",

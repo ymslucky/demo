@@ -108,6 +108,7 @@
       "undoDeleted": "Deleted \"{title}\"",
       "undoAction": "Undo",
       "shortcutsHint": "Shortcuts: / search · N new",
+      "statsFiltered": "Stats reflect the current filter: {count} of {total} todos",
       "deleteItem": "Delete “{title}”",
       "editItem": "Edit “{title}”",
       "titleLabel": "Title",

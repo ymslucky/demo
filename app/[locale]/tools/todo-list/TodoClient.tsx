@@ -845,16 +845,16 @@ function TodoPanel() {
     );
   }
 
-  const stats = statsSummary(items);
-  const rate = stats.total > 0 ? Math.round((stats.done / stats.total) * 100) : 0;
-  const trend = trend7Days(items, now);
-  const maxCount = Math.max(1, ...trend.map((bucket) => Math.max(bucket.added, bucket.completed)));
   const visibleItems = sortTodoItems(
     filterTodoItems(items, { query, status: statusFilter, now }),
     sortMode,
   );
   const sections = groupSections(visibleItems);
   const doneCount = items.filter((item) => item.done).length;
+  const stats = statsSummary(visibleItems);
+  const rate = stats.total > 0 ? Math.round((stats.done / stats.total) * 100) : 0;
+  const trend = trend7Days(visibleItems, now);
+  const maxCount = Math.max(1, ...trend.map((bucket) => Math.max(bucket.added, bucket.completed)));
 
   // 环形图几何常量：周长按半径推得，弧长按完成率截取。
   const donutRadius = 48;
@@ -1329,6 +1329,11 @@ function TodoPanel() {
         </div>
       ) : (
         <div role="tabpanel" id="todo-panel-stats" aria-labelledby="todo-tab-stats">
+          {query.trim() !== "" || statusFilter !== "all" ? (
+            <p className="todo-dnd-hint">
+              {t("statsFiltered", { count: visibleItems.length, total: items.length })}
+            </p>
+          ) : null}
           <div
             style={{
               display: "grid",

@@ -756,6 +756,16 @@ export default function CodeSandboxClient() {
                       ...terminalEntryStyle[entry.kind],
                     }}
                   >
+                    <span
+                      style={{
+                        opacity: 0.55,
+                        marginRight: "0.5rem",
+                        fontSize: "var(--fs-xs)",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {formatClock(entry.at)}
+                    </span>
                     {entry.text}
                   </div>
                 ))
