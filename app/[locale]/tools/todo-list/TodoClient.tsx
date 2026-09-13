@@ -896,6 +896,53 @@ function TodoPanel() {
     setUndo(null);
   }
 
+  // 工具栏（搜索 / 状态筛选 / 排序）：清单与看板两个视图共享同一控件与状态，
+  // 避免切换视图后筛选"消失"而实际仍在作用于数据的联动断裂。
+  const toolbarNode = (
+    <>
+      <input
+        type="search"
+        ref={searchRef}
+        className="todo-search"
+        value={query}
+        onChange={(event) => setQuery(event.target.value)}
+        placeholder={t("searchPlaceholder")}
+        aria-label={t("searchPlaceholder")}
+      />
+      <div className="todo-chip-row" role="group" aria-label={t("filterLabel")}>
+        {(
+          [
+            ["all", t("filterAll")],
+            ["active", t("filterActive")],
+            ["done", t("filterDone")],
+            ["overdue", t("filterOverdue")],
+          ] as const
+        ).map(([key, label]) => (
+          <button
+            key={key}
+            type="button"
+            className={statusFilter === key ? "todo-chip todo-chip--on" : "todo-chip"}
+            aria-pressed={statusFilter === key}
+            onClick={() => setStatusFilter(key)}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+      <select
+        className="todo-prio-select"
+        value={sortMode}
+        onChange={(event) => setSortMode(event.target.value as TodoSortMode)}
+        aria-label={t("sortLabel")}
+      >
+        <option value="manual">{t("sortManual")}</option>
+        <option value="due">{t("sortDue")}</option>
+        <option value="priority">{t("sortPriority")}</option>
+        <option value="created">{t("sortCreated")}</option>
+      </select>
+    </>
+  );
+
   return (
     <section style={cardStyle}>
       <div className="todo-tabs" role="tablist">
@@ -981,46 +1028,7 @@ function TodoPanel() {
           {items.length === 0 ? <p style={mutedStyle}>{t("empty")}</p> : null}
           {items.length > 0 ? (
             <div className="todo-toolbar">
-              <input
-                type="search"
-                ref={searchRef}
-                className="todo-search"
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-                placeholder={t("searchPlaceholder")}
-                aria-label={t("searchPlaceholder")}
-              />
-              <div className="todo-chip-row" role="group" aria-label={t("filterLabel")}>
-                {(
-                  [
-                    ["all", t("filterAll")],
-                    ["active", t("filterActive")],
-                    ["done", t("filterDone")],
-                    ["overdue", t("filterOverdue")],
-                  ] as const
-                ).map(([key, label]) => (
-                  <button
-                    key={key}
-                    type="button"
-                    className={statusFilter === key ? "todo-chip todo-chip--on" : "todo-chip"}
-                    aria-pressed={statusFilter === key}
-                    onClick={() => setStatusFilter(key)}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-              <select
-                className="todo-prio-select"
-                value={sortMode}
-                onChange={(event) => setSortMode(event.target.value as TodoSortMode)}
-                aria-label={t("sortLabel")}
-              >
-                <option value="manual">{t("sortManual")}</option>
-                <option value="due">{t("sortDue")}</option>
-                <option value="priority">{t("sortPriority")}</option>
-                <option value="created">{t("sortCreated")}</option>
-              </select>
+              {toolbarNode}
               <button
                 type="button"
                 className={selectMode ? "todo-chip todo-chip--on" : "todo-chip"}
@@ -1461,6 +1469,7 @@ function TodoPanel() {
       ) : tab === "board" ? (
         <div role="tabpanel" id="todo-panel-board" aria-labelledby="todo-tab-board">
           {items.length === 0 ? <p style={mutedStyle}>{t("empty")}</p> : null}
+          {items.length > 0 ? <div className="todo-toolbar">{toolbarNode}</div> : null}
           <div className="todo-board">
             {sections.map((section) => (
               <section
